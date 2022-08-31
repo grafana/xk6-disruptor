@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
 	"github.com/spf13/cobra"
 )
 
@@ -12,5 +13,6 @@ func main() {
 			"It can run as stand-alone process or in a container",
 	}
 
+	rootCmd.AddCommand(commands.BuildHttpCmd())
 	rootCmd.Execute()
 }
