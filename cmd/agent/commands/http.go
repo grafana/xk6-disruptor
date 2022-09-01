@@ -9,7 +9,7 @@ import (
 )
 
 func BuildHttpCmd() *cobra.Command {
-	d := &http.HttpDisruption{}
+	d := &http.HttpDisruptionRequest{}
 	c := &cobra.Command{
 		Use:   "http",
 		Short: "http disruptor",
@@ -25,8 +25,8 @@ func BuildHttpCmd() *cobra.Command {
 	c.Flags().UintVarP(&d.ErrorCode, "error", "e", 0, "error code")
 	c.Flags().Float32VarP(&d.ErrorRate, "rate", "r", 0, "error rate")
 	c.Flags().StringVarP(&d.Iface, "interface", "i", "eth0", "interface to disrupt")
-	c.Flags().UintVarP(&d.Port, "port", "p", 8080, "port the proxy will listen to")
-	c.Flags().UintVarP(&d.Target, "target", "t", 80, "port the proxy will redirect request to")
+	c.Flags().UintVarP(&d.ListeningPort, "port", "p", 8080, "port the proxy will listen to")
+	c.Flags().UintVarP(&d.TargetPort, "target", "t", 80, "port the proxy will redirect request to")
 	c.Flags().StringArrayVarP(&d.Excluded, "exclude", "x", []string{}, "path(s) to be excluded from disruption")
 
 	return c

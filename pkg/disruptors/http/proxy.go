@@ -14,20 +14,12 @@ import (
 // Proxy defines the parameters used by the proxy for processing http requests and its execution state
 type Proxy struct {
 	// Port to listen to
-	Port uint
-	// Port to redirect requests to
-	Target uint
-	// Average delay to introduce in requests
-	AverageDelay uint
-	// Variation (with respect of the average) of delays in requests
-	DelayVariation uint
-	// Ratio of requests (in the rage 0.0 to 1.0) of requests that will return error code
-	ErrorRate float32
-	// Http Error code that failed requests will return
-	ErrorCode uint
-	// List of url paths to be excluded from disruptions
-	Excluded []string
-	// Http server that runs the proxy
+	ListeningPort uint
+	// Port to redirect traffic to
+	TargetPort uint
+	// Specification of http disruption
+	HttpDisruption
+	// http server that handles proxy requests
 	srv *http.Server
 }
 
@@ -44,7 +36,7 @@ func contains(list []string, target string) bool {
 // Start starts the execution of the proxy
 func (p Proxy) Start() error {
 	// define origin server URL
-	originServerURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.Target))
+	originServerURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.TargetPort))
 	if err != nil {
 		return err
 	}
@@ -89,7 +81,7 @@ func (p Proxy) Start() error {
 	})
 
 	p.srv = &http.Server{
-		Addr:    fmt.Sprintf(":%d", p.Port),
+		Addr:    fmt.Sprintf(":%d", p.ListeningPort),
 		Handler: reverseProxy,
 	}
 
