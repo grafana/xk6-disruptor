@@ -1,10 +1,13 @@
-all: build-agent
+all: agent-image
 
 clean:
 	rm -rf bin/
 
 build-agent:
-	go build  -o bin/xk6-disruptor-agent ./cmd/agent
+	CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
+
+agent-image: build-agent test
+	docker build -t grafana/xk6-disruptor-agent images/agent
 
 format:
 	go fmt ./...
@@ -12,5 +15,4 @@ format:
 test:
 	go test -race  ./...
 
-
-.PHONY: clean build-agent format test
+.PHONY: agent-image build-agent clean format test
