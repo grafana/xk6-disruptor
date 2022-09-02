@@ -3,6 +3,8 @@ package http
 import (
 	"fmt"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/iptables"
 )
 
 // HttpDisruptionRequest specifies a http disruption requests
@@ -131,5 +133,45 @@ func (d *HttpDisruptionRequest) Run() error {
 		return err
 	}
 
-	return nil
+	// Start http proxy
+	p := Proxy{
+		ListeningPort:  d.ListeningPort,
+		TargetPort:     d.TargetPort,
+		HttpDisruption: d.HttpDisruption,
+	}
+
+	wc := make(chan error)
+	go func() {
+		wc <- p.Start()
+	}()
+
+	// Redirect traffic to the proxy
+	tr := iptables.TrafficRedirect{
+		Iface:           d.Iface,
+		DestinationPort: d.TargetPort,
+		RedirectPort:    d.ListeningPort,
+	}
+	err = tr.Redirect()
+	if err != nil {
+		return fmt.Errorf(" failed traffic redirection: %s", err)
+	}
+
+	// On termination, restore traffic and stop proxy
+	defer func() {
+		tr.Restore()
+		p.Stop()
+	}()
+
+	// wait for request duration or proxy server error
+	for {
+		select {
+		case err := <-wc:
+			if err != nil {
+				return fmt.Errorf(" proxy ended with error: %s", err)
+
+			}
+		case <-time.After(d.Duration):
+			return nil
+		}
+	}
 }
