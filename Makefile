@@ -15,4 +15,7 @@ format:
 test:
 	go test -race  ./...
 
-.PHONY: agent-image build-agent clean format test
+e2e:
+	go test -tags e2e ./...
+
+.PHONY: agent-image build-agent clean e2e format test
