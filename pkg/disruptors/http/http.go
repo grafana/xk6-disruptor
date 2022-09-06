@@ -1,3 +1,9 @@
+// Package http implements an disruptor for http requests.
+// The disruptor runs as a proxy, redirecting the traffic from
+// a target defined in [HttpDisruptionTarget] using iptables.
+// The intercepted requests are forwarded to the target and optionally are
+// disrupted according to the disruption options defined in [HttpDisruption].
+// The configuration of the proxy is defined in the [HttpProxyConfig].
 package http
 
 import (
@@ -49,7 +55,6 @@ type HttpDisruptionTarget struct {
 // NewHttpDisruptionRequest created a HttpDisruptionRequest with valid default values.
 // This defaults are safe: calling Run using the default values has no effect.
 func NewHttpDisruptionRequest() *HttpDisruptionRequest {
-
 	return &HttpDisruptionRequest{
 		Duration: time.Second * 1,
 		HttpDisruptionTarget: HttpDisruptionTarget{
@@ -94,6 +99,7 @@ func validateHttpDisruptionTarget(d HttpDisruptionTarget) error {
 	return nil
 }
 
+// validateHttpProxyConfig validates a HttpProxyConfig
 func validateHttpProxyConfig(c HttpProxyConfig) error {
 	if c.ListeningPort == 0 {
 		return fmt.Errorf("proxy's listening port must be valid tcp port")
@@ -125,9 +131,8 @@ func (d *HttpDisruptionRequest) validate() error {
 	return nil
 }
 
-// run applies the HttpDisruption to the target system
+// Run applies the HttpDisruption to the target system
 func (d *HttpDisruptionRequest) Run() error {
-
 	err := d.validate()
 	if err != nil {
 		return err
@@ -162,7 +167,7 @@ func (d *HttpDisruptionRequest) Run() error {
 		p.Stop()
 	}()
 
-	// wait for request duration or proxy server error
+	// Wait for request duration or proxy server error
 	for {
 		select {
 		case err := <-wc:
