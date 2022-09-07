@@ -12,9 +12,11 @@ package cluster
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -69,6 +71,16 @@ const portConfig = `
     listenAddress: "0.0.0.0"
     protocol: tcp`
 
+// try to bind to host port to check availability
+func checkHostPort(port int) error {
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		return fmt.Errorf("host port is not available %d", port)
+	}
+	l.Close()
+	return nil
+}
+
 func buildClusterConfig(options ClusterOptions) (string, error) {
 	if options.Config != "" {
 		return options.Config, nil
@@ -78,6 +90,10 @@ func buildClusterConfig(options ClusterOptions) (string, error) {
 	config.WriteString(baseConfig)
 
 	for _, np := range options.NodePorts {
+		err := checkHostPort(np.HostPort)
+		if err != nil {
+			return "", err
+		}
 		fmt.Fprintf(&config, portConfig, np.NodePort, np.HostPort)
 	}
 
