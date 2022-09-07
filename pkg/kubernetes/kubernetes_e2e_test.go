@@ -5,6 +5,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -18,10 +19,17 @@ const clusterName = "e2e-kubernetes"
 var kubeconfig string
 
 func TestMain(m *testing.M) {
+	// create cluster exposing node port 32080 on host port 9080
 	c, err := cluster.CreateCluster(
 		clusterName,
 		cluster.ClusterOptions{
 			Wait: time.Second * 60,
+			NodePorts: []cluster.NodePort{
+				{
+					HostPort: 9080,
+					NodePort: 32080,
+				},
+			},
 		},
 	)
 	if err != nil {
@@ -53,6 +61,37 @@ spec:
     image: busybox
 `
 
+const nginxManifest = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: default
+  labels:
+    app: e2e-test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+`
+
+// expose nginx pod at the node port 32080
+const serviceManifest = `
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: NodePort
+  ports:
+  - name: "http"
+    port: 80
+    nodePort: 32080
+    targetPort: 80
+  selector:
+    app: e2e-test
+`
+
 func Test_CreateGetDeletePod(t *testing.T) {
 	k8s, err := NewFromKubeconfig(kubeconfig)
 	if err != nil {
@@ -76,6 +115,40 @@ func Test_CreateGetDeletePod(t *testing.T) {
 	err = k8s.Delete("Pod", "busybox", "default")
 	if err != nil {
 		t.Errorf("failed to delete pod: %v", err)
+		return
+	}
+}
+
+func Test_WaitServiceReady(t *testing.T) {
+	k8s, err := NewFromKubeconfig(kubeconfig)
+	if err != nil {
+		t.Errorf("error creating kubernetes client: %v", err)
+		return
+	}
+
+	err = k8s.Create(nginxManifest)
+	if err != nil {
+		t.Errorf("failed to create pod: %v", err)
+		return
+	}
+
+	err = k8s.Create(serviceManifest)
+	if err != nil {
+		t.Errorf("failed to create service: %v", err)
+		return
+	}
+
+	// wait for the service to be ready for accepting requests
+	err = k8s.Helpers().WaitServiceReady("nginx", time.Second*20)
+	if err != nil {
+		t.Errorf("error waiting for service nginx: %v", err)
+		return
+	}
+
+	// access service using the local port on which the service was exposed (see ClusterOptions)
+	_, err = http.Get("http://127.0.0.1:9080")
+	if err != nil {
+		t.Errorf("failed to access service: %v", err)
 		return
 	}
 }

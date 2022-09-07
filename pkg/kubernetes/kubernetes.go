@@ -5,6 +5,8 @@ package kubernetes
 import (
 	"context"
 
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,6 +28,8 @@ type Kubernetes interface {
 	Create(manifest string) error
 	Get(kind string, name string, namespace string, obj runtime.Object) error
 	Delete(kind string, name string, namespace string) error
+	Helpers() helpers.Helpers
+	NamespacedHelpers(namespace string) helpers.Helpers
 }
 
 // k8s Holds the reference to the helpers for interacting with kubernetes
@@ -153,4 +157,20 @@ func (k *k8s) Delete(kind string, name string, namespace string) error {
 		Delete(k.ctx, name, metav1.DeleteOptions{})
 
 	return err
+}
+
+// Helpers returns Helpers for the default namespace
+func (k *k8s) Helpers() helpers.Helpers {
+	return helpers.NewHelper(
+		k.Interface,
+		"default",
+	)
+}
+
+// NamespacedHelpers returns helpers for the given namespace
+func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
+	return helpers.NewHelper(
+		k.Interface,
+		namespace,
+	)
 }
