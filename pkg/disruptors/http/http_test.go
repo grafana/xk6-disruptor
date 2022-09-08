@@ -9,151 +9,217 @@ func Test_Validations(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		title       string
-		disruption  HttpDisruptionRequest
+		duration    time.Duration
+		target      HttpDisruptionTarget
+		disruption  HttpDisruption
+		config      HttpDisruptorConfig
 		expectError bool
 	}{
 		{
-			title: "valid defaults",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   0,
-					DelayVariation: 0,
-					ErrorRate:      0.0,
-					ErrorCode:      0,
-					Excluded:       nil,
-				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			title:    "valid defaults",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: false,
 		},
 		{
-			title: "duration under 1s",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Microsecond * 100,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   0,
-					DelayVariation: 0,
-					ErrorRate:      0.0,
-					ErrorCode:      0,
-					Excluded:       nil,
+			title:    "invalid listening port",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
+					ListeningPort: 0,
 				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			},
+			expectError: true,
+		},
+		{
+			title:    "invalid target port",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 0,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: true,
 		},
 		{
-			title: "variation larger than average delay",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   100,
-					DelayVariation: 200,
-					ErrorRate:      0.0,
-					ErrorCode:      0,
-					Excluded:       nil,
-				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			title:    "target port equals listening port",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 8080,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: true,
 		},
 		{
-			title: "valid error rate",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   0,
-					DelayVariation: 0,
-					ErrorRate:      0.1,
-					ErrorCode:      500,
-					Excluded:       nil,
+			title:    "missing target iface",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
+					ListeningPort: 8080,
 				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
+			},
+			expectError: true,
+		},
+		{
+			title:    "variation larger than average delay",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   100,
+				DelayVariation: 200,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
+					ListeningPort: 8080,
 				},
-				HttpProxyConfig: HttpProxyConfig{
+			},
+			expectError: true,
+		},
+		{
+			title:    "valid error rate",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.1,
+				ErrorCode:      500,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: false,
 		},
 		{
-			title: "valid delay and variation",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   100,
-					DelayVariation: 10,
-					ErrorRate:      0.0,
-					ErrorCode:      0,
-					Excluded:       nil,
-				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			title:    "valid delay and variation",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   100,
+				DelayVariation: 10,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: false,
 		},
 		{
-			title: "invalid error code",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   0,
-					DelayVariation: 0,
-					ErrorRate:      1.0,
-					ErrorCode:      0,
-					Excluded:       nil,
-				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			title:    "invalid error code",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
 			expectError: true,
 		},
 		{
-			title: "negative error rate",
-			disruption: HttpDisruptionRequest{
-				Duration: time.Second * 1,
-				HttpDisruption: HttpDisruption{
-					AverageDelay:   0,
-					DelayVariation: 0,
-					ErrorRate:      -1.0,
-					ErrorCode:      0,
-					Excluded:       nil,
-				},
-				HttpDisruptionTarget: HttpDisruptionTarget{
-					Iface:      "eth0",
-					TargetPort: 80,
-				},
-				HttpProxyConfig: HttpProxyConfig{
+			title:    "negative error rate",
+			duration: time.Second * 1,
+			disruption: HttpDisruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      -1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			target: HttpDisruptionTarget{
+				Iface:      "eth0",
+				TargetPort: 80,
+			},
+			config: HttpDisruptorConfig{
+				ProxyConfig: HttpProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -163,7 +229,11 @@ func Test_Validations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			err := tc.disruption.validate()
+			_, err := NewHttpDisruptor(
+				tc.target,
+				tc.disruption,
+				tc.config,
+			)
 			if !tc.expectError && err != nil {
 				t.Errorf("failed: %v", err)
 			}

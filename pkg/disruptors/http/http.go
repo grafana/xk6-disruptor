@@ -3,7 +3,7 @@
 // a target defined in [HttpDisruptionTarget] using iptables.
 // The intercepted requests are forwarded to the target and optionally are
 // disrupted according to the disruption options defined in [HttpDisruption].
-// The configuration of the proxy is defined in the [HttpProxyConfig].
+// The configuration of the proxy is defined in the [HttpDisruptorConfig].
 package http
 
 import (
@@ -13,16 +13,9 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
 )
 
-// HttpDisruptionRequest specifies a http disruption requests
-type HttpDisruptionRequest struct {
-	// Duration of the disruption. Must be at least 1s
-	Duration time.Duration
-	// Target of the disruption
-	HttpDisruptionTarget
-	// Description of the http disruption
-	HttpDisruption
-	// Configuration of the proxy
-	HttpProxyConfig
+// HttpDisruptor defines the interface disruptor of http requests
+type HttpDisruptor interface {
+	Apply(duration time.Duration) error
 }
 
 // HttpDisruption specifies disruptions in http requests
@@ -39,12 +32,12 @@ type HttpDisruption struct {
 	Excluded []string
 }
 
-// ProxyConfig specifies the configuration for the http proxy
-type HttpProxyConfig struct {
-	// Port on which the proxy will be running
-	ListeningPort uint
+// HttpDisruptorConfig defines the configuration options for the HttpDisruptor
+type HttpDisruptorConfig struct {
+	ProxyConfig HttpProxyConfig
 }
 
+// HttpDisruptionTarget defines the target of the disruptions
 type HttpDisruptionTarget struct {
 	// Destination port to intercept traffic
 	TargetPort uint
@@ -52,25 +45,19 @@ type HttpDisruptionTarget struct {
 	Iface string
 }
 
-// NewHttpDisruptionRequest created a HttpDisruptionRequest with valid default values.
-// This defaults are safe: calling Run using the default values has no effect.
-func NewHttpDisruptionRequest() *HttpDisruptionRequest {
-	return &HttpDisruptionRequest{
-		Duration: time.Second * 1,
-		HttpDisruptionTarget: HttpDisruptionTarget{
-			TargetPort: 80,
-		},
-		HttpDisruption: HttpDisruption{
-			AverageDelay:   0,
-			DelayVariation: 0,
-			ErrorRate:      0.0,
-			ErrorCode:      0,
-			Excluded:       nil,
-		},
-		HttpProxyConfig: HttpProxyConfig{
-			ListeningPort: 8080,
-		},
-	}
+// httpDisruptor is an instance of a HttpDisruptor that applies a disruption
+// to a target
+type httpDisruptor struct {
+	// Target of the disruption
+	target HttpDisruptionTarget
+	// Description of the disruption
+	disruption HttpDisruption
+	// Description of the http disruptor
+	config HttpDisruptorConfig
+	// HttpProxy
+	proxy HttpProxy
+	// TrafficRedirect
+	redirector iptables.TrafficRedirect
 }
 
 // validateHttpDisruption validates a HttpDisruption struct
@@ -96,75 +83,87 @@ func validateHttpDisruptionTarget(d HttpDisruptionTarget) error {
 		return fmt.Errorf("target port must be valid tcp port")
 	}
 
+	if d.Iface == "" {
+		return fmt.Errorf("disruption target must specify an interface")
+	}
+
 	return nil
 }
 
-// validateHttpProxyConfig validates a HttpProxyConfig
-func validateHttpProxyConfig(c HttpProxyConfig) error {
-	if c.ListeningPort == 0 {
-		return fmt.Errorf("proxy's listening port must be valid tcp port")
-	}
-	return nil
+// NewDefaultHttpDisruptor creates a HttpDisruptor with valid default configuration.
+func NewDefaultHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption) (HttpDisruptor, error) {
+	return NewHttpDisruptor(
+		target,
+		disruption,
+		HttpDisruptorConfig{
+			ProxyConfig: HttpProxyConfig{
+				ListeningPort: 8080,
+			},
+		},
+	)
 }
 
-func (d *HttpDisruptionRequest) validate() error {
-	duration := int(d.Duration.Seconds())
-	if duration < 1 {
-		return fmt.Errorf("duration must be at least one second")
-	}
-
-	err := validateHttpDisruption(d.HttpDisruption)
+// NewHttpDisruptor creates a new instance of a HttpDisruptor that applies a disruptions to a target
+// The configuration controls how the disruptor operates.
+func NewHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption, config HttpDisruptorConfig) (HttpDisruptor, error) {
+	err := validateHttpDisruption(disruption)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = validateHttpProxyConfig(d.HttpProxyConfig)
+	err = validateHttpDisruptionTarget(target)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = validateHttpDisruptionTarget(d.HttpDisruptionTarget)
+	proxyTarget := HttpProxyTarget{
+		Port: target.TargetPort,
+	}
+	proxy, err := NewHttpProxy(
+		proxyTarget,
+		disruption,
+		config.ProxyConfig,
+	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// Redirect traffic to the proxy
+	tr := iptables.TrafficRedirect{
+		Iface:           target.Iface,
+		DestinationPort: target.TargetPort,
+		RedirectPort:    config.ProxyConfig.ListeningPort,
+	}
+
+	return &httpDisruptor{
+		target:     target,
+		disruption: disruption,
+		config:     config,
+		proxy:      proxy,
+		redirector: tr,
+	}, nil
 }
 
 // Run applies the HttpDisruption to the target system
-func (d *HttpDisruptionRequest) Run() error {
-	err := d.validate()
-	if err != nil {
-		return err
-	}
-
-	// Start http proxy
-	p := Proxy{
-		ListeningPort:  d.ListeningPort,
-		TargetPort:     d.TargetPort,
-		HttpDisruption: d.HttpDisruption,
+func (d *httpDisruptor) Apply(duration time.Duration) error {
+	if duration < time.Second {
+		return fmt.Errorf("duration must be at least one second")
 	}
 
 	wc := make(chan error)
 	go func() {
-		wc <- p.Start()
+		wc <- d.proxy.Start()
 	}()
 
-	// Redirect traffic to the proxy
-	tr := iptables.TrafficRedirect{
-		Iface:           d.Iface,
-		DestinationPort: d.TargetPort,
-		RedirectPort:    d.ListeningPort,
-	}
-	err = tr.Redirect()
+	err := d.redirector.Redirect()
 	if err != nil {
 		return fmt.Errorf(" failed traffic redirection: %s", err)
 	}
 
 	// On termination, restore traffic and stop proxy
 	defer func() {
-		tr.Restore()
-		p.Stop()
+		d.redirector.Restore()
+		d.proxy.Stop()
 	}()
 
 	// Wait for request duration or proxy server error
@@ -175,7 +174,7 @@ func (d *HttpDisruptionRequest) Run() error {
 				return fmt.Errorf(" proxy ended with error: %s", err)
 
 			}
-		case <-time.After(d.Duration):
+		case <-time.After(duration):
 			return nil
 		}
 	}

@@ -11,16 +11,48 @@ import (
 	"time"
 )
 
-// Proxy defines the parameters used by the proxy for processing http requests and its execution state
-type Proxy struct {
-	// Port to listen to
+// Defines an interface for a proxy
+type HttpProxy interface {
+	Start() error
+	Stop() error
+	Force() error
+}
+
+// ProxyConfig specifies the configuration for the http proxy
+type HttpProxyConfig struct {
+	// Port on which the proxy will be running
 	ListeningPort uint
+}
+
+// HttpProxyTarget defines the upstream target  to forward requests to
+type HttpProxyTarget struct {
 	// Port to redirect traffic to
-	TargetPort uint
-	// Specification of http disruption
-	HttpDisruption
-	// http server that handles proxy requests
-	srv *http.Server
+	Port uint
+}
+
+// Proxy defines the parameters used by the proxy for processing http requests and its execution state
+type proxy struct {
+	config     HttpProxyConfig
+	target     HttpProxyTarget
+	disruption HttpDisruption
+	srv        *http.Server
+}
+
+// NewProxy return a new HttpProxy
+func NewHttpProxy(target HttpProxyTarget, disruption HttpDisruption, config HttpProxyConfig) (HttpProxy, error) {
+	if config.ListeningPort == 0 {
+		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")
+	}
+
+	if target.Port == config.ListeningPort {
+		return nil, fmt.Errorf("target port and listening port cannot be the same")
+	}
+
+	return &proxy{
+		target:     target,
+		disruption: disruption,
+		config:     config,
+	}, nil
 }
 
 // contains verifies if a list of strings contains the given string
@@ -34,9 +66,8 @@ func contains(list []string, target string) bool {
 }
 
 // Start starts the execution of the proxy
-func (p Proxy) Start() error {
-	// define origin server URL
-	originServerURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.TargetPort))
+func (p *proxy) Start() error {
+	originServerURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.target.Port))
 	if err != nil {
 		return err
 	}
@@ -45,11 +76,11 @@ func (p Proxy) Start() error {
 		statusCode := 0
 		body := io.NopCloser(strings.NewReader(""))
 
-		excluded := contains(p.Excluded, req.URL.Path)
+		excluded := contains(p.disruption.Excluded, req.URL.Path)
 
-		if !excluded && p.ErrorRate > 0 && rand.Float32() <= p.ErrorRate {
+		if !excluded && p.disruption.ErrorRate > 0 && rand.Float32() <= p.disruption.ErrorRate {
 			// force error code
-			statusCode = int(p.ErrorCode)
+			statusCode = int(p.disruption.ErrorCode)
 		} else {
 			req.Host = originServerURL.Host
 			req.URL.Host = originServerURL.Host
@@ -66,10 +97,10 @@ func (p Proxy) Start() error {
 			body = originServerResponse.Body
 		}
 
-		if !excluded && p.AverageDelay > 0 {
-			delay := int(p.AverageDelay)
-			if p.DelayVariation > 0 {
-				delay = delay + int(p.DelayVariation) - 2*rand.Intn(int(p.DelayVariation))
+		if !excluded && p.disruption.AverageDelay > 0 {
+			delay := int(p.disruption.AverageDelay)
+			if p.disruption.DelayVariation > 0 {
+				delay = delay + int(p.disruption.DelayVariation) - 2*rand.Intn(int(p.disruption.DelayVariation))
 			}
 			time.Sleep(time.Duration(delay) * time.Millisecond)
 		}
@@ -81,7 +112,7 @@ func (p Proxy) Start() error {
 	})
 
 	p.srv = &http.Server{
-		Addr:    fmt.Sprintf(":%d", p.ListeningPort),
+		Addr:    fmt.Sprintf(":%d", p.config.ListeningPort),
 		Handler: reverseProxy,
 	}
 
@@ -89,7 +120,7 @@ func (p Proxy) Start() error {
 }
 
 // Stop stops the execution of the proxy
-func (p Proxy) Stop() error {
+func (p *proxy) Stop() error {
 	if p.srv != nil {
 		return p.srv.Shutdown(context.Background())
 	}
@@ -97,7 +128,7 @@ func (p Proxy) Stop() error {
 }
 
 // Force stops the proxy without waiting for connections to drain
-func (p Proxy) Force() error {
+func (p *proxy) Force() error {
 	if p.srv != nil {
 		return p.srv.Close()
 	}
