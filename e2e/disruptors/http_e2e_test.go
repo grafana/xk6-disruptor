@@ -1,7 +1,7 @@
 //go:build e2e
 // +build e2e
 
-package http
+package e2e
 
 import (
 	"fmt"

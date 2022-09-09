@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -99,7 +101,7 @@ spec:
 `
 
 func Test_CreateGetDeletePod(t *testing.T) {
-	k8s, err := NewFromKubeconfig(kubeconfig)
+	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -126,7 +128,7 @@ func Test_CreateGetDeletePod(t *testing.T) {
 }
 
 func Test_WaitServiceReady(t *testing.T) {
-	k8s, err := NewFromKubeconfig(kubeconfig)
+	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return

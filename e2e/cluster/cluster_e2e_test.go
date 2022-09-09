@@ -1,13 +1,15 @@
 //go:build e2e
 // +build e2e
 
-package cluster
+package e2e
 
 import (
 	"context"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,9 +19,9 @@ import (
 
 func Test_DefaultConfig(t *testing.T) {
 	// create cluster with default configuration
-	config, err := NewClusterConfig(
+	config, err := cluster.NewClusterConfig(
 		"e2e-default-cluster",
-		ClusterOptions{
+		cluster.ClusterOptions{
 			Wait: time.Second * 60,
 		},
 	)
@@ -80,9 +82,9 @@ func Test_PreloadImages(t *testing.T) {
 	}
 
 	// create cluster with preloaded images
-	config, err := NewClusterConfig(
+	config, err := cluster.NewClusterConfig(
 		"e2e-cluster-with-images",
-		ClusterOptions{
+		cluster.ClusterOptions{
 			Wait:   time.Second * 60,
 			Images: []string{"busybox"},
 		},

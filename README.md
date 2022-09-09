@@ -105,3 +105,4 @@ func Test(t *testing.T) {
 }
 ```
 
+> Some e2e tests require ports exposed from the test cluster to the host where the test is running. This may cause interference between tests that make a test fail with the following message `failed to create cluster: host port is not available 32080`. If this happens deleting any remaining test cluster and retrying the failed test alone will generally solve this issue.
