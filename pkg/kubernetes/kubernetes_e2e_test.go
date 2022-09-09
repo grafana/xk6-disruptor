@@ -20,7 +20,7 @@ var kubeconfig string
 
 func TestMain(m *testing.M) {
 	// create cluster exposing node port 32080 on host port 9080
-	c, err := cluster.CreateCluster(
+	config, err := cluster.NewClusterConfig(
 		clusterName,
 		cluster.ClusterOptions{
 			Wait: time.Second * 60,
@@ -33,18 +33,24 @@ func TestMain(m *testing.M) {
 		},
 	)
 	if err != nil {
+		fmt.Printf("failed to create cluster config: %v", err)
+		os.Exit(1)
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
 		fmt.Printf("failed to create cluster: %v", err)
 		os.Exit(1)
 	}
 
 	// retrieve path to kubeconfig
-	kubeconfig, _ = c.Kubeconfig()
+	kubeconfig, _ = cluster.Kubeconfig()
 
 	// run tests
 	rc := m.Run()
 
 	// delete cluster
-	c.Delete()
+	cluster.Delete()
 
 	os.Exit(rc)
 }

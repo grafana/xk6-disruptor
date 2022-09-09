@@ -17,20 +17,25 @@ import (
 
 func Test_DefaultConfig(t *testing.T) {
 	// create cluster with default configuration
-	c, err := CreateCluster(
+	config, err := NewClusterConfig(
 		"e2e-default-cluster",
 		ClusterOptions{
 			Wait: time.Second * 60,
 		},
 	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
 
+	cluster, err := config.Create()
 	if err != nil {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
 
 	// delete cluster
-	c.Delete()
+	cluster.Delete()
 }
 
 func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
@@ -75,7 +80,7 @@ func Test_PreloadImages(t *testing.T) {
 	}
 
 	// create cluster with preloaded images
-	c, err := CreateCluster(
+	config, err := NewClusterConfig(
 		"e2e-cluster-with-images",
 		ClusterOptions{
 			Wait:   time.Second * 60,
@@ -83,13 +88,19 @@ func Test_PreloadImages(t *testing.T) {
 		},
 	)
 	if err != nil {
+		t.Errorf("failed to create cluster config: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
 
-	defer c.Delete()
+	defer cluster.Delete()
 
-	kubeconfig, err := c.Kubeconfig()
+	kubeconfig, err := cluster.Kubeconfig()
 	if err != nil {
 		t.Errorf("failed to retrieve kubeconfig: %v", err)
 		return

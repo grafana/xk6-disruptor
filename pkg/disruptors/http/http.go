@@ -57,7 +57,7 @@ type httpDisruptor struct {
 	// HttpProxy
 	proxy HttpProxy
 	// TrafficRedirect
-	redirector iptables.TrafficRedirect
+	redirector iptables.TrafficRedirector
 }
 
 // validateHttpDisruption validates a HttpDisruption struct
@@ -129,10 +129,14 @@ func NewHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption, co
 	}
 
 	// Redirect traffic to the proxy
-	tr := iptables.TrafficRedirect{
+	tr := iptables.TrafficRedirectionSpec{
 		Iface:           target.Iface,
 		DestinationPort: target.TargetPort,
 		RedirectPort:    config.ProxyConfig.ListeningPort,
+	}
+	redirector, err := iptables.NewTrafficRedirector(&tr)
+	if err != nil {
+		return nil, err
 	}
 
 	return &httpDisruptor{
@@ -140,7 +144,7 @@ func NewHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption, co
 		disruption: disruption,
 		config:     config,
 		proxy:      proxy,
-		redirector: tr,
+		redirector: redirector,
 	}, nil
 }
 
@@ -155,14 +159,14 @@ func (d *httpDisruptor) Apply(duration time.Duration) error {
 		wc <- d.proxy.Start()
 	}()
 
-	err := d.redirector.Redirect()
+	err := d.redirector.Start()
 	if err != nil {
 		return fmt.Errorf(" failed traffic redirection: %s", err)
 	}
 
 	// On termination, restore traffic and stop proxy
 	defer func() {
-		d.redirector.Restore()
+		d.redirector.Stop()
 		d.proxy.Stop()
 	}()
 

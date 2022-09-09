@@ -4,21 +4,19 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-)
 
-// FIXME: private methods are tested because the public methods
-// call os.exec methods to start processes. There is no easy way
-// to mock these methods.
+	"github.com/grafana/xk6-disruptor/pkg/utils/process"
+)
 
 func Test_validateTrafficRedirect(t *testing.T) {
 	TestCases := []struct {
 		title       string
-		redirect    TrafficRedirect
+		redirect    TrafficRedirectionSpec
 		expectError bool
 	}{
 		{
 			title: "Valid redirect",
-			redirect: TrafficRedirect{
+			redirect: TrafficRedirectionSpec{
 				Iface:           "eth0",
 				DestinationPort: 80,
 				RedirectPort:    8080,
@@ -27,7 +25,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		},
 		{
 			title: "Ports not specified",
-			redirect: TrafficRedirect{
+			redirect: TrafficRedirectionSpec{
 				Iface:           "eth0",
 				DestinationPort: 0,
 				RedirectPort:    0,
@@ -36,7 +34,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		},
 		{
 			title: "destination equals redirect port",
-			redirect: TrafficRedirect{
+			redirect: TrafficRedirectionSpec{
 				Iface:           "eth0",
 				DestinationPort: 80,
 				RedirectPort:    80,
@@ -45,7 +43,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		},
 		{
 			title: "Invalid iface",
-			redirect: TrafficRedirect{
+			redirect: TrafficRedirectionSpec{
 				Iface:           "",
 				DestinationPort: 80,
 				RedirectPort:    8080,
@@ -57,8 +55,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	for _, tc := range TestCases {
 
 		t.Run(tc.title, func(t *testing.T) {
-			err := tc.redirect.validate()
-
+			_, err := NewTrafficRedirector(&tc.redirect)
 			if tc.expectError && err == nil {
 				t.Errorf("error expected but none returned")
 			}
@@ -70,107 +67,147 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 }
 
-// tests the construction of reset commands from a valid TrafficRedirect
-func Test_buildRedirectCommand(t *testing.T) {
+func Test_Start(t *testing.T) {
 	TestCases := []struct {
-		title    string
-		redirect TrafficRedirect
-		action   action
+		title       string
+		redirect    TrafficRedirectionSpec
+		expectError bool
 	}{
 		{
-			title: "Add redirect",
-			redirect: TrafficRedirect{
+			title: "Start valid redirect",
+			redirect: TrafficRedirectionSpec{
 				Iface:           "eth0",
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			action: ADD,
-		},
-		{
-			title: "Delete redirect",
-			redirect: TrafficRedirect{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			action: DELETE,
+			expectError: false,
 		},
 	}
 
 	for _, tc := range TestCases {
 		t.Run(tc.title, func(t *testing.T) {
-			cmd := tc.redirect.buildRedirectCmd(tc.action)
-			if cmd == nil {
+			executor := process.NewFakeProcessExecutor([]byte{}, nil)
+			config := TrafficRedirectorConfig{
+				Executor: executor,
+			}
+			redirector, err := newTrafficRedirectorWithConfig(&tc.redirect, config)
+			if err != nil {
+				t.Errorf("failed creating traffic redirector with error %v", err)
+				return
+			}
+
+			err = redirector.Start()
+			if !tc.expectError && err != nil {
+				t.Errorf("failed with error %v", err)
+				return
+			}
+
+			if executor.Invocations() != 2 {
+				t.Errorf("expected 2 invocations but %d executed", executor.Invocations())
+				return
+			}
+
+			if executor.Cmd() == "" {
 				t.Errorf("command expected but none returned")
 				return
 			}
 
-			if !strings.ContainsAny(cmd.String(), string(tc.action)) {
+			cmdRedirect := executor.CmdHistory()[0]
+			cmdReset := executor.CmdHistory()[1]
+
+			if !strings.Contains(cmdRedirect, "-A") {
 				t.Errorf("invalid iptables action")
 				return
 			}
 
-			destination := fmt.Sprintf("--dport %d", tc.redirect.DestinationPort)
-			if !strings.ContainsAny(cmd.String(), destination) {
+			destination := fmt.Sprintf("--dport %d ", tc.redirect.DestinationPort)
+			if !strings.Contains(cmdRedirect, destination) {
+				t.Errorf("invalid iptables destination for redirect")
+				return
+			}
+
+			redirect := fmt.Sprintf("--to-port %d ", tc.redirect.DestinationPort)
+			if !strings.ContainsAny(cmdRedirect, redirect) {
 				t.Errorf("invalid iptables destination")
 				return
 			}
 
-			redirect := fmt.Sprintf("--to-port %d", tc.redirect.DestinationPort)
-			if !strings.ContainsAny(cmd.String(), redirect) {
-				t.Errorf("invalid iptables destination")
+			if !strings.Contains(cmdReset, destination) {
+				t.Errorf("invalid iptables destination for redirect")
 				return
 			}
 		})
 	}
 }
 
-// tests the construction of reset commands from a valid TrafficRedirect
-func Test_buildResetCommand(t *testing.T) {
+func Test_Stop(t *testing.T) {
 	TestCases := []struct {
-		title    string
-		redirect TrafficRedirect
-		action   action
-		port     uint
+		title       string
+		redirect    TrafficRedirectionSpec
+		expectError bool
 	}{
 		{
-			title: "Add reset redirect",
-			redirect: TrafficRedirect{
+			title: "Start valid redirect",
+			redirect: TrafficRedirectionSpec{
 				Iface:           "eth0",
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			action: ADD,
-			port:   80,
-		},
-		{
-			title: "Delete reset redirect",
-			redirect: TrafficRedirect{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			action: DELETE,
-			port:   80,
+			expectError: false,
 		},
 	}
 
 	for _, tc := range TestCases {
 		t.Run(tc.title, func(t *testing.T) {
-			cmd := tc.redirect.buildResetCmd(tc.action, tc.port)
-			if cmd == nil {
+			executor := process.NewFakeProcessExecutor([]byte{}, nil)
+			config := TrafficRedirectorConfig{
+				Executor: executor,
+			}
+			redirector, err := newTrafficRedirectorWithConfig(&tc.redirect, config)
+			if err != nil {
+				t.Errorf("failed creating traffic redirector with error %v", err)
+				return
+			}
+
+			err = redirector.Stop()
+			if !tc.expectError && err != nil {
+				t.Errorf("failed with error %v", err)
+				return
+			}
+
+			if executor.Invocations() != 2 {
+				t.Errorf("expected 2 invocations but %d executed", executor.Invocations())
+				return
+			}
+
+			if executor.Cmd() == "" {
 				t.Errorf("command expected but none returned")
 				return
 			}
 
-			if !strings.ContainsAny(cmd.String(), string(tc.action)) {
+			cmdRedirect := executor.CmdHistory()[0]
+			cmdReset := executor.CmdHistory()[1]
+
+			if !strings.Contains(cmdRedirect, "-D") {
 				t.Errorf("invalid iptables action")
 				return
 			}
 
-			destination := fmt.Sprintf("--dport %d", tc.port)
-			if !strings.ContainsAny(cmd.String(), destination) {
+			destination := fmt.Sprintf("--dport %d ", tc.redirect.DestinationPort)
+			if !strings.Contains(cmdRedirect, destination) {
+				t.Errorf("invalid iptables destination for redirect")
+				return
+			}
+
+			redirect := fmt.Sprintf("--to-port %d ", tc.redirect.DestinationPort)
+			if !strings.ContainsAny(cmdRedirect, redirect) {
 				t.Errorf("invalid iptables destination")
+				return
+			}
+
+			resetPort := fmt.Sprintf("--dport %d ", tc.redirect.RedirectPort)
+			if !strings.Contains(cmdReset, resetPort) {
+				t.Errorf("invalid iptables destination for redirect")
 				return
 			}
 		})

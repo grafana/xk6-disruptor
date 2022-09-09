@@ -56,6 +56,19 @@ func Test_CreateConfig(t *testing.T) {
 			expectedConfig: configWithNodePort,
 		},
 		{
+			title: "Invalid Node Ports",
+			options: ClusterOptions{
+				NodePorts: []NodePort{
+					{
+						NodePort: 0,
+						HostPort: 8080,
+					},
+				},
+			},
+			expectError:    true,
+			expectedConfig: "",
+		},
+		{
 			title: "Worker nodes",
 			options: ClusterOptions{
 				Workers: 2,
@@ -66,27 +79,43 @@ func Test_CreateConfig(t *testing.T) {
 		{
 			title: "Custom config",
 			options: ClusterOptions{
-				Config: baseConfig,
+				Config: defaultConfig,
 			},
 			expectError:    false,
-			expectedConfig: baseConfig,
+			expectedConfig: defaultConfig,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			config, err := buildClusterConfig(tc.options)
+			config, err := NewClusterConfig("test-cluster", tc.options)
 
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
+				return
 			}
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
+				return
 			}
 
-			if config != tc.expectedConfig {
-				t.Errorf("Actual config is not the expected\nActual:\n%s\nExpected:\n%s\n", config, tc.expectedConfig)
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if !tc.expectError && config == nil {
+				t.Errorf("a config was expected but none was returned")
+				return
+			}
+
+			kindConfig, _ := config.Render()
+			if kindConfig != tc.expectedConfig {
+				t.Errorf("Actual config is not the expected\n"+
+					"Actual:\n%s\nExpected:\n%s\n",
+					kindConfig,
+					tc.expectedConfig,
+				)
 			}
 		})
 	}

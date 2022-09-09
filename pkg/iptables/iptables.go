@@ -5,7 +5,9 @@ package iptables
 
 import (
 	"fmt"
-	"os/exec"
+	"strings"
+
+	"github.com/grafana/xk6-disruptor/pkg/utils/process"
 )
 
 type action string
@@ -15,12 +17,12 @@ const (
 	DELETE action = "-D"
 )
 
-const redirectCommand = "iptables %s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
+const redirectCommand = "%s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
 
-const resetCommand = "iptables %s INPUT -i %s -p tcp --dport %d -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset"
+const resetCommand = "%s INPUT -i %s -p tcp --dport %d -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset"
 
-// TrafficRedirect specifies the redirection of traffic to a destination
-type TrafficRedirect struct {
+// TrafficRedirectionSpec specifies the redirection of traffic to a destination
+type TrafficRedirectionSpec struct {
 	// Interface on which the traffic will be intercepted
 	Iface string
 	// Destination port of the traffic to be redirected
@@ -29,24 +31,56 @@ type TrafficRedirect struct {
 	RedirectPort uint
 }
 
-func (tr *TrafficRedirect) validate() error {
+// TrafficRedirector defines the interface for a traffic redirector
+type TrafficRedirector interface {
+	// Start initiates the redirection of traffic and resets existing connections
+	Start() error
+	// Stop restores the traffic to the original target and resets existing connections
+	// to the redirection target
+	Stop() error
+}
+
+// trafficRedirect defines an instance of a TrafficRedirector
+type redirector struct {
+	*TrafficRedirectionSpec
+	executor process.ProcessExecutor
+}
+
+// TrafficRedirectorConfig defines the options for creating a TrafficRedirector
+type TrafficRedirectorConfig struct {
+	Executor process.ProcessExecutor
+}
+
+// Creating instances passing a TrafficRedirectorConfig
+func newTrafficRedirectorWithConfig(tr *TrafficRedirectionSpec, config TrafficRedirectorConfig) (TrafficRedirector, error) {
 	if tr.DestinationPort == 0 || tr.RedirectPort == 0 {
-		return fmt.Errorf("the DestinationPort and RedirectPort must be specified")
+		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be specified")
 	}
 
 	if tr.DestinationPort == tr.RedirectPort {
-		return fmt.Errorf("the DestinationPort and RedirectPort must be different")
+		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be different")
 	}
 
 	if tr.Iface == "" {
-		return fmt.Errorf("the Iface  must be specified")
+		return nil, fmt.Errorf("the Iface must be specified")
 	}
 
-	return nil
+	return &redirector{
+		TrafficRedirectionSpec: tr,
+		executor:               config.Executor,
+	}, nil
+}
+
+// NewTrafficRedirector creates an instance of a TrafficRedirector with default configuration
+func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error) {
+	config := TrafficRedirectorConfig{
+		Executor: process.DefaultProcessExecutor(),
+	}
+	return newTrafficRedirectorWithConfig(tf, config)
 }
 
 // buildRedirectCmd builds a command for adding or removing a transparent proxy using iptables
-func (tr *TrafficRedirect) buildRedirectCmd(a action) *exec.Cmd {
+func (tr *redirector) execRedirectCmd(a action) error {
 	cmd := fmt.Sprintf(
 		redirectCommand,
 		string(a),
@@ -54,48 +88,48 @@ func (tr *TrafficRedirect) buildRedirectCmd(a action) *exec.Cmd {
 		tr.DestinationPort,
 		tr.RedirectPort,
 	)
-	return exec.Command(cmd)
+
+	out, err := tr.executor.Exec("iptables", strings.Split(cmd, " ")...)
+	if err != nil {
+		return fmt.Errorf("error executing iptables command: %s", string(out))
+	}
+
+	return nil
 }
 
-func (tr *TrafficRedirect) buildResetCmd(a action, port uint) *exec.Cmd {
+func (tr *redirector) execResetCmd(a action, port uint) error {
 	cmd := fmt.Sprintf(
 		resetCommand,
 		string(a),
 		tr.Iface,
 		port,
 	)
-	return exec.Command(cmd)
+
+	out, err := tr.executor.Exec("iptables", strings.Split(cmd, " ")...)
+	if err != nil {
+		return fmt.Errorf("error executing iptables command: %s", string(out))
+	}
+
+	return nil
 }
 
-// Add adds iptables rules for redirecting traffic
-func (tr *TrafficRedirect) Redirect() error {
-	err := tr.validate()
+// Starts applies the TrafficRedirect
+func (tr *redirector) Start() error {
+	err := tr.execRedirectCmd(ADD)
 	if err != nil {
 		return err
 	}
 
-	err = tr.buildRedirectCmd(ADD).Run()
-	if err != nil {
-		return err
-	}
-
-	err = tr.buildResetCmd(ADD, tr.DestinationPort).Run()
-	return err
+	return tr.execResetCmd(ADD, tr.DestinationPort)
 }
 
-// Delete removes iptables rules for redirecting traffic
-// Existing redirected connections are always reset
-func (tr *TrafficRedirect) Restore() error {
-	err := tr.validate()
+// Stops removes the TrafficRedirect
+func (tr *redirector) Stop() error {
+	err := tr.execRedirectCmd(DELETE)
 	if err != nil {
 		return err
 	}
 
-	err = tr.buildRedirectCmd(DELETE).Run()
-	if err != nil {
-		return err
-	}
-
-	err = tr.buildResetCmd(ADD, tr.RedirectPort).Run()
+	err = tr.execResetCmd(ADD, tr.RedirectPort)
 	return err
 }
