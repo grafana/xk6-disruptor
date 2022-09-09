@@ -16,8 +16,8 @@ func BuildHttpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "http",
 		Short: "http disruptor",
-		Long: "Disrupts http request by introducing delays." +
-			" Requires NET_ADMIM and NET_RAW capabilities for setting iptable rules.",
+		Long: "Disrupts http request by introducing delays and errors." +
+			" Requires NET_ADMIM capabilities for setting iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			disruptor, err := http.NewHttpDisruptor(
