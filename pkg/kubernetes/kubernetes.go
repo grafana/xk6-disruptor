@@ -34,6 +34,7 @@ type Kubernetes interface {
 
 // k8s Holds the reference to the helpers for interacting with kubernetes
 type k8s struct {
+	config *rest.Config
 	kubernetes.Interface
 	ctx        context.Context
 	dynamic    dynamic.Interface
@@ -75,6 +76,7 @@ func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 	}
 
 	return &k8s{
+		config:     config,
 		Interface:  client,
 		ctx:        context.TODO(),
 		dynamic:    dynamic,
@@ -163,6 +165,7 @@ func (k *k8s) Delete(kind string, name string, namespace string) error {
 func (k *k8s) Helpers() helpers.Helpers {
 	return helpers.NewHelper(
 		k.Interface,
+		k.config,
 		"default",
 	)
 }
@@ -171,6 +174,7 @@ func (k *k8s) Helpers() helpers.Helpers {
 func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
 	return helpers.NewHelper(
 		k.Interface,
+		k.config,
 		namespace,
 	)
 }
