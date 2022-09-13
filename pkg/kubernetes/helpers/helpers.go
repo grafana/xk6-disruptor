@@ -9,6 +9,7 @@ import (
 
 // Helpers offers Helper functions grouped by the objects they handle
 type Helpers interface {
+	NamespaceHelper
 	ServiceHelper
 }
 
