@@ -125,3 +125,91 @@ func TestPods_Wait(t *testing.T) {
 		})
 	}
 }
+
+var containerRunning = corev1.ContainerState{
+	Running: &corev1.ContainerStateRunning{},
+}
+
+var containerWaiting = corev1.ContainerState{
+	Waiting: &corev1.ContainerStateWaiting{},
+}
+
+func TestPods_AddEphemeralContainer(t *testing.T) {
+	t.Parallel()
+	type TestCase struct {
+		test        string
+		podName     string
+		delay       time.Duration
+		expectError bool
+		container   string
+		image       string
+		state       corev1.ContainerState
+		timeout     time.Duration
+	}
+
+	testCases := []TestCase{
+		{
+			test:        "Create ephemeral container not waiting",
+			podName:     "test-pod",
+			delay:       1 * time.Second,
+			expectError: false,
+			container:   "ephemeral",
+			image:       "busybox",
+			state:       containerWaiting,
+			timeout:     0,
+		},
+		{
+			test:        "Create ephemeral container waiting",
+			podName:     "test-pod",
+			delay:       3 * time.Second,
+			expectError: false,
+			container:   "ephemeral",
+			image:       "busybox",
+			state:       containerRunning,
+			timeout:	  5 * time.Second,
+		},
+		{
+			test:        "Fail waiting for container",
+			podName:     "test-pod",
+			delay:       3 * time.Second,
+			expectError: true,
+			container:   "ephemeral",
+			image:       "busybox",
+			state:       containerWaiting,
+			timeout:	  5 * time.Second,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+			pod := newPod(tc.podName, testNamespace)
+			client := fake.NewSimpleClientset(pod)
+			watcher := watch.NewRaceFreeFake()
+			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
+			h := NewHelper(client, nil, testNamespace)
+
+			// add watcher to update ephemeral container's status
+			go func(tc TestCase) {
+				time.Sleep(tc.delay)
+				pod.Status.EphemeralContainerStatuses = []corev1.ContainerStatus{
+					{
+						Name:  tc.container,
+						State: tc.state,
+					},
+				}
+				watcher.Modify(pod)
+			}(tc)
+
+			err := h.AttachEphemeralContainer(
+				tc.podName,
+				corev1.EphemeralContainer{},
+				tc.timeout,
+			)
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+		})
+	}
+}

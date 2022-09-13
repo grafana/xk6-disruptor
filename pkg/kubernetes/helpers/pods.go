@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -9,6 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
@@ -17,6 +20,7 @@ import (
 type PodHelper interface {
 	WaitPodRunning(name string, timeout time.Duration) (bool, error)
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
+	AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error
 }
 
 // podConditionChecker defines a function that checks if a pod satisfies a condition
@@ -126,4 +130,74 @@ func (h *helpers) Exec(
 	}
 
 	return stdout.Bytes(), stderr.Bytes(), nil
+}
+
+// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
+// a given timeout until the container is running
+func (h *helpers) AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error {
+	pod, err := h.client.CoreV1().Pods(h.namespace).Get(
+		h.ctx,
+		podName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+	podJSON, err := json.Marshal(pod)
+	if err != nil {
+		return err
+	}
+
+	updatedPod := pod.DeepCopy()
+	updatedPod.Spec.EphemeralContainers = append(updatedPod.Spec.EphemeralContainers, container)
+	updateJSON, err := json.Marshal(updatedPod)
+	if err != nil {
+		return err
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(podJSON, updateJSON, pod)
+	if err != nil {
+		return err
+	}
+
+	_, err = h.client.CoreV1().Pods(h.namespace).Patch(
+		h.ctx,
+		pod.Name,
+		types.StrategicMergePatchType,
+		patch,
+		metav1.PatchOptions{},
+		"ephemeralcontainers",
+	)
+	if err != nil {
+		return err
+	}
+
+	if timeout == 0 {
+		return nil
+	}
+	running, err := h.waitForCondition(
+		h.namespace,
+		podName,
+		timeout,
+		checkEphemeralContainerState,
+	)
+	if err != nil {
+		return err
+	}
+	if !running {
+		return fmt.Errorf("ephemeral container has not started after %fs", timeout.Seconds())
+	}
+	return nil
+}
+
+func checkEphemeralContainerState(pod *corev1.Pod) (bool, error) {
+	if pod.Status.EphemeralContainerStatuses != nil {
+		for _, cs := range pod.Status.EphemeralContainerStatuses {
+			if cs.State.Running != nil {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }

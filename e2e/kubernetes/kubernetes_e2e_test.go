@@ -73,6 +73,18 @@ spec:
     command: ["sleep", "300"]
 `
 
+const pausedManifest = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: paused
+  namespace: %s
+spec:
+  containers:
+  - name: paused
+    image: k8s.gcr.io/pause
+`
+
 const nginxManifest = `
 apiVersion: v1
 kind: Pod
@@ -201,7 +213,6 @@ func Test_CreateRandomNamespace(t *testing.T) {
 	}
 }
 
-
 func Test_Exec(t *testing.T) {
 	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
 	if err != nil {
@@ -254,3 +265,73 @@ func Test_Exec(t *testing.T) {
 		return
 	}
 }
+
+func Test_AttachEphemeral(t *testing.T) {
+	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+	if err != nil {
+		t.Errorf("error creating kubernetes client: %v", err)
+		return
+	}
+
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	if err != nil {
+		t.Errorf("error creating test namespace: %v", err)
+		return
+	}
+	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+
+	manifest := fmt.Sprintf(pausedManifest, ns)
+	err = k8s.Create(manifest)
+	if err != nil {
+		t.Errorf("failed to create pod: %v", err)
+		return
+	}
+
+	timeout := time.Second * 15
+	running, err := k8s.NamespacedHelpers(ns).WaitPodRunning(
+		"paused",
+		timeout,
+	)
+	if err != nil {
+		t.Errorf("error waiting for pod: %v", err)
+		return
+	}
+	if !running {
+		t.Errorf("pod not ready after %f: ", timeout.Seconds())
+		return
+	}
+
+	ephemeral :=  corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:            "ephemeral",
+			Image:           "busybox",
+			Command:         []string{"sleep", "300"},
+			TTY:             true,
+			Stdin:           true,
+		},
+	}
+
+	err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer("paused", ephemeral, 15 * time.Second)
+	if err != nil {
+		t.Errorf("error attaching ephemeral container to pod: %v", err)
+		return
+	}
+
+	stdout, _, err := k8s.NamespacedHelpers(ns).Exec(
+		"paused",
+		"ephemeral",
+		[]string{"echo", "-n", "hello", "world"},
+		nil,
+	)
+	if err != nil {
+		t.Errorf("error executing command in pod: %v", err)
+		return
+	}
+
+	greetings := "hello world"
+	if string(stdout) != "hello world" {
+		t.Errorf("stdout does not match expected result:\nexpected: %s\nactual%s\n", greetings, string(stdout))
+		return
+	}
+}
+
