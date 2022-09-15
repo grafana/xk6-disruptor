@@ -4,8 +4,11 @@ package disruptors
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -33,9 +36,10 @@ type PodDisruptor interface {
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
 type podDisruptor struct {
-	selector PodSelector
-	k8s      kubernetes.Kubernetes
-	targets  []string
+	selector   PodSelector
+	controller AgentController
+	k8s        kubernetes.Kubernetes
+	targets    []string
 }
 
 // buildLabelSelector builds a label selector to be used in the k8s api, from a PodSelector
@@ -94,6 +98,56 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	return podNames, nil
 }
 
+// agentController controls de agents in a set of target pods
+type AgentController struct {
+	k8s       kubernetes.Kubernetes
+	namespace string
+	targets   []string
+	timeout   time.Duration
+}
+
+// InjectDisruptorAgent injects the Disruptor agent in the target pods
+func (c *AgentController) InjectDisruptorAgent() error {
+	agentContainer := corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:  "xk6-agent",
+			Image: "grafana/xk6-disruptor-agent",
+			TTY:   true,
+			Stdin: true,
+		},
+	}
+
+	var wg sync.WaitGroup
+	// ensure errors channel has enough space to avoid blocking gorutines
+	errors := make(chan error, len(c.targets))
+	for _, pod := range c.targets {
+		wg.Add(1)
+		// attach each container asynchronously
+		go func(pod string) {
+			err := c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
+				pod,
+				agentContainer,
+				c.timeout,
+			)
+
+			if err != nil {
+				errors <- err
+			}
+
+			wg.Done()
+		}(pod)
+	}
+
+	wg.Wait()
+
+	select {
+	case err := <-errors:
+		return err
+	default:
+		return nil
+	}
+}
+
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
 func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisruptor, error) {
@@ -102,10 +156,22 @@ func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisrup
 		return nil, err
 	}
 
+	controller := AgentController{
+		k8s:       k8s,
+		namespace: selector.Namespace,
+		targets:   targets,
+		timeout:   10 * time.Second, // FIXME: take from some configuration
+	}
+	err = controller.InjectDisruptorAgent()
+	if err != nil {
+		return nil, err
+	}
+
 	return &podDisruptor{
-		selector: selector,
-		k8s:      k8s,
-		targets:  targets,
+		selector:   selector,
+		controller: controller,
+		k8s:        k8s,
+		targets:    targets,
 	}, nil
 }
 

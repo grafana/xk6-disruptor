@@ -1,9 +1,12 @@
 package disruptors
 
 import (
+	"context"
 	"sort"
 	"testing"
+	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -22,7 +25,7 @@ var (
 	podWithAppLabel = builders.NewPodBuilder("pod-with-app-label").
 		WithNamespace(testNamespace).
 		WithLabels(map[string]string{
-			"app": "test",
+		"app": "test",
 		}).
 		Build()
 
@@ -207,4 +210,70 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 		})
 	}
 }
+func Test_InjectAgent(t *testing.T) {
+	testCases := []struct {
+		title       string
+		targets     []string
+		timeout     time.Duration
+		expectError bool
+	}{
+		{
+			title:       "do not wait for containers to get ready",
+			targets:     []string{"pod1", "pod2"},
+			timeout:     0,
+			expectError: false,
+		},
+		{
+			title:       "wait for containers to get ready",
+			targets:     []string{"pod1", "pod2"},
+			timeout:     3,
+			expectError: true, // fake ephemeral containers do not change status to running so test should fail
+		},
+	}
 
+	for _, tc := range testCases {
+		t.Run(tc.title, func(t *testing.T) {
+			objs := []runtime.Object{}
+			for _, podName := range tc.targets {
+				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
+				objs = append(objs, pod)
+
+			}
+			client := fake.NewSimpleClientset(objs...)
+			k8s, _ := kubernetes.NewFakeKubernetes(client)
+			controller := AgentController{
+				k8s:       k8s,
+				namespace: testNamespace,
+				targets:   tc.targets,
+				timeout:   tc.timeout,
+			}
+			err := controller.InjectDisruptorAgent()
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			for _, podName := range tc.targets {
+				pod, err := client.CoreV1().Pods(testNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
+				if err != nil {
+					t.Errorf("failed: %v", err)
+					return
+				}
+
+				if len(pod.Spec.EphemeralContainers) == 0 {
+					t.Errorf("agent container is not attached")
+					return
+				}
+			}
+		})
+	}
+}
