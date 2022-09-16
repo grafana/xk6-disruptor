@@ -2,6 +2,7 @@ package disruptors
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ var (
 	podWithAppLabel = builders.NewPodBuilder("pod-with-app-label").
 		WithNamespace(testNamespace).
 		WithLabels(map[string]string{
-		"app": "test",
+			"app": "test",
 		}).
 		Build()
 
@@ -210,6 +211,7 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 		})
 	}
 }
+
 func Test_InjectAgent(t *testing.T) {
 	testCases := []struct {
 		title       string
@@ -274,6 +276,70 @@ func Test_InjectAgent(t *testing.T) {
 					return
 				}
 			}
+		})
+	}
+}
+
+func Test_ExecCommand(t *testing.T) {
+	testCases := []struct {
+		title       string
+		targets     []string
+		command     []string
+		err         error
+		stdout      []byte
+		stderr      []byte
+		timeout     time.Duration
+		expectError bool
+	}{
+		{
+			title:       "successful execution",
+			targets:     []string{"pod1", "pod2"},
+			command:     []string{"echo", "-n", "hello", "world"},
+			err:         nil,
+			expectError: false,
+		},
+		{
+			title:       "failed execution",
+			targets:     []string{"pod1", "pod2"},
+			command:     []string{"echo", "-n", "hello", "world"},
+			err:         fmt.Errorf("fake error"),
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.title, func(t *testing.T) {
+			objs := []runtime.Object{}
+			for _, podName := range tc.targets {
+				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
+				objs = append(objs, pod)
+
+			}
+			client := fake.NewSimpleClientset(objs...)
+			k8s, _ := kubernetes.NewFakeKubernetes(client)
+			executor := k8s.GetFakeProcessExecutor()
+			executor.SetResult(tc.stdout, tc.stderr, tc.err)
+			controller := AgentController{
+				k8s:       k8s,
+				namespace: testNamespace,
+				targets:   tc.targets,
+				timeout:   tc.timeout,
+			}
+			err := controller.ExecCommand()
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
 		})
 	}
 }

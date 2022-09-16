@@ -148,6 +148,35 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	}
 }
 
+// RunCommand executues a command in the targets of the AgentController and reports any error
+func (c *AgentController) ExecCommand(cmd ...string) error {
+	var wg sync.WaitGroup
+	// ensure errors channel has enough space to avoid blocking gorutines
+	errors := make(chan error, len(c.targets))
+	for _, pod := range c.targets {
+		wg.Add(1)
+		// attach each container asynchronously
+		go func(pod string) {
+			_, _, err := c.k8s.NamespacedHelpers(c.namespace).
+				Exec(pod, "xk6-agent", cmd, []byte{})
+			if err != nil {
+				errors <- err
+			}
+
+			wg.Done()
+		}(pod)
+	}
+
+	wg.Wait()
+
+	select {
+	case err := <-errors:
+		return err
+	default:
+		return nil
+	}
+}
+
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
 func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisruptor, error) {
