@@ -121,12 +121,12 @@ type AgentController struct {
 func (c *AgentController) InjectDisruptorAgent() error {
 	agentContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
-			Name:  "xk6-agent",
-			Image: "grafana/xk6-disruptor-agent",
+			Name:            "xk6-agent",
+			Image:           "grafana/xk6-disruptor-agent",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities: &corev1.Capabilities{
-					Add: []corev1.Capability{"NET_ADMIN" ,"NET_RAW"},
+					Add: []corev1.Capability{"NET_ADMIN", "NET_RAW"},
 				},
 			},
 			TTY:   true,
@@ -140,9 +140,25 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	for _, pod := range c.targets {
 		wg.Add(1)
 		// attach each container asynchronously
-		go func(pod string) {
-			err := c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
-				pod,
+		go func(podName string) {
+			defer wg.Done()
+
+			// check if the container has already been injected
+			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+			if err != nil {
+				errors <- err
+				return
+			}
+
+			// if the container has already been injected, nothing to do
+			for _, c := range pod.Spec.EphemeralContainers {
+				if c.Name == agentContainer.Name {
+					return
+				}
+			}
+
+			err = c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
+				podName,
 				agentContainer,
 				c.timeout,
 			)
@@ -150,8 +166,6 @@ func (c *AgentController) InjectDisruptorAgent() error {
 			if err != nil {
 				errors <- err
 			}
-
-			wg.Done()
 		}(pod)
 	}
 
@@ -262,7 +276,8 @@ func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration time.Duration,
 	if err != nil {
 		return err
 	}
-	
+ 
 	err = d.controller.ExecCommand(cmd...)
 	return err
 }
+
