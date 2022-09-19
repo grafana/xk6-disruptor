@@ -15,15 +15,18 @@ format:
 test:
 	go test -race  ./...
 
+e2e-api: agent-image
+	go test -tags e2e ./e2e/api/...
+
+e2e-cluster:
+	go test -tags e2e ./e2e/cluster/...
+
 e2e-http: agent-image
 	go test -tags e2e ./e2e/disruptors/http/...
 
 e2e-kubernetes:
 	go test -tags e2e ./e2e/kubernetes/...
 
-e2e-cluster:
-	go test -tags e2e ./e2e/cluster/...
+e2e: e2e-cluster e2e-kubernetes e2e-http e2e-api
 
-e2e: e2e-cluster e2e-kubernetes e2e-http
-
-.PHONY: agent-image build-agent clean e2e e2e-cluster e2e-http e2e-kubernetes format test
+.PHONY: agent-image build-agent clean e2e e2e-api e2e-cluster e2e-http e2e-kubernetes format test

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -28,10 +29,20 @@ type PodSelector struct {
 	Exclude PodAttributes
 }
 
+// HttpDisruptionOptions defines options for the injection of Http faults in a target pod
+type HttpDisruptionOptions struct {
+	TargetPort uint
+	ProxyPort  uint
+	Iface      string
+}
+
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
+	// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
+	// for the specified duration
+	InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
@@ -112,6 +123,12 @@ func (c *AgentController) InjectDisruptorAgent() error {
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:  "xk6-agent",
 			Image: "grafana/xk6-disruptor-agent",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{"NET_ADMIN" ,"NET_RAW"},
+				},
+			},
 			TTY:   true,
 			Stdin: true,
 		},
@@ -207,4 +224,45 @@ func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisrup
 // Targets retrieves the list of target pods for the given PodSelector
 func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
+}
+
+func buildHttpFaultCmd(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) ([]string, error) {
+	cmd := []string{
+		"xk6-disruptor-agent",
+		"http",
+		"-d", fmt.Sprintf("%fs", duration.Seconds()),
+	}
+
+	if fault.AverageDelay > 0 {
+		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
+	}
+
+	if fault.ErrorRate > 0 {
+		cmd = append(cmd, "-e", fmt.Sprint(fault.ErrorCode), "-r", fmt.Sprint(fault.ErrorRate))
+	}
+
+	if options.ProxyPort != 0 {
+		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
+	}
+
+	if options.TargetPort != 0 {
+		cmd = append(cmd, "-t", fmt.Sprint(options.TargetPort))
+	}
+
+	if options.Iface != "" {
+		cmd = append(cmd, "-i", options.Iface)
+	}
+
+	return cmd, nil
+}
+
+//InjectHttpFault injects faults in the http requests sent to the disruptor's targets
+func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error {
+	cmd, err := buildHttpFaultCmd(fault, duration, options)
+	if err != nil {
+		return err
+	}
+	
+	err = d.controller.ExecCommand(cmd...)
+	return err
 }
