@@ -4,9 +4,11 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const clusterName = "e2e-kubernetes"
@@ -62,11 +65,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: busybox
-  namespace: default
+  namespace: %s
 spec:
   containers:
   - name: busybox
     image: busybox
+    command: ["sleep", "300"]
 `
 
 const nginxManifest = `
@@ -74,7 +78,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: nginx
-  namespace: default
+  namespace: %s
   labels:
     app: e2e-test
 spec:
@@ -89,6 +93,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nginx
+  namespace: %s
 spec:
   type: NodePort
   ports:
@@ -107,20 +112,28 @@ func Test_CreateGetDeletePod(t *testing.T) {
 		return
 	}
 
-	err = k8s.Create(busyboxManifest)
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	if err != nil {
+		t.Errorf("error creating test namespace: %v", err)
+		return
+	}
+	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+
+	manifest := fmt.Sprintf(busyboxManifest, ns)
+	err = k8s.Create(manifest)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
 	}
 
 	pod := corev1.Pod{}
-	err = k8s.Get("Pod", "busybox", "default", &pod)
+	err = k8s.Get("Pod", "busybox", ns, &pod)
 	if err != nil {
 		t.Errorf("failed to get pod: %v", err)
 		return
 	}
 
-	err = k8s.Delete("Pod", "busybox", "default")
+	err = k8s.Delete("Pod", "busybox", ns)
 	if err != nil {
 		t.Errorf("failed to delete pod: %v", err)
 		return
@@ -134,20 +147,29 @@ func Test_WaitServiceReady(t *testing.T) {
 		return
 	}
 
-	err = k8s.Create(nginxManifest)
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	if err != nil {
+		t.Errorf("error creating test namespace: %v", err)
+		return
+	}
+	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+
+	manifest := fmt.Sprintf(nginxManifest, ns)
+	err = k8s.Create(manifest)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
 	}
 
-	err = k8s.Create(serviceManifest)
+	manifest = fmt.Sprintf(serviceManifest, ns)
+	err = k8s.Create(manifest)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
 	}
 
 	// wait for the service to be ready for accepting requests
-	err = k8s.Helpers().WaitServiceReady("nginx", time.Second*20)
+	err = k8s.NamespacedHelpers(ns).WaitServiceReady("nginx", time.Second*20)
 	if err != nil {
 		t.Errorf("error waiting for service nginx: %v", err)
 		return
@@ -158,5 +180,23 @@ func Test_WaitServiceReady(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to access service: %v", err)
 		return
+	}
+}
+
+func Test_CreateRandomNamespace(t *testing.T) {
+	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+	if err != nil {
+		t.Errorf("error creating kubernetes client: %v", err)
+		return
+	}
+	prefix := "test"
+	ns, err := k8s.Helpers().CreateRandomNamespace(prefix)
+	if err != nil {
+		t.Errorf("unexpected error creating namespace: %v", err)
+		return
+	}
+	if !strings.HasPrefix(ns, prefix) {
+		t.Errorf("returned namespace does not have expected prefix '%s': %s", prefix, ns)
+
 	}
 }
