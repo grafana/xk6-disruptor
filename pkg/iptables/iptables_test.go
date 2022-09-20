@@ -1,7 +1,6 @@
 package iptables
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -67,84 +66,27 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 }
 
-func Test_Start(t *testing.T) {
-	TestCases := []struct {
-		title       string
-		redirect    TrafficRedirectionSpec
-		expectError bool
-	}{
-		{
-			title: "Start valid redirect",
-			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			expectError: false,
-		},
+func compareCmds(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
 	}
 
-	for _, tc := range TestCases {
-		t.Run(tc.title, func(t *testing.T) {
-			executor := process.NewFakeProcessExecutor([]byte{}, nil)
-			config := TrafficRedirectorConfig{
-				Executor: executor,
-			}
-			redirector, err := newTrafficRedirectorWithConfig(&tc.redirect, config)
-			if err != nil {
-				t.Errorf("failed creating traffic redirector with error %v", err)
-				return
-			}
-
-			err = redirector.Start()
-			if !tc.expectError && err != nil {
-				t.Errorf("failed with error %v", err)
-				return
-			}
-
-			if executor.Invocations() != 2 {
-				t.Errorf("expected 2 invocations but %d executed", executor.Invocations())
-				return
-			}
-
-			if executor.Cmd() == "" {
-				t.Errorf("command expected but none returned")
-				return
-			}
-
-			cmdRedirect := executor.CmdHistory()[0]
-			cmdReset := executor.CmdHistory()[1]
-
-			if !strings.Contains(cmdRedirect, "-A") {
-				t.Errorf("invalid iptables action")
-				return
-			}
-
-			destination := fmt.Sprintf("--dport %d ", tc.redirect.DestinationPort)
-			if !strings.Contains(cmdRedirect, destination) {
-				t.Errorf("invalid iptables destination for redirect")
-				return
-			}
-
-			redirect := fmt.Sprintf("--to-port %d ", tc.redirect.DestinationPort)
-			if !strings.ContainsAny(cmdRedirect, redirect) {
-				t.Errorf("invalid iptables destination")
-				return
-			}
-
-			if !strings.Contains(cmdReset, destination) {
-				t.Errorf("invalid iptables destination for redirect")
-				return
-			}
-		})
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return false
+		}
 	}
+
+	return true
 }
 
-func Test_Stop(t *testing.T) {
+func Test_Commands(t *testing.T) {
 	TestCases := []struct {
-		title       string
-		redirect    TrafficRedirectionSpec
-		expectError bool
+		title        string
+		redirect     TrafficRedirectionSpec
+		expectedCmds []string
+		expectError  bool
+		testFunction func(TrafficRedirector) error
 	}{
 		{
 			title: "Start valid redirect",
@@ -152,6 +94,31 @@ func Test_Stop(t *testing.T) {
 				Iface:           "eth0",
 				DestinationPort: 80,
 				RedirectPort:    8080,
+			},
+			testFunction: func(tr TrafficRedirector) error {
+				return tr.Start()
+			},
+			expectedCmds: []string{
+				"iptables -D INPUT -i eth0 -p tcp --dport 8080 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"iptables -A PREROUTING -t nat -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080",
+				"iptables -A INPUT -i eth0 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+			},
+			expectError: false,
+		},
+		{
+			title: "Stop active redirect",
+			redirect: TrafficRedirectionSpec{
+				Iface:           "eth0",
+				DestinationPort: 80,
+				RedirectPort:    8080,
+			},
+			testFunction: func(tr TrafficRedirector) error {
+				return tr.Stop()
+			},
+			expectedCmds: []string{
+				"iptables -D PREROUTING -t nat -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080",
+				"iptables -A INPUT -i eth0 -p tcp --dport 8080 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"iptables -D INPUT -i eth0 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 			},
 			expectError: false,
 		},
@@ -169,47 +136,32 @@ func Test_Stop(t *testing.T) {
 				return
 			}
 
-			err = redirector.Stop()
+			// execute test and collect result
+			err = tc.testFunction(redirector)
+
 			if !tc.expectError && err != nil {
 				t.Errorf("failed with error %v", err)
 				return
 			}
 
-			if executor.Invocations() != 2 {
-				t.Errorf("expected 2 invocations but %d executed", executor.Invocations())
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
 				return
 			}
 
-			if executor.Cmd() == "" {
-				t.Errorf("command expected but none returned")
+			if tc.expectError && err != nil {
 				return
 			}
 
-			cmdRedirect := executor.CmdHistory()[0]
-			cmdReset := executor.CmdHistory()[1]
-
-			if !strings.Contains(cmdRedirect, "-D") {
-				t.Errorf("invalid iptables action")
+			if !compareCmds(tc.expectedCmds, executor.CmdHistory()) {
+				t.Errorf(
+					"Actual commands differ from expected:\nExpected:\n\t%s\nActual:\n\t%s",
+					strings.Join(tc.expectedCmds, "\n\t"),
+					strings.Join(executor.CmdHistory(), "\n\t"),
+				)
 				return
 			}
 
-			destination := fmt.Sprintf("--dport %d ", tc.redirect.DestinationPort)
-			if !strings.Contains(cmdRedirect, destination) {
-				t.Errorf("invalid iptables destination for redirect")
-				return
-			}
-
-			redirect := fmt.Sprintf("--to-port %d ", tc.redirect.DestinationPort)
-			if !strings.ContainsAny(cmdRedirect, redirect) {
-				t.Errorf("invalid iptables destination")
-				return
-			}
-
-			resetPort := fmt.Sprintf("--dport %d ", tc.redirect.RedirectPort)
-			if !strings.Contains(cmdReset, resetPort) {
-				t.Errorf("invalid iptables destination for redirect")
-				return
-			}
 		})
 	}
 }
