@@ -85,13 +85,15 @@ func TestMain(m *testing.M) {
 		fmt.Printf("failed to create cluster: %v", err)
 		os.Exit(1)
 	}
-	defer cluster.Delete()
 
 	// retrieve path to kubeconfig
 	kubeconfig, _ = cluster.Kubeconfig()
 
 	// run tests
 	rc := m.Run()
+
+	// cleanup
+	cluster.Delete()
 
 	os.Exit(rc)
 }
