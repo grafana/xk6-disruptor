@@ -2,6 +2,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
@@ -13,6 +14,7 @@ import (
 // FakeKubernetes is a fake implementation of the Kubernetes interface
 type FakeKubernetes struct {
 	*fake.Clientset
+	ctx      context.Context
 	executor *helpers.FakePodCommandExecutor
 }
 
@@ -20,10 +22,15 @@ type FakeKubernetes struct {
 func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 	return &FakeKubernetes{
 		Clientset: clientset,
+		ctx: context.TODO(),
 		executor:  helpers.NewFakePodCommandExecutor(),
 	}, nil
 }
 
+// Returns the context for executing k8s actions
+func (k *FakeKubernetes)Context() context.Context {
+	return k.ctx
+}
 // Helpers return a instance of FakeHelper
 func (f *FakeKubernetes) Helpers() helpers.Helpers {
 	return helpers.NewFakeHelper(

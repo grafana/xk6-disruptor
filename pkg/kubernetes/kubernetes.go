@@ -25,11 +25,20 @@ import (
 // generic functions that operate on any kind of object
 type Kubernetes interface {
 	kubernetes.Interface
+	Context() context.Context
 	Create(manifest string) error
 	Get(kind string, name string, namespace string, obj runtime.Object) error
 	Delete(kind string, name string, namespace string) error
 	Helpers() helpers.Helpers
 	NamespacedHelpers(namespace string) helpers.Helpers
+}
+
+// KubernetesConfig defines the configuration for creating a Kubernetes instance
+type KubernetesConfig struct {
+	// Context for executing kubernetes operations
+	Context context.Context
+	// Path to Kubernetes access configuration
+	Kubeconfig string
 }
 
 // k8s Holds the reference to the helpers for interacting with kubernetes
@@ -55,7 +64,14 @@ func getRestMapper(client kubernetes.Interface, config *rest.Config) (apimeta.RE
 
 // NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
 func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	return NewFromConfig(KubernetesConfig{
+		Kubeconfig: kubeconfig,
+	})
+}
+
+// NewFromConfig returns a Kubernetes instance
+func NewFromConfig(c KubernetesConfig) (Kubernetes, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", c.Kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -75,14 +91,24 @@ func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 		return nil, err
 	}
 
+	ctx := c.Context
+	if ctx == nil {
+		ctx = context.TODO()
+	}
+
 	return &k8s{
 		config:     config,
 		Interface:  client,
-		ctx:        context.TODO(),
+		ctx:        ctx,
 		dynamic:    dynamic,
 		serializer: yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme),
 		mapper:     mapper,
 	}, nil
+}
+
+// Returns the context for executing k8s actions
+func (k *k8s)Context() context.Context {
+	return k.ctx
 }
 
 // Create creates a resource in a kubernetes cluster from a yaml manifest
@@ -166,6 +192,7 @@ func (k *k8s) Helpers() helpers.Helpers {
 	return helpers.NewHelper(
 		k.Interface,
 		k.config,
+		k.ctx,
 		"default",
 	)
 }
@@ -175,6 +202,7 @@ func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
 	return helpers.NewHelper(
 		k.Interface,
 		k.config,
+		k.ctx,
 		namespace,
 	)
 }

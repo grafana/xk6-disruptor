@@ -24,11 +24,11 @@ type helpers struct {
 }
 
 // NewHelpers creates a set of helpers on the default namespace
-func NewHelper(client kubernetes.Interface, config *rest.Config, namespace string) Helpers {
+func NewHelper(client kubernetes.Interface, config *rest.Config, ctx context.Context, namespace string) Helpers {
 	return &helpers{
 		client:    client,
 		config:    config,
 		namespace: namespace,
-		ctx:       context.TODO(),
+		ctx:       ctx,
 	}
 }

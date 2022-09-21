@@ -2,7 +2,6 @@
 package disruptors
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -91,7 +90,7 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 		LabelSelector: labelSelector.String(),
 	}
 	pods, err := k8s.CoreV1().Pods(namespace).List(
-		context.TODO(),
+		k8s.Context(),
 		listOptions,
 	)
 	if err != nil {
@@ -144,7 +143,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 			defer wg.Done()
 
 			// check if the container has already been injected
-			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(c.k8s.Context(), podName, metav1.GetOptions{})
 			if err != nil {
 				errors <- err
 				return
