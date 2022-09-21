@@ -221,9 +221,14 @@ func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options Po
 		return nil, err
 	}
 
+	// ensure selector and controller use default namespace if none specified
+	namespace := selector.Namespace
+	if namespace == "" {
+		namespace = metav1.NamespaceDefault
+	}
 	controller := AgentController{
 		k8s:       k8s,
-		namespace: selector.Namespace,
+		namespace: namespace,
 		targets:   targets,
 		timeout:   options.InjectTimeout,
 	}
