@@ -138,7 +138,10 @@ func Test_Error500(t *testing.T) {
 			},
 		},
 	}
-	disruptor, err := disruptors.NewPodDisruptor(k8s, selector)
+	options := disruptors.PodDisruptorOptions{
+		InjectTimeout: 10 * time.Second,
+	}
+	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
 	if err != nil {
 		t.Errorf("error creating selector: %v", err)
 		return

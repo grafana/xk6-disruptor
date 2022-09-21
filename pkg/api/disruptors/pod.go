@@ -44,6 +44,12 @@ type PodDisruptor interface {
 	InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error
 }
 
+// PodDisruptorOptions defines options that controls the PodDisruptor's behavior
+type PodDisruptorOptions struct {
+	// timeout when waiting agent to be injected. 0 means no wait
+	InjectTimeout time.Duration
+}
+
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
 type podDisruptor struct {
 	selector   PodSelector
@@ -178,7 +184,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	}
 }
 
-// RunCommand executues a command in the targets of the AgentController and reports any error
+// RunCommand executes a command in the targets of the AgentController and reports any error
 func (c *AgentController) ExecCommand(cmd ...string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
@@ -209,7 +215,7 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
-func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisruptor, error) {
+func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options PodDisruptorOptions) (PodDisruptor, error) {
 	targets, err := selector.GetTargets(k8s)
 	if err != nil {
 		return nil, err
@@ -219,7 +225,7 @@ func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisrup
 		k8s:       k8s,
 		namespace: selector.Namespace,
 		targets:   targets,
-		timeout:   10 * time.Second, // FIXME: take from some configuration
+		timeout:   options.InjectTimeout,
 	}
 	err = controller.InjectDisruptorAgent()
 	if err != nil {
@@ -275,8 +281,7 @@ func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration time.Duration,
 	if err != nil {
 		return err
 	}
- 
+
 	err = d.controller.ExecCommand(cmd...)
 	return err
 }
-
