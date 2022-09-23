@@ -40,14 +40,14 @@ type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 	// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-	// for the specified duration
-	InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error
+	// for the specified duration (in seconds)
+	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
 type PodDisruptorOptions struct {
-	// timeout when waiting agent to be injected. 0 means no wait
-	InjectTimeout time.Duration
+	// timeout when waiting agent to be injected in seconds. 0 means no wait
+	InjectTimeout uint
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
@@ -230,7 +230,7 @@ func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options Po
 		k8s:       k8s,
 		namespace: namespace,
 		targets:   targets,
-		timeout:   options.InjectTimeout,
+		timeout:   time.Duration(options.InjectTimeout * uint(time.Second)),
 	}
 	err = controller.InjectDisruptorAgent()
 	if err != nil {
@@ -250,11 +250,11 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
 }
 
-func buildHttpFaultCmd(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) ([]string, error) {
+func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOptions) ([]string, error) {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
-		"-d", fmt.Sprintf("%fs", duration.Seconds()),
+		"-d", fmt.Sprintf("%ds", duration),
 	}
 
 	if fault.AverageDelay > 0 {
@@ -281,7 +281,7 @@ func buildHttpFaultCmd(fault HttpFault, duration time.Duration, options HttpDisr
 }
 
 //InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error {
+func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
 	cmd, err := buildHttpFaultCmd(fault, duration, options)
 	if err != nil {
 		return err
