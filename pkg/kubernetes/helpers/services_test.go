@@ -164,7 +164,7 @@ func Test_WaitServiceReady(t *testing.T) {
 
 			}(tc)
 
-			h := NewHelper(client, "default")
+			h := NewHelper(client, nil, "default")
 
 			err := h.WaitServiceReady("service", tc.timeout)
 			if !tc.expectError && err != nil {
