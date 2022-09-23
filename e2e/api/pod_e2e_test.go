@@ -147,6 +147,12 @@ func Test_Error500(t *testing.T) {
 		return
 	}
 
+	targets, _ := disruptor.Targets()
+	if len(targets) == 0 {
+		t.Errorf("No pods matched the selector")
+		return
+	}
+
 	go func() {
 		// apply httpfailure
 		fault := disruptors.HttpFault{

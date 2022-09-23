@@ -102,9 +102,6 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(pods.Items) == 0 {
-		return nil, fmt.Errorf("no pods match the selector")
-	}
 
 	podNames := []string{}
 	for _, pod := range pods.Items {
