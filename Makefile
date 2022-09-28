@@ -1,3 +1,6 @@
+work_dir = $(shell pwd)
+golangci_version = $(shell head -n 1 .golangci.yml | tr -d '# ')
+
 all: build
 
 agent-image: build-agent test
@@ -30,7 +33,10 @@ e2e: e2e-cluster e2e-kubernetes e2e-http e2e-api
 format:
 	go fmt ./...
 
+lint:
+	docker run --rm -v $(work_dir):/disruptor -w /disruptor golangci/golangci-lint:$(golangci_version) golangci-lint run
+
 test:
 	go test -race  ./...
 
-.PHONY: agent-image build-agent clean e2e e2e-api e2e-cluster e2e-http e2e-kubernetes format test
+.PHONY: agent-image build build-agent clean e2e e2e-api e2e-cluster e2e-http e2e-kubernetes format lint test
