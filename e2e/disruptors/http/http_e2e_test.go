@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,49 +13,84 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const clusterName = "e2e-httpdisruptor"
 
 // deploy pod with [httpbin] and the httpdisruptor as sidekick container
-const podManifest = `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: httpbin
-  namespace: default
-  labels:
-    app: httpbin
-spec:
-  containers:
-  - name: httpbin
-    image: kennethreitz/httpbin
-  - name: httpdisruptor
-    image: grafana/xk6-disruptor-agent
-    imagePullPolicy: IfNotPresent
-    securityContext:
-      capabilities:
-        add: ["NET_ADMIN"]
-    command: ["xk6-disruptor-agent", "http"]
-    args: [ "--duration", "300s", "--rate", "1.0", "--error", "500", "--port", "8080", "--target", "80" ]
-`
+func buildHttpbinPodWithDisruptorAgent() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "httpbin",
+			Labels: map[string]string{
+				"app": "httpbin",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "httpbin",
+					Image:           "kennethreitz/httpbin",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+				},
+				{
+					Name:            "httpdisruptor",
+					Image:           "grafana/xk6-disruptor-agent",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"xk6-disruptor-agent"},
+					Args: []string{
+						"http",
+						"--duration",
+						"300s",
+						"--rate",
+						"1.0",
+						"--error",
+						"500",
+						"--port",
+						"8080",
+						"--target",
+						"80",
+					},
+					SecurityContext: &corev1.SecurityContext{
+						Capabilities: &corev1.Capabilities{
+							Add: []corev1.Capability{
+								"NET_ADMIN",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
 
 // expose ngix pod at the node port 32080
-const serviceManifest = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin
-spec:
-  type: NodePort
-  ports:
-  - name: "http"
-    port: 80
-    nodePort: 32080
-    targetPort: 80
-  selector:
-    app: httpbin
-`
+func buildHttpbinService() *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "httpbin",
+			Labels: map[string]string{
+				"app": "httpbin",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": "httpbin",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     80,
+					NodePort: 32080,
+				},
+			},
+		},
+	}
+}
 
 // path to kubeconfig file for the test cluster
 var kubeconfig string
@@ -105,20 +141,35 @@ func Test_Error500(t *testing.T) {
 		return
 	}
 
-	err = k8s.Create(podManifest)
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-")
+	if err != nil {
+		t.Errorf("error creating test namespace: %v", err)
+		return
+	}
+	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+
+	_, err = k8s.CoreV1().Pods(ns).Create(
+		context.TODO(),
+		buildHttpbinPodWithDisruptorAgent(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
 	}
 
-	err = k8s.Create(serviceManifest)
+	_, err = k8s.CoreV1().Services(ns).Create(
+		context.TODO(),
+		buildHttpbinService(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
 	}
 
 	// wait for the service to be ready for accepting requests
-	err = k8s.Helpers().WaitServiceReady("httpbin", time.Second*20)
+	err = k8s.NamespacedHelpers(ns).WaitServiceReady("httpbin", time.Second*30)
 	if err != nil {
 		t.Errorf("error waiting for service httpbin: %v", err)
 		return

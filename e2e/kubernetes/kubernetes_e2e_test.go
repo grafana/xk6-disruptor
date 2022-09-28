@@ -60,95 +60,82 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-const busyboxManifest = `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: busybox
-  namespace: %s
-spec:
-  containers:
-  - name: busybox
-    image: busybox
-    command: ["sleep", "300"]
-`
-
-const pausedManifest = `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: paused
-  namespace: %s
-spec:
-  containers:
-  - name: paused
-    image: k8s.gcr.io/pause
-`
-
-const nginxManifest = `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-  namespace: %s
-  labels:
-    app: e2e-test
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-`
-
-// expose nginx pod at the node port 32080
-const serviceManifest = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx
-  namespace: %s
-spec:
-  type: NodePort
-  ports:
-  - name: "http"
-    port: 80
-    nodePort: 32080
-    targetPort: 80
-  selector:
-    app: e2e-test
-`
-
-func Test_CreateGetDeletePod(t *testing.T) {
-	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
-	if err != nil {
-		t.Errorf("error creating kubernetes client: %v", err)
-		return
+func buildBusyBoxPod() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "busybox",
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "busybox",
+					Image:           "busybox",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"sleep", "300"},
+				},
+			},
+		},
 	}
+}
 
-	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
-	if err != nil {
-		t.Errorf("error creating test namespace: %v", err)
-		return
+func buildPausedPod() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "paused",
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "paused",
+					Image:           "k8s.gcr.io/pause",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+				},
+			},
+		},
 	}
-	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+}
 
-	manifest := fmt.Sprintf(busyboxManifest, ns)
-	err = k8s.Create(manifest)
-	if err != nil {
-		t.Errorf("failed to create pod: %v", err)
-		return
+func buildNginxPod() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+			Labels: map[string]string{
+				"app": "e2e-test",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "nginx",
+					Image:           "nginx",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+				},
+			},
+		},
 	}
+}
 
-	pod := corev1.Pod{}
-	err = k8s.Get("Pod", "busybox", ns, &pod)
-	if err != nil {
-		t.Errorf("failed to get pod: %v", err)
-		return
-	}
-
-	err = k8s.Delete("Pod", "busybox", ns)
-	if err != nil {
-		t.Errorf("failed to delete pod: %v", err)
-		return
+func buildNginxService() *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "nginx",
+			Labels: map[string]string{
+				"app": "e2e-test",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": "e2e-test",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     80,
+					NodePort: 32080,
+				},
+			},
+		},
 	}
 }
 
@@ -159,22 +146,28 @@ func Test_WaitServiceReady(t *testing.T) {
 		return
 	}
 
-	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-")
 	if err != nil {
 		t.Errorf("error creating test namespace: %v", err)
 		return
 	}
 	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-	manifest := fmt.Sprintf(nginxManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Pods(ns).Create(
+		context.TODO(),
+		buildNginxPod(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
 	}
 
-	manifest = fmt.Sprintf(serviceManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Services(ns).Create(
+		context.TODO(),
+		buildNginxService(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
@@ -220,15 +213,18 @@ func Test_Exec(t *testing.T) {
 		return
 	}
 
-	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-")
 	if err != nil {
 		t.Errorf("error creating test namespace: %v", err)
 		return
 	}
 	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-	manifest := fmt.Sprintf(busyboxManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Pods(ns).Create(
+		context.TODO(),
+		buildBusyBoxPod(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
@@ -273,15 +269,18 @@ func Test_AttachEphemeral(t *testing.T) {
 		return
 	}
 
-	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+	ns, err := k8s.Helpers().CreateRandomNamespace("test-")
 	if err != nil {
 		t.Errorf("error creating test namespace: %v", err)
 		return
 	}
 	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-	manifest := fmt.Sprintf(pausedManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Pods(ns).Create(
+		context.TODO(),
+		buildPausedPod(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
@@ -301,17 +300,17 @@ func Test_AttachEphemeral(t *testing.T) {
 		return
 	}
 
-	ephemeral :=  corev1.EphemeralContainer{
+	ephemeral := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
-			Name:            "ephemeral",
-			Image:           "busybox",
-			Command:         []string{"sleep", "300"},
-			TTY:             true,
-			Stdin:           true,
+			Name:    "ephemeral",
+			Image:   "busybox",
+			Command: []string{"sleep", "300"},
+			TTY:     true,
+			Stdin:   true,
 		},
 	}
 
-	err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer("paused", ephemeral, 15 * time.Second)
+	err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer("paused", ephemeral, 15*time.Second)
 	if err != nil {
 		t.Errorf("error attaching ephemeral container to pod: %v", err)
 		return
@@ -334,4 +333,3 @@ func Test_AttachEphemeral(t *testing.T) {
 		return
 	}
 }
-

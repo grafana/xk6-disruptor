@@ -3,11 +3,9 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -22,15 +20,16 @@ type FakeKubernetes struct {
 func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 	return &FakeKubernetes{
 		Clientset: clientset,
-		ctx: context.TODO(),
+		ctx:       context.TODO(),
 		executor:  helpers.NewFakePodCommandExecutor(),
 	}, nil
 }
 
 // Returns the context for executing k8s actions
-func (k *FakeKubernetes)Context() context.Context {
+func (k *FakeKubernetes) Context() context.Context {
 	return k.ctx
 }
+
 // Helpers return a instance of FakeHelper
 func (f *FakeKubernetes) Helpers() helpers.Helpers {
 	return helpers.NewFakeHelper(
@@ -53,16 +52,4 @@ func (f *FakeKubernetes) NamespacedHelpers(namespace string) helpers.Helpers {
 // the execution of commands in a Pod
 func (f *FakeKubernetes) GetFakeProcessExecutor() *helpers.FakePodCommandExecutor {
 	return f.executor
-}
-
-func (f *FakeKubernetes) Create(manifest string) error {
-	return fmt.Errorf("operation not supported")
-}
-
-func (f *FakeKubernetes) Get(kind string, name string, namespace string, obj runtime.Object) error {
-	return fmt.Errorf("operation not supported")
-}
-
-func (f *FakeKubernetes) Delete(kind string, name string, namespace string) error {
-	return fmt.Errorf("operation not supported")
 }
