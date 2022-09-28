@@ -31,6 +31,7 @@ type podBuilder struct {
 func NewPodBuilder(name string) *podBuilder {
 	return &podBuilder{
 		name: name,
+		namespace: metav1.NamespaceDefault,
 		containers: []corev1.Container{
 			{
 				Name:    "busybox",

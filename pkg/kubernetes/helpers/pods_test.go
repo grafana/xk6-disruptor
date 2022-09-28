@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -63,7 +64,7 @@ func TestPods_Wait(t *testing.T) {
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
+			h := NewHelper(client, nil, context.TODO(), testNamespace)
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
@@ -157,7 +158,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			client := fake.NewSimpleClientset(pod)
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
+			h := NewHelper(client, nil, context.TODO(), testNamespace)
 
 			// add watcher to update ephemeral container's status
 			go func(tc TestCase) {

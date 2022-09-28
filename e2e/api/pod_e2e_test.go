@@ -138,9 +138,18 @@ func Test_Error500(t *testing.T) {
 			},
 		},
 	}
-	disruptor, err := disruptors.NewPodDisruptor(k8s, selector)
+	options := disruptors.PodDisruptorOptions{
+		InjectTimeout: 10,
+	}
+	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
 	if err != nil {
 		t.Errorf("error creating selector: %v", err)
+		return
+	}
+
+	targets, _ := disruptor.Targets()
+	if len(targets) == 0 {
+		t.Errorf("No pods matched the selector")
 		return
 	}
 
@@ -154,7 +163,7 @@ func Test_Error500(t *testing.T) {
 			TargetPort: 80,
 			ProxyPort:  8080,
 		}
-		err := disruptor.InjectHttpFaults(fault, 10*time.Second, opts)
+		err := disruptor.InjectHttpFaults(fault, 10, opts)
 		if err != nil {
 			t.Errorf("error injecting fault: %v", err)
 		}

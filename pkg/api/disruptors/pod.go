@@ -2,7 +2,6 @@
 package disruptors
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -41,8 +40,14 @@ type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 	// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-	// for the specified duration
-	InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error
+	// for the specified duration (in seconds)
+	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
+}
+
+// PodDisruptorOptions defines options that controls the PodDisruptor's behavior
+type PodDisruptorOptions struct {
+	// timeout when waiting agent to be injected in seconds. 0 means no wait
+	InjectTimeout uint
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
@@ -91,14 +96,11 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 		LabelSelector: labelSelector.String(),
 	}
 	pods, err := k8s.CoreV1().Pods(namespace).List(
-		context.TODO(),
+		k8s.Context(),
 		listOptions,
 	)
 	if err != nil {
 		return nil, err
-	}
-	if len(pods.Items) == 0 {
-		return nil, fmt.Errorf("no pods match the selector")
 	}
 
 	podNames := []string{}
@@ -144,7 +146,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 			defer wg.Done()
 
 			// check if the container has already been injected
-			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(c.k8s.Context(), podName, metav1.GetOptions{})
 			if err != nil {
 				errors <- err
 				return
@@ -179,7 +181,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	}
 }
 
-// RunCommand executues a command in the targets of the AgentController and reports any error
+// RunCommand executes a command in the targets of the AgentController and reports any error
 func (c *AgentController) ExecCommand(cmd ...string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
@@ -210,17 +212,22 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
-func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector) (PodDisruptor, error) {
+func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options PodDisruptorOptions) (PodDisruptor, error) {
 	targets, err := selector.GetTargets(k8s)
 	if err != nil {
 		return nil, err
 	}
 
+	// ensure selector and controller use default namespace if none specified
+	namespace := selector.Namespace
+	if namespace == "" {
+		namespace = metav1.NamespaceDefault
+	}
 	controller := AgentController{
 		k8s:       k8s,
-		namespace: selector.Namespace,
+		namespace: namespace,
 		targets:   targets,
-		timeout:   10 * time.Second, // FIXME: take from some configuration
+		timeout:   time.Duration(options.InjectTimeout * uint(time.Second)),
 	}
 	err = controller.InjectDisruptorAgent()
 	if err != nil {
@@ -240,11 +247,11 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
 }
 
-func buildHttpFaultCmd(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) ([]string, error) {
+func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOptions) ([]string, error) {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
-		"-d", fmt.Sprintf("%fs", duration.Seconds()),
+		"-d", fmt.Sprintf("%ds", duration),
 	}
 
 	if fault.AverageDelay > 0 {
@@ -271,13 +278,12 @@ func buildHttpFaultCmd(fault HttpFault, duration time.Duration, options HttpDisr
 }
 
 //InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration time.Duration, options HttpDisruptionOptions) error {
+func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
 	cmd, err := buildHttpFaultCmd(fault, duration, options)
 	if err != nil {
 		return err
 	}
- 
+
 	err = d.controller.ExecCommand(cmd...)
 	return err
 }
-

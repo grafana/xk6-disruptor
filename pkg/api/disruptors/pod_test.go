@@ -96,7 +96,7 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			labels: map[string]string{
 				"app": "test",
 			},
-			expectError:  true,
+			expectError:  false,
 			expectedPods: []string{},
 		},
 		{
@@ -107,7 +107,7 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			labels: map[string]string{
 				"app": "test",
 			},
-			expectError:  true,
+			expectError:  false,
 			expectedPods: []string{},
 		},
 		{

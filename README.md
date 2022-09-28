@@ -5,9 +5,98 @@ xk6-disruptor is a [k6](https://k6.io) extension for injecting faults into the s
 
 > ⚠️  xk6-disruptor is in alpha stage. Breaking changes can be introduced at any time without prior notice. USE AT YOUR OWN RISK!
 
+# Usage
+
+## Build binary
+
+The `xk6-disruptor` is a `k6` extension. In order to use it in a `k6` test script, it is necessary to create a custom build of `k6` including the disruptor extension. This can be easily made my downloading this repository and executing the `make build` command:
+```bash
+$ make build
+```
+
+Test scripts can be executed then running the newly created version of `k6` located in the `build` directory:
+```bash
+$ ./build/k6 run path/to/test/script
+```
+
+# API
+
+## Pod Disruption
+
+The `PodDisruptor` class allows disruption of Pods by injecting different kinds of faults. The target pod(s) are defined by means of a pod selector. 
+ 
+`constructor`: creates a pod disruptor
+
+    Parameters:
+      selector: criteria for selecting the target pod(s).
+      options: options for controlling the behavior of the disruptor
+
+The `selector` defines the criteria a pod must satisfy in order to be a valid target:
+- namespace: namespace the selector will look for pods
+- select: attributes that a pod must match for being selected
+- exclude: attributes that if a pod matches, will be excluded (even if matches the select attributes)
+
+The following attributes can be used for selecting or excluding pods:
+- `labels`: map with the labels to be matched for selection/exclusion
+
+The `options` control the creation and behavior of the pod disruptor:
+- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds
+
+Methods:
+
+`injectHttpFaults`: disrupts http requests served by the target pods.
+
+      Parameters:
+        fault: description of the faults to be injected
+        duration: duration of the disruption in seconds (default 30s)
+        options: options that control the injection of the fault
+
+The faults are described by the following attributes:
+- average_delay: average delay added to requests in milliseconds (default `0ms`)
+- delay_variation: variation in the injected delay in milliseconds (default `0ms`)
+- error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
+- error_code: error code to return
+- exclude: list of urls to be excluded from disruption (e.g. /health)
+
+The injection of the fault is controlled by the following options:
+  - target_port: port on which the requests will be intercepted (default `80`)
+  - proxy_port: port the proxy will use to listen for requests ( default `8080`)
+  - iface: network interface where the proxy will capture the traffic ( default `eth0`)
+
+`targets`: returns the list of target pod for the disruptor.
+
+Example: [`examples/pod_disruptor.js`](examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `app=my-app` label and injects a delay of 100ms and a 10% of requests returning a http response code 500. 
+
+```js
+import { Disruptor } from 'k6/x/disruptor';
+  
+const selector = {
+  namespace: "default"
+  select: {
+    labels: {
+      app: "my-app"
+    }
+  }
+}
+
+const fault = {
+        average_delay: 100,
+        error_rate: 0.1,
+        error_code: 500
+}
+
+export default func() {
+    const disruptor = new PodDisruptor(selector)
+    const targets = disruptor.targets()
+    if (targets.length != 1) {
+      throw new Error("expected list to have one target")
+    }
+
+    disruptor.injectHttpFault(30, fault)
+}
+```
+
 # Architecture
-
-
 
 ## xk6-disruptor-agent
 
@@ -41,7 +130,6 @@ Flags:
   -p, --port uint              port the proxy will listen to (default 8080)
   -r, --rate float32           error rate
   -t, --target uint            port the proxy will redirect request to (default 80)
-
 ```
 
 # Development
