@@ -11,46 +11,62 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/grafana/xk6-disruptor/pkg/api/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 )
 
 const clusterName = "e2e-pod-disruptor"
 
-// deploy pod with httpbin
-const podManifest = `
-apiVersion: v1
-kind: Pod
-metadata:
-  name: httpbin
-  namespace: %s
-  labels:
-    app: httpbin
-spec:
-  containers:
-  - name: httpbin
-    image: kennethreitz/httpbin
-`
+func buildHttpbinPod() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "httpbin",
+			Labels: map[string]string{
+				"app": "httpbin",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "httpbin",
+					Image:           "kennethreitz/httpbin",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+				},
+			},
+		},
+	}
+}
 
-// expose httpbin pod at the node port 32080
-const serviceManifest = `
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin
-  namespace: %s
-spec:
-  type: NodePort
-  ports:
-  - name: "http"
-    port: 80
-    nodePort: 32080
-    targetPort: 80
-  selector:
-    app: httpbin
-`
+// expose ngix pod at the node port 32080
+func buildHttpbinService() *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "httpbin",
+			Labels: map[string]string{
+				"app": "httpbin",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": "httpbin",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     80,
+					NodePort: 32080,
+				},
+			},
+		},
+	}
+}
+
 
 // path to kubeconfig file for the test cluster
 var kubeconfig string
@@ -108,15 +124,21 @@ func Test_Error500(t *testing.T) {
 	}
 	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-	manifest := fmt.Sprintf(podManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Pods(ns).Create(
+		context.TODO(),
+		buildHttpbinPod(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
 	}
 
-	manifest = fmt.Sprintf(serviceManifest, ns)
-	err = k8s.Create(manifest)
+	_, err = k8s.CoreV1().Services(ns).Create(
+		context.TODO(),
+		buildHttpbinService(),
+		metav1.CreateOptions{},
+	)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
