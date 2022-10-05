@@ -4,6 +4,7 @@ package builders
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type ServiceBuilder interface {
@@ -11,6 +12,8 @@ type ServiceBuilder interface {
 	Build() *corev1.Service
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) ServiceBuilder
+	//WithPorts sets the ports exposed by the service
+	WithPorts(ports []corev1.ServicePort) ServiceBuilder
 	// WithSelector sets the service's selector labels
 	WithSelector(labels map[string]string) ServiceBuilder
 }
@@ -19,7 +22,18 @@ type ServiceBuilder interface {
 type serviceBuilder struct {
 	name      string
 	namespace string
+	ports     []corev1.ServicePort
 	selector  map[string]string
+}
+
+// DefaultServicePorts returns an array of ServicePort with default values
+func DefaultServicePorts() []corev1.ServicePort {
+	return []corev1.ServicePort{
+		{
+			Port:       80,
+			TargetPort: intstr.FromInt(80),
+		},
+	}
 }
 
 // NewServiceBuilder creates a new instance of ServiceBuilder with the given pod name
@@ -28,11 +42,18 @@ func NewServiceBuilder(name string) ServiceBuilder {
 	return &serviceBuilder{
 		name:      name,
 		namespace: metav1.NamespaceDefault,
+		ports:     DefaultServicePorts(),
+		selector:  map[string]string{},
 	}
 }
 
 func (s *serviceBuilder) WithNamespace(namespace string) ServiceBuilder {
 	s.namespace = namespace
+	return s
+}
+
+func (s *serviceBuilder) WithPorts(ports []corev1.ServicePort) ServiceBuilder {
+	s.ports = ports
 	return s
 }
 
@@ -53,6 +74,7 @@ func (s *serviceBuilder) Build() *corev1.Service {
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: s.selector,
+			Ports:    s.ports,
 		},
 	}
 }

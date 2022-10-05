@@ -3,29 +3,44 @@ package disruptors
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-func Test_ServiceSelector(t *testing.T) {
+type serviceDesc struct {
+	name      string
+	namespace string
+	ports     []corev1.ServicePort
+	selector  map[string]string
+}
+
+func Test_NewServiceDisruptor(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title        string
-		service      string
-		namespace    string
+		service      serviceDesc
+		options      ServiceDisruptorOptions
 		pods         []podDesc
-		selector     map[string]string
 		expectError  bool
 		expectedPods []string
 	}{
 		{
-			title:     "one matching pod",
-			service:   "test-svc",
-			namespace: testNamespace,
+			title: "one matching pod",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports:     builders.DefaultServicePorts(),
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -35,16 +50,20 @@ func Test_ServiceSelector(t *testing.T) {
 					},
 				},
 			},
-			selector: map[string]string{
-				"app": "test",
-			},
 			expectError:  false,
 			expectedPods: []string{"pod-1"},
 		},
 		{
-			title:     "no matching pod",
-			service:   "test-svc",
-			namespace: testNamespace,
+			title: "no matching pod",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports:     builders.DefaultServicePorts(),
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -54,27 +73,35 @@ func Test_ServiceSelector(t *testing.T) {
 					},
 				},
 			},
-			selector: map[string]string{
-				"app": "test",
-			},
 			expectError:  false,
 			expectedPods: []string{},
 		},
 		{
-			title:     "no pods",
-			service:   "test-svc",
-			namespace: testNamespace,
-			pods:      []podDesc{},
-			selector: map[string]string{
-				"app": "test",
+			title: "no pods",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports:     builders.DefaultServicePorts(),
+				selector: map[string]string{
+					"app": "test",
+				},
 			},
+			options:      ServiceDisruptorOptions{},
+			pods:         []podDesc{},
 			expectError:  false,
 			expectedPods: []string{},
 		},
 		{
-			title:     "pods in another namespace",
-			service:   "test-svc",
-			namespace: testNamespace,
+			title: "pods in another namespace",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports:     builders.DefaultServicePorts(),
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -84,8 +111,60 @@ func Test_ServiceSelector(t *testing.T) {
 					},
 				},
 			},
-			selector: map[string]string{
-				"app": "test",
+			expectError:  false,
+			expectedPods: []string{},
+		},
+		{
+			title: "invalid Port option",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports:     builders.DefaultServicePorts(),
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{
+				Port: 8080,
+			},
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError:  true,
+			expectedPods: []string{},
+		},
+		{
+			title: "Port option specified",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports: []corev1.ServicePort{
+					{
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{
+				Port: 8080,
+			},
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			expectError:  false,
 			expectedPods: []string{},
@@ -97,9 +176,10 @@ func Test_ServiceSelector(t *testing.T) {
 			t.Parallel()
 
 			objs := []runtime.Object{}
-			svc := builders.NewServiceBuilder(tc.service).
-				WithNamespace(tc.namespace).
-				WithSelector(tc.selector).
+			svc := builders.NewServiceBuilder(tc.service.name).
+				WithNamespace(tc.service.namespace).
+				WithSelector(tc.service.selector).
+				WithPorts(tc.service.ports).
 				Build()
 			objs = append(objs, svc)
 			for _, p := range tc.pods {
@@ -112,7 +192,12 @@ func Test_ServiceSelector(t *testing.T) {
 			client := fake.NewSimpleClientset(objs...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
-			d, err := NewServiceDisruptor(k, tc.service, tc.namespace, ServiceDisruptorOptions{})
+			d, err := NewServiceDisruptor(
+				k,
+				tc.service.name,
+				tc.service.namespace,
+				tc.options,
+			)
 
 			if !tc.expectError && err != nil {
 				t.Errorf(" unexpected error creating service disruptor: %v", err)
@@ -121,6 +206,10 @@ func Test_ServiceSelector(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed creating service disruptor")
+				return
+			}
+
+			if tc.expectError && err != nil {
 				return
 			}
 
