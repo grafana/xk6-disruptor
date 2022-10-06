@@ -131,3 +131,51 @@ func Test_PreloadImages(t *testing.T) {
 	}
 
 }
+
+func Test_PortAllocation(t *testing.T) {
+	// create cluster with default configuration
+	nodePort := cluster.NodePort{
+		HostPort: 32090,
+		NodePort: 32090,
+	}
+	config, err := cluster.NewClusterConfig(
+		"e2e-default-cluster",
+		cluster.ClusterOptions{
+			Wait: time.Second * 60,
+			NodePorts: []cluster.NodePort{
+				nodePort,
+			},
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+	// delete cluster
+	defer cluster.Delete()
+
+	firstNodePort := cluster.AllocatePort()
+	if firstNodePort.HostPort == 0 {
+		t.Errorf("should have allocated a node port")
+		return
+	}
+
+	secondNodePort := cluster.AllocatePort()
+	if secondNodePort.HostPort != 0 {
+		t.Errorf("should have failed allocating node port")
+		return
+	}
+
+	cluster.ReleasePort(firstNodePort)
+	secondNodePort = cluster.AllocatePort()
+	if secondNodePort.HostPort == 0 {
+		t.Errorf("should have allocated a node port")
+		return
+	}
+}

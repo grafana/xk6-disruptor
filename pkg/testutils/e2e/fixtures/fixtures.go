@@ -35,7 +35,7 @@ func BuildHttpbinPod() *corev1.Pod {
 }
 
 // BuildHttpbinService returns a Service definition that exposes httpbin pods at the node port 32080
-func BuildHttpbinService() *corev1.Service {
+func BuildHttpbinService(nodeport int32) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "httpbin",
@@ -52,7 +52,7 @@ func BuildHttpbinService() *corev1.Service {
 				{
 					Name:     "http",
 					Port:     80,
-					NodePort: 32080,
+					NodePort: nodeport,
 				},
 			},
 		},
@@ -122,7 +122,7 @@ func BuildNginxPod() *corev1.Pod {
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
-func BuildNginxService() *corev1.Service {
+func BuildNginxService(nodeport int32) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "nginx",
@@ -139,7 +139,7 @@ func BuildNginxService() *corev1.Service {
 				{
 					Name:     "http",
 					Port:     80,
-					NodePort: 32080,
+					NodePort: nodeport,
 				},
 			},
 		},
@@ -205,17 +205,18 @@ func DeployApp(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, svc *corev
 
 // BuildCluster builds a cluster exposing port 32080 and with the required images preloaded
 func BuildCluster(name string) (*cluster.Cluster, error) {
+	// map node ports in the range 32080-32089 to host ports
+	nodePorts := []cluster.NodePort{}
+	for port := 32080; port < 32090; port++ {
+		nodePorts = append(nodePorts, cluster.NodePort{HostPort: int32(port), NodePort: int32(port)})
+	}
+
 	config, err := cluster.NewClusterConfig(
 		name,
 		cluster.ClusterOptions{
-			NodePorts: []cluster.NodePort{
-				{
-					NodePort: 32080,
-					HostPort: 32080,
-				},
-			},
-			Images: []string{"grafana/xk6-disruptor-agent"},
-			Wait:   time.Second * 60,
+			NodePorts: nodePorts,
+			Images:    []string{"grafana/xk6-disruptor-agent"},
+			Wait:      time.Second * 60,
 		},
 	)
 	if err != nil {

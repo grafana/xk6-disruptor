@@ -17,7 +17,7 @@ type ServiceCheck struct {
 	// Url to access the service (default http://127.0.0.1)
 	Url string
 	// Port to access the service (default 32080)
-	Port uint
+	Port int32
 	// Expected return code (default 200)
 	ExpectedCode int
 	// Delay before attempting access to service
