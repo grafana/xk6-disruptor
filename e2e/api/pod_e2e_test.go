@@ -5,203 +5,99 @@ package e2e
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"os"
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/grafana/xk6-disruptor/pkg/api/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
-
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
 
-const clusterName = "e2e-pod-disruptor"
-
-func buildHttpbinPod() *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "httpbin",
-			Labels: map[string]string{
-				"app": "httpbin",
-			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:            "httpbin",
-					Image:           "kennethreitz/httpbin",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-				},
-			},
-		},
-	}
-}
-
-// expose ngix pod at the node port 32080
-func buildHttpbinService() *corev1.Service {
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "httpbin",
-			Labels: map[string]string{
-				"app": "httpbin",
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeNodePort,
-			Selector: map[string]string{
-				"app": "httpbin",
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:     "http",
-					Port:     80,
-					NodePort: 32080,
-				},
-			},
-		},
-	}
-}
-
-
-// path to kubeconfig file for the test cluster
-var kubeconfig string
-
-func TestMain(m *testing.M) {
-	// Create cluster that exposes the cluster node port 32080 to the local (host) port 9080
-	fmt.Printf("creating cluster '%s'\n", clusterName)
-	config, err := cluster.NewClusterConfig(
-		clusterName,
-		cluster.ClusterOptions{
-			NodePorts: []cluster.NodePort{
-				{
-					NodePort: 32080,
-					HostPort: 32080,
-				},
-			},
-			Images: []string{"grafana/xk6-disruptor-agent"},
-			Wait:   time.Second * 60,
-		},
-	)
+func Test_PodDisruptor(t *testing.T) {
+	cluster, err := fixtures.BuildCluster("e2e-pod-disruptor")
 	if err != nil {
-		fmt.Printf("failed to create cluster config: %v", err)
-		os.Exit(1)
+		t.Errorf("failed to create cluster config: %v", err)
+		return
 	}
+	defer cluster.Delete()
 
-	cluster, err := config.Create()
-	if err != nil {
-		fmt.Printf("failed to create cluster: %v", err)
-		os.Exit(1)
-	}
-
-	// retrieve path to kubeconfig
-	kubeconfig, _ = cluster.Kubeconfig()
-
-	// run tests
-	rc := m.Run()
-
-	// clean up
-	cluster.Delete()
-
-	os.Exit(rc)
-}
-
-func Test_Error500(t *testing.T) {
-	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
 	}
 
-	ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
-	if err != nil {
-		t.Errorf("error creating test namespace: %v", err)
-		return
-	}
-	defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
-
-	_, err = k8s.CoreV1().Pods(ns).Create(
-		context.TODO(),
-		buildHttpbinPod(),
-		metav1.CreateOptions{},
-	)
-	if err != nil {
-		t.Errorf("failed to create pod: %v", err)
-		return
-	}
-
-	_, err = k8s.CoreV1().Services(ns).Create(
-		context.TODO(),
-		buildHttpbinService(),
-		metav1.CreateOptions{},
-	)
-	if err != nil {
-		t.Errorf("failed to create service: %v", err)
-		return
-	}
-
-	// wait for the service to be ready for accepting requests
-	err = k8s.NamespacedHelpers(ns).WaitServiceReady("httpbin", time.Second*20)
-	if err != nil {
-		t.Errorf("error waiting for service httpbin: %v", err)
-		return
-	}
-
-	// create pod disruptor
-	selector := disruptors.PodSelector{
-		Namespace: ns,
-		Select: disruptors.PodAttributes{
-			Labels: map[string]string{
-				"app": "httpbin",
-			},
-		},
-	}
-	options := disruptors.PodDisruptorOptions{
-		InjectTimeout: 10,
-	}
-	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
-	if err != nil {
-		t.Errorf("error creating selector: %v", err)
-		return
-	}
-
-	targets, _ := disruptor.Targets()
-	if len(targets) == 0 {
-		t.Errorf("No pods matched the selector")
-		return
-	}
-
-	go func() {
-		// apply httpfailure
-		fault := disruptors.HttpFault{
-			ErrorRate: 1.0,
-			ErrorCode: 500,
-		}
-		opts := disruptors.HttpDisruptionOptions{
-			TargetPort: 80,
-			ProxyPort:  8080,
-		}
-		err := disruptor.InjectHttpFaults(fault, 10, opts)
+	t.Run("Inject Http error 500", func(t *testing.T) {
+		ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
 		if err != nil {
-			t.Errorf("error injecting fault: %v", err)
+			t.Errorf("error creating test namespace: %v", err)
+			return
 		}
-	}()
+		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-	time.Sleep(2 * time.Second)
+		err = fixtures.DeployApp(
+			k8s,
+			ns,
+			fixtures.BuildHttpbinPod(),
+			fixtures.BuildHttpbinService(),
+			20*time.Second,
+		)
+		if err != nil {
+			t.Errorf("error deploying httpbin: %v", err)
+			return
+		}
 
-	// access service using the local port on which the service was exposed (see ClusterOptions)
-	resp, err := http.Get("http://127.0.0.1:32080")
-	if err != nil {
-		t.Errorf("failed to access service: %v", err)
-		return
-	}
+		// create pod disruptor
+		selector := disruptors.PodSelector{
+			Namespace: ns,
+			Select: disruptors.PodAttributes{
+				Labels: map[string]string{
+					"app": "httpbin",
+				},
+			},
+		}
+		options := disruptors.PodDisruptorOptions{
+			InjectTimeout: 10,
+		}
+		disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
+		if err != nil {
+			t.Errorf("error creating selector: %v", err)
+			return
+		}
 
-	if resp.StatusCode != 500 {
-		t.Errorf("expected status code 500 but %d received:", resp.StatusCode)
-		return
-	}
+		targets, _ := disruptor.Targets()
+		if len(targets) == 0 {
+			t.Errorf("No pods matched the selector")
+			return
+		}
+
+		// apply disruption in a go-routine as it is a blocking function
+		go func() {
+			// apply httpfailure
+			fault := disruptors.HttpFault{
+				ErrorRate: 1.0,
+				ErrorCode: 500,
+			}
+			opts := disruptors.HttpDisruptionOptions{
+				TargetPort: 80,
+				ProxyPort:  8080,
+			}
+			err := disruptor.InjectHttpFaults(fault, 10, opts)
+			if err != nil {
+				t.Errorf("error injecting fault: %v", err)
+			}
+		}()
+
+		err = checks.CheckService(checks.ServiceCheck{
+			Delay:        2 * time.Second,
+			ExpectedCode: 500,
+		})
+		if err != nil {
+			t.Errorf("failed to access service: %v", err)
+			return
+		}
+	})
 }

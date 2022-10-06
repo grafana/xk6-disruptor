@@ -5,20 +5,16 @@ package e2e
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const clusterName = "e2e-httpdisruptor"
 
 // deploy pod with [httpbin] and the httpdisruptor as sidekick container
 func buildHttpbinPodWithDisruptorAgent() *corev1.Pod {
@@ -67,75 +63,18 @@ func buildHttpbinPodWithDisruptorAgent() *corev1.Pod {
 	}
 }
 
-// expose ngix pod at the node port 32080
-func buildHttpbinService() *corev1.Service {
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "httpbin",
-			Labels: map[string]string{
-				"app": "httpbin",
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeNodePort,
-			Selector: map[string]string{
-				"app": "httpbin",
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:     "http",
-					Port:     80,
-					NodePort: 32080,
-				},
-			},
-		},
-	}
-}
+// Test_InjectHttp500 tests in the Httpbin pod by running the xk6-disruptor agent as a sidekick container
+func Test_InjectHttp500(t *testing.T) {
+	t.Parallel()
 
-// path to kubeconfig file for the test cluster
-var kubeconfig string
-
-func TestMain(m *testing.M) {
-	// Create cluster that exposes the cluster node port 32080 to the local (host) port 9080
-	fmt.Printf("creating cluster '%s'\n", clusterName)
-	config, err := cluster.NewClusterConfig(
-		clusterName,
-		cluster.ClusterOptions{
-			NodePorts: []cluster.NodePort{
-				{
-					NodePort: 32080,
-					HostPort: 32080,
-				},
-			},
-			Images: []string{"grafana/xk6-disruptor-agent"},
-			Wait:   time.Second * 60,
-		},
-	)
+	cluster, err := fixtures.BuildCluster("e2e-http-disruptor")
 	if err != nil {
-		fmt.Printf("failed to create cluster config: %v", err)
-		os.Exit(1)
+		t.Errorf("failed to create cluster config: %v", err)
+		return
 	}
+	defer cluster.Delete()
 
-	cluster, err := config.Create()
-	if err != nil {
-		fmt.Printf("failed to create cluster: %v", err)
-		os.Exit(1)
-	}
-
-	// retrieve path to kubeconfig
-	kubeconfig, _ = cluster.Kubeconfig()
-
-	// run tests
-	rc := m.Run()
-
-	// cleanup
-	cluster.Delete()
-
-	os.Exit(rc)
-}
-
-func Test_Error500(t *testing.T) {
-	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -158,32 +97,18 @@ func Test_Error500(t *testing.T) {
 		return
 	}
 
-	_, err = k8s.CoreV1().Services(ns).Create(
-		context.TODO(),
-		buildHttpbinService(),
-		metav1.CreateOptions{},
-	)
+	err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(), 20*time.Second)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
 	}
 
-	// wait for the service to be ready for accepting requests
-	err = k8s.NamespacedHelpers(ns).WaitServiceReady("httpbin", time.Second*30)
-	if err != nil {
-		t.Errorf("error waiting for service httpbin: %v", err)
-		return
-	}
+	err = checks.CheckService(checks.ServiceCheck{
+		ExpectedCode: 500,
+	})
 
-	// access service using the local port on which the service was exposed (see ClusterOptions)
-	resp, err := http.Get("http://127.0.0.1:32080")
 	if err != nil {
-		t.Errorf("failed to access service: %v", err)
-		return
-	}
-
-	if resp.StatusCode != 500 {
-		t.Errorf("expected status code 500 but %d received:", resp.StatusCode)
+		t.Errorf("failed : %v", err)
 		return
 	}
 }
