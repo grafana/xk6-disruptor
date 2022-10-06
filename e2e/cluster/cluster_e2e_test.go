@@ -73,7 +73,6 @@ func buildBusyboxPod() *corev1.Pod {
 }
 
 func Test_PreloadImages(t *testing.T) {
-
 	// ensure image is available locally
 	output, err := exec.Command("docker", "pull", "busybox").CombinedOutput()
 	if err != nil {
