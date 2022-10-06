@@ -69,6 +69,7 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 	}
 
 	podSelector := PodSelector{
+		Namespace: svc.Namespace,
 		Select: PodAttributes{
 			Labels: svc.Spec.Selector,
 		},

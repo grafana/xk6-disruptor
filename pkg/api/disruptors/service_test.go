@@ -167,11 +167,13 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				},
 			},
 			expectError:  false,
-			expectedPods: []string{},
+			expectedPods: []string{"pod-1"},
 		},
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
