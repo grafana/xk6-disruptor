@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	kind "sigs.k8s.io/kind/pkg/cluster"
@@ -32,7 +33,6 @@ nodes:
 - role: control-plane`
 
 const kindPortMapping = `
-  extraPortMappings:
   - containerPort: %d
     hostPort: %d
     listenAddress: "0.0.0.0"
@@ -41,9 +41,9 @@ const kindPortMapping = `
 // NodePort defines the mapping of a node port to host port
 type NodePort struct {
 	// NodePort to access in the cluster
-	NodePort int
+	NodePort int32
 	// Port used in the host to access the node port
-	HostPort int
+	HostPort int32
 }
 
 // ClusterOptions defines options for customizing the cluster
@@ -102,8 +102,12 @@ func (c *ClusterConfig) Render() (string, error) {
 
 	var config strings.Builder
 	config.WriteString(baseKindConfig)
-	for _, np := range c.options.NodePorts {
-		fmt.Fprintf(&config, kindPortMapping, np.NodePort, np.HostPort)
+	if len(c.options.NodePorts) > 0 {
+		// create section for port mappings in master node and add each mapped port
+		fmt.Fprint(&config, "\n  extraPortMappings:")
+		for _, np := range c.options.NodePorts {
+			fmt.Fprintf(&config, kindPortMapping, np.NodePort, np.HostPort)
+		}
 	}
 
 	for i := 0; i < c.options.Workers; i++ {
@@ -115,19 +119,25 @@ func (c *ClusterConfig) Render() (string, error) {
 
 // Cluster an active test cluster
 type Cluster struct {
-	// name of the cluster
-	name string
 	// configuration used for creating the cluster
 	config *ClusterConfig
 	//  path to the Kubeconfig
 	kubeconfig string
 	// kind cluster provider
 	provider kind.Provider
+	// mutex for cuncurrent modifications to cluster
+	mtx sync.Mutex
+	// name of the cluster
+	name string
+	// allocated node ports
+	allocatedPorts map[NodePort]bool
+	// available node ports exposed by the cluster
+	availablePorts []NodePort
 }
 
 // try to bind to host port to check availability
-func checkHostPort(port int) error {
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+func checkHostPort(port int32) error {
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(int(port)))
 	if err != nil {
 		return fmt.Errorf("host port is not available %d", port)
 	}
@@ -173,11 +183,13 @@ func loadImages(images []string, nodes []nodes.Node) error {
 func (c *ClusterConfig) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster
+	ports := []NodePort{}
 	for _, np := range c.options.NodePorts {
 		err := checkHostPort(np.HostPort)
 		if err != nil {
 			return nil, err
 		}
+		ports = append(ports, np)
 	}
 
 	provider := kind.NewProvider()
@@ -224,10 +236,12 @@ func (c *ClusterConfig) Create() (*Cluster, error) {
 	}
 
 	return &Cluster{
-		name:       c.name,
-		config:     c,
-		kubeconfig: configPath,
-		provider:   *provider,
+		name:           c.name,
+		config:         c,
+		kubeconfig:     configPath,
+		provider:       *provider,
+		allocatedPorts: map[NodePort]bool{},
+		availablePorts: ports,
 	}, nil
 }
 
@@ -242,4 +256,32 @@ func (c *Cluster) Delete() error {
 // Kubeconfig returns the path to the kubeconfig for the test cluster
 func (c *Cluster) Kubeconfig() string {
 	return c.kubeconfig
+}
+
+// AllocatePort reserves a port from the pool of ports exposed by the cluster
+// to ensure it is not been used by other service
+func (c *Cluster) AllocatePort() NodePort {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	if len(c.availablePorts) == 0 {
+		return NodePort{}
+	}
+
+	port := c.availablePorts[0]
+	c.availablePorts = c.availablePorts[1:]
+	c.allocatedPorts[port] = true
+	return port
+}
+
+// ReleasePort makes available a Port previously allocated by AllocatePort
+func (c *Cluster) ReleasePort(p NodePort) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	_, assigned := c.allocatedPorts[p]
+	if assigned {
+		delete(c.allocatedPorts, p)
+		c.availablePorts = append(c.availablePorts, p)
+	}
 }

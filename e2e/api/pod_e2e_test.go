@@ -38,11 +38,18 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
+		nodePort := cluster.AllocatePort()
+		if nodePort.HostPort == 0 {
+			t.Errorf("no nodeport available for test")
+			return
+		}
+		defer cluster.ReleasePort(nodePort)
+
 		err = fixtures.DeployApp(
 			k8s,
 			ns,
 			fixtures.BuildHttpbinPod(),
-			fixtures.BuildHttpbinService(),
+			fixtures.BuildHttpbinService(nodePort.NodePort),
 			20*time.Second,
 		)
 		if err != nil {
@@ -92,6 +99,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}()
 
 		err = checks.CheckService(checks.ServiceCheck{
+			Port:         nodePort.HostPort,
 			Delay:        2 * time.Second,
 			ExpectedCode: 500,
 		})

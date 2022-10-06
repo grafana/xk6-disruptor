@@ -74,9 +74,16 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 
+		nodePort := cluster.AllocatePort()
+		if nodePort.HostPort == 0 {
+			t.Errorf("no nodeport available for test")
+			return
+		}
+		defer cluster.ReleasePort(nodePort)
+
 		_, err = k8s.CoreV1().Services(ns).Create(
 			context.TODO(),
-			fixtures.BuildNginxService(),
+			fixtures.BuildNginxService(nodePort.NodePort),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -91,9 +98,9 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 
-		// access service using the local port on which the service was exposed (see ClusterOptions)
+		// access service using the local port on which the service was exposed
 		err = checks.CheckService(checks.ServiceCheck{
-
+			Port:         nodePort.HostPort,
 			ExpectedCode: 200,
 		})
 		if err != nil {
