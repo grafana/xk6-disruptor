@@ -102,11 +102,7 @@ func Test_PreloadImages(t *testing.T) {
 
 	defer cluster.Delete()
 
-	kubeconfig, err := cluster.Kubeconfig()
-	if err != nil {
-		t.Errorf("failed to retrieve kubeconfig: %v", err)
-		return
-	}
+	kubeconfig := cluster.Kubeconfig()
 
 	k8s, err := getKubernetesClient(kubeconfig)
 	if err != nil {

@@ -123,7 +123,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// retrieve path to kubeconfig
-	kubeconfig, _ = cluster.Kubeconfig()
+	kubeconfig = cluster.Kubeconfig()
 
 	// run tests
 	rc := m.Run()

@@ -240,10 +240,6 @@ func (c *Cluster) Delete() error {
 }
 
 // Kubeconfig returns the path to the kubeconfig for the test cluster
-func (c *Cluster) Kubeconfig() (string, error) {
-	if c.kubeconfig == "" {
-		return "", nil
-	}
-
-	return c.kubeconfig, nil
+func (c *Cluster) Kubeconfig() string {
+	return c.kubeconfig
 }
