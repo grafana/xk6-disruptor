@@ -58,10 +58,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 			return
 		}
 
-		options := disruptors.ServiceDisruptorOptions{
-			InjectTimeout: 10,
-		}
-
+		options := disruptors.ServiceDisruptorOptions{}
 		disruptor, err := disruptors.NewServiceDisruptor(k8s, svc.Name, ns, options)
 		if err != nil {
 			t.Errorf("error creating service disruptor: %v", err)

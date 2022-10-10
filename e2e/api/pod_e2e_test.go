@@ -66,9 +66,7 @@ func Test_PodDisruptor(t *testing.T) {
 				},
 			},
 		}
-		options := disruptors.PodDisruptorOptions{
-			InjectTimeout: 10,
-		}
+		options := disruptors.PodDisruptorOptions{}
 		disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
 		if err != nil {
 			t.Errorf("error creating selector: %v", err)

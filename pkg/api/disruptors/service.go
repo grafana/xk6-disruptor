@@ -20,8 +20,8 @@ type ServiceDisruptor interface {
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
 type ServiceDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds. 0 means no wait
-	InjectTimeout uint
+	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
+	InjectTimeout int
 	// port the disruptions will be applied to. Required if more than one is exposed by the service
 	Port uint
 	// port used by the agent's proxy

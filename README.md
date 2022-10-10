@@ -56,7 +56,7 @@ The following attributes can be used for selecting or excluding pods:
 - `labels`: map with the labels to be matched for selection/exclusion
 
 The `options` control the creation and behavior of the pod disruptor:
-- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds
+- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 
 Methods:
 
@@ -119,7 +119,7 @@ The `ServiceDisruptor` allows the injection of different types of faults in the 
       options: options for controlling the behavior of the disruptor
 
 The `options` control the creation and behavior of the service disruptor:
-- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds
+- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 - proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
 - iface: network interface where the agent will capture the traffic ( default `eth0`)
 

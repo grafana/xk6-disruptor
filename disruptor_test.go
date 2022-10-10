@@ -71,8 +71,10 @@ const selector = {
      }
    }
 } 
-
-const disruptor = new PodDisruptor(selector)
+const opts = {
+	inject_timeout: -1
+}
+const disruptor = new PodDisruptor(selector, opts)
 const targets = disruptor.targets()
 if (targets.length != 1) {
    throw new Error("expected list to have one target")
@@ -97,8 +99,11 @@ func Test_PodDisruptor(t *testing.T) {
 }
 
 const listServiceTargetsScript = `
-
-const disruptor = new ServiceDisruptor("app-service", "default")
+// force no waiting for ephemeral container as the mock will not update its status
+const opts = {
+	inject_timeout: -1
+}
+const disruptor = new ServiceDisruptor("app-service", "default", opts)
 const targets = disruptor.targets()
 if (targets.length != 1) {
    throw new Error("expected list to have one target")

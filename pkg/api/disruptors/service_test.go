@@ -5,6 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -194,6 +195,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			client := fake.NewSimpleClientset(objs...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
+			// Force no wait for agent injection as the mock client will not update its status
+			tc.options.InjectTimeout = -1
 			d, err := NewServiceDisruptor(
 				k,
 				tc.service.name,
