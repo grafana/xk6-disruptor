@@ -3,7 +3,6 @@ package disruptors
 import (
 	"context"
 	"fmt"
-	"sort"
 	"testing"
 	"time"
 
@@ -15,74 +14,10 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-const testNamespace = "default"
-
-var (
-	podWithoutLabels = builders.NewPodBuilder("pod-without-labels").
-		WithNamespace(testNamespace).
-		WithLabels(map[string]string{}).
-		Build()
-
-	podWithAppLabel = builders.NewPodBuilder("pod-with-app-label").
-		WithNamespace(testNamespace).
-		WithLabels(map[string]string{
-			"app": "test",
-		}).
-		Build()
-
-	podWithAppLabelInAnotherNs = builders.NewPodBuilder("pod-with-app-label").
-		WithNamespace("anotherNamespace").
-		WithLabels(map[string]string{
-			"app": "test",
-		}).
-		Build()
-
-	anotherPodWithAppLabel = builders.NewPodBuilder("another-pod-with-app-label").
-		WithNamespace(testNamespace).
-		WithLabels(map[string]string{
-			"app": "test",
-		}).
-		Build()
-
-	podWithProdEnvLabel = builders.NewPodBuilder("pod-with-prod-label").
-		WithNamespace(testNamespace).
-		WithLabels(map[string]string{
-			"app": "test",
-			"env": "prod",
-		}).
-		Build()
-
-	podWithDevEnvLabel = builders.NewPodBuilder("pod-with-dev-label").
-		WithNamespace(testNamespace).
-		WithLabels(map[string]string{
-			"app": "test",
-			"env": "dev",
-		}).
-		Build()
-)
-
-func compareSortedArrays(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	if len(a) == 0 {
-		return true
-	}
-
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func Test_PodSelectorWithLabels(t *testing.T) {
 	testCases := []struct {
 		title        string
-		pods         []runtime.Object
+		pods         []podDesc
 		labels       map[string]string
 		exclude      map[string]string
 		expectError  bool
@@ -90,8 +25,12 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 	}{
 		{
 			title: "No matching pod",
-			pods: []runtime.Object{
-				podWithoutLabels,
+			pods: []podDesc{
+				{
+					name:      "pod-without-labels",
+					namespace: testNamespace,
+					labels:    map[string]string{},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
@@ -101,8 +40,14 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 		},
 		{
 			title: "No matching namespace",
-			pods: []runtime.Object{
-				podWithAppLabelInAnotherNs,
+			pods: []podDesc{
+				{
+					name:      "pod-with-app-label-in-another-ns",
+					namespace: "anotherNamespace",
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
@@ -112,38 +57,76 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 		},
 		{
 			title: "one matching pod",
-			pods: []runtime.Object{
-				podWithAppLabel,
+			pods: []podDesc{
+				{
+					name:      "pod-with-app-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
 			},
 			expectError: false,
 			expectedPods: []string{
-				podWithAppLabel.Name,
+				"pod-with-app-label",
 			},
 		},
 		{
 			title: "multiple matching pods",
-			pods: []runtime.Object{
-				podWithAppLabel,
-				anotherPodWithAppLabel,
+			pods: []podDesc{
+				{
+					name:      "pod-with-app-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+				{
+					name:      "another-pod-with-app-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
 			},
 			expectError: false,
 			expectedPods: []string{
-				podWithAppLabel.Name,
-				anotherPodWithAppLabel.Name,
+				"pod-with-app-label",
+				"another-pod-with-app-label",
 			},
 		},
 		{
 			title: "multiple selector labels",
-			pods: []runtime.Object{
-				podWithAppLabel,
-				podWithDevEnvLabel,
-				podWithProdEnvLabel,
+			pods: []podDesc{
+				{
+					name:      "pod-with-app-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+				{
+					name:      "pod-with-dev-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+						"env": "dev",
+					},
+				},
+				{
+					name:      "pod-with-prod-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+						"env": "prod",
+					},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
@@ -151,14 +134,28 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			},
 			expectError: false,
 			expectedPods: []string{
-				podWithDevEnvLabel.Name,
+				"pod-with-dev-label",
 			},
 		},
 		{
 			title: "exclude environment",
-			pods: []runtime.Object{
-				podWithDevEnvLabel,
-				podWithProdEnvLabel,
+			pods: []podDesc{
+				{
+					name:      "pod-with-dev-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+						"env": "dev",
+					},
+				},
+				{
+					name:      "pod-with-prod-label",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+						"env": "prod",
+					},
+				},
 			},
 			labels: map[string]string{
 				"app": "test",
@@ -168,14 +165,22 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			},
 			expectError: false,
 			expectedPods: []string{
-				podWithDevEnvLabel.Name,
+				"pod-with-dev-label",
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			client := fake.NewSimpleClientset(tc.pods...)
+			pods := []runtime.Object{}
+			for _, p := range tc.pods {
+				pod := builders.NewPodBuilder(p.name).
+					WithNamespace(p.namespace).
+					WithLabels(p.labels).
+					Build()
+				pods = append(pods, pod)
+			}
+			client := fake.NewSimpleClientset(pods...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 			selector := PodSelector{
 				Namespace: testNamespace,
@@ -202,9 +207,7 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 				return
 			}
 
-			sort.Strings(tc.expectedPods)
-			sort.Strings(targets)
-			if !compareSortedArrays(tc.expectedPods, targets) {
+			if !compareStringArrays(tc.expectedPods, targets) {
 				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
 				return
 			}
@@ -220,16 +223,9 @@ func Test_InjectAgent(t *testing.T) {
 		expectError bool
 	}{
 		{
-			title:       "do not wait for containers to get ready",
+			title:       "Inject ephemeral container",
 			targets:     []string{"pod1", "pod2"},
-			timeout:     0,
 			expectError: false,
-		},
-		{
-			title:       "wait for containers to get ready",
-			targets:     []string{"pod1", "pod2"},
-			timeout:     3,
-			expectError: true, // fake ephemeral containers do not change status to running so test should fail
 		},
 	}
 
@@ -243,12 +239,14 @@ func Test_InjectAgent(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(objs...)
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
+			// Set timeout to 0 to prevent waiting the ephemeral container to be ready, as the fake client will not update its status
 			controller := AgentController{
 				k8s:       k8s,
 				namespace: testNamespace,
 				targets:   tc.targets,
-				timeout:   tc.timeout,
+				timeout:   0,
 			}
+
 			err := controller.InjectDisruptorAgent()
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")

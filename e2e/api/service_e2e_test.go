@@ -16,8 +16,8 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
 
-func Test_PodDisruptor(t *testing.T) {
-	cluster, err := fixtures.BuildCluster("e2e-pod-disruptor")
+func Test_ServiceDisruptor(t *testing.T) {
+	cluster, err := fixtures.BuildCluster("e2e-service-disruptor")
 	if err != nil {
 		t.Errorf("failed to create cluster config: %v", err)
 		return
@@ -45,31 +45,23 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 		defer cluster.ReleasePort(nodePort)
 
+		svc := fixtures.BuildHttpbinService(nodePort.NodePort)
 		err = fixtures.DeployApp(
 			k8s,
 			ns,
 			fixtures.BuildHttpbinPod(),
-			fixtures.BuildHttpbinService(nodePort.NodePort),
+			svc,
 			20*time.Second,
 		)
 		if err != nil {
-			t.Errorf("error deploying httpbin: %v", err)
+			t.Errorf("error deploying application httpbin: %v", err)
 			return
 		}
 
-		// create pod disruptor
-		selector := disruptors.PodSelector{
-			Namespace: ns,
-			Select: disruptors.PodAttributes{
-				Labels: map[string]string{
-					"app": "httpbin",
-				},
-			},
-		}
-		options := disruptors.PodDisruptorOptions{}
-		disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
+		options := disruptors.ServiceDisruptorOptions{}
+		disruptor, err := disruptors.NewServiceDisruptor(k8s, svc.Name, ns, options)
 		if err != nil {
-			t.Errorf("error creating selector: %v", err)
+			t.Errorf("error creating service disruptor: %v", err)
 			return
 		}
 
@@ -86,11 +78,7 @@ func Test_PodDisruptor(t *testing.T) {
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
-			opts := disruptors.HttpDisruptionOptions{
-				TargetPort: 80,
-				ProxyPort:  8080,
-			}
-			err := disruptor.InjectHttpFaults(fault, 10, opts)
+			err := disruptor.InjectHttpFaults(fault, 10)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}

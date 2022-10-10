@@ -21,9 +21,25 @@ $ ./build/k6 run path/to/test/script
 
 # API
 
-## Pod Disruption
+The `xk6-disruptor` API is organized around disruptors that affect specific targets such as pods or services. These disruptors can inject different types of faults on their targets.
 
-The `PodDisruptor` class allows disruption of Pods by injecting different kinds of faults. The target pod(s) are defined by means of a pod selector. 
+## Faults
+
+### Http Fault
+
+Http faults affect the response received from an http server.
+
+The http faults are described by the following attributes:
+- average_delay: average delay added to requests in milliseconds (default `0ms`)
+- delay_variation: variation in the injected delay in milliseconds (default `0ms`)
+- error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
+- error_code: error code to return
+- exclude: list of urls to be excluded from disruption (e.g. /health)
+
+## Pod Disruptor
+
+The `PodDisruptor` class allows the injection of different types of faults in pods. The target pod(s) are defined by means of a pod selector.
+The faults are injected with the help of a [k6-disruptor-agent](#xk6-disruptor-agent) attached on each of the target pods. The agent is capable of intercepting traffic directed to the pod and apply the desired effect.
  
 `constructor`: creates a pod disruptor
 
@@ -40,35 +56,29 @@ The following attributes can be used for selecting or excluding pods:
 - `labels`: map with the labels to be matched for selection/exclusion
 
 The `options` control the creation and behavior of the pod disruptor:
-- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds
+- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 
 Methods:
 
 `injectHttpFaults`: disrupts http requests served by the target pods.
 
       Parameters:
-        fault: description of the faults to be injected
+        fault: description of the http faults to be injected
         duration: duration of the disruption in seconds (default 30s)
         options: options that control the injection of the fault
 
-The faults are described by the following attributes:
-- average_delay: average delay added to requests in milliseconds (default `0ms`)
-- delay_variation: variation in the injected delay in milliseconds (default `0ms`)
-- error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
-- error_code: error code to return
-- exclude: list of urls to be excluded from disruption (e.g. /health)
 
 The injection of the fault is controlled by the following options:
   - target_port: port on which the requests will be intercepted (default `80`)
-  - proxy_port: port the proxy will use to listen for requests ( default `8080`)
-  - iface: network interface where the proxy will capture the traffic ( default `eth0`)
+  - proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
+  - iface: network interface where the agent will capture the traffic ( default `eth0`)
 
-`targets`: returns the list of target pod for the disruptor.
+`targets`: returns the list of target pods for the disruptor.
 
-Example: [`examples/pod_disruptor.js`](examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `app=my-app` label and injects a delay of 100ms and a 10% of requests returning a http response code 500. 
+Example: [`examples/pod_disruptor.js`](examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `app=my-app` label and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
 
 ```js
-import { Disruptor } from 'k6/x/disruptor';
+import { PodDisruptor } from 'k6/x/disruptor';
   
 const selector = {
   namespace: "default"
@@ -95,6 +105,59 @@ export default func() {
     disruptor.injectHttpFault(30, fault)
 }
 ```
+
+
+## Service Disruptor
+
+The `ServiceDisruptor` allows the injection of different types of faults in the pods that back a Kubernetes service.
+ 
+`constructor`: creates a service disruptor
+
+    Parameters:
+      service: name of the service
+      namespace: namespace on which the service is defined
+      options: options for controlling the behavior of the disruptor
+
+The `options` control the creation and behavior of the service disruptor:
+- inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
+- proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
+- iface: network interface where the agent will capture the traffic ( default `eth0`)
+
+Methods:
+
+`injectHttpFaults`: disrupts http requests served by the target pods.
+
+      Parameters:
+        fault: description of the http faults to be injected
+        duration: duration of the disruption in seconds (default 30s)
+        options: options that control the injection of the fault
+
+
+`targets`: returns the list of target pods for the disruptor.
+
+Example: [`examples/service_disruptor.js`](examples/service_disruptor.js) shows how to create a disruptor for a service and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
+
+```js
+import { ServiceDisruptor } from 'k6/x/disruptor';
+  
+
+const fault = {
+        average_delay: 100,
+        error_rate: 0.1,
+        error_code: 500
+}
+
+export default func() {
+    const disruptor = new ServiceDisruptor("service", "default")
+    const targets = disruptor.targets()
+    if (targets.length != 1) {
+      throw new Error("expected list to have one target")
+    }
+
+    disruptor.injectHttpFault(30, fault)
+}
+```
+
 
 # Architecture
 
