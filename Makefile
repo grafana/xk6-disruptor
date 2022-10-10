@@ -4,7 +4,7 @@ golangci_version = $(shell head -n 1 .golangci.yml | tr -d '# ')
 all: build
 
 agent-image: build-agent test
-	docker build -t grafana/xk6-disruptor-agent images/agent
+	docker build -t ghcr.io/grafana/xk6-disruptor-agent:latest images/agent
 
 build: test
 	go install go.k6.io/xk6/cmd/xk6@latest

@@ -34,7 +34,7 @@ func buildHttpbinPodWithDisruptorAgent() *corev1.Pod {
 				},
 				{
 					Name:            "httpdisruptor",
-					Image:           "grafana/xk6-disruptor-agent",
+					Image:           "ghcr.io/grafana/xk6-disruptor-agent",
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					Command:         []string{"xk6-disruptor-agent"},
 					Args: []string{

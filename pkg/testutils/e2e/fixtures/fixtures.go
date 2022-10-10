@@ -215,7 +215,7 @@ func BuildCluster(name string) (*cluster.Cluster, error) {
 		name,
 		cluster.ClusterOptions{
 			NodePorts: nodePorts,
-			Images:    []string{"grafana/xk6-disruptor-agent"},
+			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 			Wait:      time.Second * 60,
 		},
 	)
