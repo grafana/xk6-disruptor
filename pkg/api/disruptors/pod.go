@@ -120,11 +120,12 @@ type AgentController struct {
 }
 
 // InjectDisruptorAgent injects the Disruptor agent in the target pods
+// TODO: use the agent version that matches the extension version
 func (c *AgentController) InjectDisruptorAgent() error {
 	agentContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "xk6-agent",
-			Image:           "grafana/xk6-disruptor-agent",
+			Image:           "ghcr.io/grafana/xk6-disruptor-agent",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities: &corev1.Capabilities{
