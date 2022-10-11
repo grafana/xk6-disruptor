@@ -36,7 +36,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			service: serviceDesc{
 				name:      "test-svc",
 				namespace: testNamespace,
-				ports:     builders.DefaultServicePorts(),
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
 				selector: map[string]string{
 					"app": "test",
 				},
@@ -59,7 +64,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			service: serviceDesc{
 				name:      "test-svc",
 				namespace: testNamespace,
-				ports:     builders.DefaultServicePorts(),
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
 				selector: map[string]string{
 					"app": "test",
 				},
@@ -82,7 +92,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			service: serviceDesc{
 				name:      "test-svc",
 				namespace: testNamespace,
-				ports:     builders.DefaultServicePorts(),
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
 				selector: map[string]string{
 					"app": "test",
 				},
@@ -97,7 +112,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			service: serviceDesc{
 				name:      "test-svc",
 				namespace: testNamespace,
-				ports:     builders.DefaultServicePorts(),
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
 				selector: map[string]string{
 					"app": "test",
 				},
@@ -114,61 +134,6 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			},
 			expectError:  false,
 			expectedPods: []string{},
-		},
-		{
-			title: "invalid Port option",
-			service: serviceDesc{
-				name:      "test-svc",
-				namespace: testNamespace,
-				ports:     builders.DefaultServicePorts(),
-				selector: map[string]string{
-					"app": "test",
-				},
-			},
-			options: ServiceDisruptorOptions{
-				Port: 8080,
-			},
-			pods: []podDesc{
-				{
-					name:      "pod-1",
-					namespace: testNamespace,
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError:  true,
-			expectedPods: []string{},
-		},
-		{
-			title: "Port option specified",
-			service: serviceDesc{
-				name:      "test-svc",
-				namespace: testNamespace,
-				ports: []corev1.ServicePort{
-					{
-						Port:       8080,
-						TargetPort: intstr.FromInt(8080),
-					},
-				},
-				selector: map[string]string{
-					"app": "test",
-				},
-			},
-			options: ServiceDisruptorOptions{
-				Port: 8080,
-			},
-			pods: []podDesc{
-				{
-					name:      "pod-1",
-					namespace: testNamespace,
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError:  false,
-			expectedPods: []string{"pod-1"},
 		},
 	}
 
@@ -235,6 +200,175 @@ func Test_NewServiceDisruptor(t *testing.T) {
 
 			if !compareStringArrays(tc.expectedPods, targets) {
 				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
+				return
+			}
+		})
+	}
+}
+
+// TODO: check the commands sent to the pods
+func Test_HttpFaultInjection(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		service     serviceDesc
+		options     ServiceDisruptorOptions
+		fault       HttpFault
+		duration    uint
+		pods        []podDesc
+		expectError bool
+	}{
+		{
+			title: "invalid Port option",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports: []corev1.ServicePort{
+					{
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{
+				InjectTimeout: -1,
+			},
+			fault: HttpFault{
+				Port: 80,
+			},
+			duration: 1,
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError: true,
+		},
+		{
+			title: "Port option specified",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports: []corev1.ServicePort{
+					{
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{
+				InjectTimeout: -1,
+			},
+			fault: HttpFault{
+				Port: 8080,
+			},
+			duration: 1,
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			title: "default option specified",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: testNamespace,
+				ports: []corev1.ServicePort{
+					{
+						Port:       8080,
+						TargetPort: intstr.FromInt(8080),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{
+				InjectTimeout: -1,
+			},
+			fault: HttpFault{
+				Port: 0,
+			},
+			duration: 1,
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: testNamespace,
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			objs := []runtime.Object{}
+			svc := builders.NewServiceBuilder(tc.service.name).
+				WithNamespace(tc.service.namespace).
+				WithSelector(tc.service.selector).
+				WithPorts(tc.service.ports).
+				Build()
+			objs = append(objs, svc)
+			for _, p := range tc.pods {
+				pod := builders.NewPodBuilder(p.name).
+					WithNamespace(p.namespace).
+					WithLabels(p.labels).
+					Build()
+				objs = append(objs, pod)
+			}
+			client := fake.NewSimpleClientset(objs...)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			// Force no wait for agent injection as the mock client will not update its status
+			tc.options.InjectTimeout = -1
+			d, err := NewServiceDisruptor(
+				k,
+				tc.service.name,
+				tc.service.namespace,
+				tc.options,
+			)
+
+			if !tc.expectError && err != nil {
+				t.Errorf(" unexpected error creating service disruptor: %v", err)
+				return
+			}
+
+			err = d.InjectHttpFaults(tc.fault, tc.duration)
+			if !tc.expectError && err != nil {
+				t.Errorf(" unexpected error creating service disruptor: %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if tc.expectError && err != nil {
 				return
 			}
 		})

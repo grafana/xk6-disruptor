@@ -22,8 +22,6 @@ type ServiceDisruptor interface {
 type ServiceDisruptorOptions struct {
 	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
 	InjectTimeout int
-	// port the disruptions will be applied to. Required if more than one is exposed by the service
-	Port uint
 	// port used by the agent's proxy
 	ProxyPort uint
 	// interface the agent's proxy will be receiving traffic from
@@ -32,6 +30,8 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
+	service      string
+	namespace    string
 	k8s          kubernetes.Kubernetes
 	options      ServiceDisruptorOptions
 	httpOptions  HttpDisruptionOptions
@@ -84,19 +84,14 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 		return nil, fmt.Errorf("error creating pod disruptor %w", err)
 	}
 
-	// Get the target port for the service. This port will be used when injecting http faults in the target pods
-	targetPort, err := getTargetPort(svc.Spec.Ports, options.Port)
-	if err != nil {
-		return nil, err
-	}
-
 	httpOptions := HttpDisruptionOptions{
-		TargetPort: targetPort,
-		ProxyPort:  options.ProxyPort,
-		Iface:      options.Iface,
+		ProxyPort: options.ProxyPort,
+		Iface:     options.Iface,
 	}
 
 	return &serviceDisruptor{
+		service:      service,
+		namespace:    namespace,
 		k8s:          k8s,
 		options:      options,
 		httpOptions:  httpOptions,
@@ -105,6 +100,20 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 }
 
 func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint) error {
+	svc, err := d.k8s.CoreV1().
+		Services(d.namespace).
+		Get(d.k8s.Context(), d.service, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Get the target port for the service. This port will be used when injecting http faults in the target pods
+	port, err := getTargetPort(svc.Spec.Ports, fault.Port)
+	if err != nil {
+		return err
+	}
+
+	fault.Port = port
 	return d.podDisruptor.InjectHttpFaults(fault, duration, d.httpOptions)
 }
 
