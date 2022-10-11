@@ -213,7 +213,9 @@ The e2e tests are built and executed using the `e2e` target in the Makefile:
 $ make e2e
 ```
 
-The following example shows the structure of a e2e test. 
+In order to facilitate the development of e2e tests, some helper functions have been created in the `pkg/testutils/e2e/fixtures` package for creating test resources, including a test cluster, and in `pkg/testutils/e2e/checks` package for verifying conditions during the test. We strongly encourage to keep adding reusable functions to these helper packages instead of implementing fixtures and validations for each test, unless strictly necessarily. 
+
+The following example shows the structure of a e2e test that creates a cluster and then executes tests using this infrastructure
 
 ```go
 //go:build e2e
@@ -222,38 +224,28 @@ The following example shows the structure of a e2e test.
 package package-to-test
 
 import (
-	"fmt"
 	"os"
 	"testing"
-)
 
-// createResources creates the resources needed by the tests
-func createResources() error {
-   return nil
-}
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 
-// TestMain function creates the resources for the tests and executes the test functions
-func TestMain(m *testing.M) {
 
-        // create resources
-	err := createResources()
-	if err != nil {
-		fmt.Printf("failed to create resources: %v", err)
-		os.Exit(1)
-	}
 
-	// run test function(s)
-	rc := m.Run()
+// Test_E2E function creates the resources for the tests and executes the test functions
+func Test_E2E(t *testing.T) {
 
-	// delete resources 
+        // create cluster
+        cluster, err := fixtures.BuildCluster("e2e-test")
+        if err != nil {
+	        t.Errorf("failed to create cluster: %v", err)
+	        return
+        }
+	      defer cluster.Delete()
 
-	// terminate with the rc from the tests
-	os.Exit(rc)
-}
-
-// Test is the test function
-func Test(t *testing.T) {
-
+	      // Execute test on resources
+	      t.Run("Test", func(t *testing.T){
+                // execute test
+	      })
 }
 ```
 
