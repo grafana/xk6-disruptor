@@ -30,9 +30,10 @@ type PodSelector struct {
 
 // HttpDisruptionOptions defines options for the injection of Http faults in a target pod
 type HttpDisruptionOptions struct {
-	TargetPort uint
-	ProxyPort  uint
-	Iface      string
+	// Port used by the agent for listening
+	ProxyPort uint
+	// Network interface the agent will be listening traffic from
+	Iface string
 }
 
 // PodDisruptor defines the types of faults that can be injected in a Pod
@@ -271,12 +272,12 @@ func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOpt
 		cmd = append(cmd, "-e", fmt.Sprint(fault.ErrorCode), "-r", fmt.Sprint(fault.ErrorRate))
 	}
 
-	if options.ProxyPort != 0 {
-		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
+	if fault.Port != 0 {
+		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
-	if options.TargetPort != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(options.TargetPort))
+	if options.ProxyPort != 0 {
+		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}
 
 	if options.Iface != "" {

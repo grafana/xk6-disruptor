@@ -3,6 +3,8 @@ package disruptors
 
 // HttpFault specifies a f to be injected in http requests
 type HttpFault struct {
+	// port the disruptions will be applied to
+	Port uint
 	// Average delay introduced to requests
 	AverageDelay uint
 	// Variation in the delay (with respect of the average delay)

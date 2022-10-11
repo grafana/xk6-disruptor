@@ -30,6 +30,7 @@ The `xk6-disruptor` API is organized around disruptors that affect specific targ
 Http faults affect the response received from an http server.
 
 The http faults are described by the following attributes:
+- port: port on which the requests will be intercepted
 - average_delay: average delay added to requests in milliseconds (default `0ms`)
 - delay_variation: variation in the injected delay in milliseconds (default `0ms`)
 - error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
@@ -67,9 +68,7 @@ Methods:
         duration: duration of the disruption in seconds (default 30s)
         options: options that control the injection of the fault
 
-
 The injection of the fault is controlled by the following options:
-  - target_port: port on which the requests will be intercepted (default `80`)
   - proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
   - iface: network interface where the agent will capture the traffic ( default `eth0`)
 

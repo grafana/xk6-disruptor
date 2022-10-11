@@ -83,12 +83,12 @@ func Test_PodDisruptor(t *testing.T) {
 		go func() {
 			// apply httpfailure
 			fault := disruptors.HttpFault{
+				Port:      80,
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
 			opts := disruptors.HttpDisruptionOptions{
-				TargetPort: 80,
-				ProxyPort:  8080,
+				ProxyPort: 8080,
 			}
 			err := disruptor.InjectHttpFaults(fault, 10, opts)
 			if err != nil {
