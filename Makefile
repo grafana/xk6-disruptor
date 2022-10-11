@@ -8,7 +8,7 @@ agent-image: build-agent test
 
 build: test
 	go install go.k6.io/xk6/cmd/xk6@latest
-	xk6 build --with $(shell go list -m)=. --output build/k6
+	xk6 build --with $(shell go list -m)=. --with github.com/grafana/xk6-kubernetes  --output build/k6
 
 build-agent:
 	CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
