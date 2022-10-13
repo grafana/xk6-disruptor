@@ -1,0 +1,39 @@
+name: publish 
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: grafana/xk6-disruptor-agent
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: |
+          CGO_ENABLED=0 
+          go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
+          docker build -t $IMAGE_NAME images/agent
+      - name: Log into ghcr.io
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish latest agent image to ghcr.io
+        run: |
+          IMAGE_TAG="$REGISTRY/$IMAGE_NAME:latest"
+          docker tag $IMAGE_NAME $IMAGE_TAG
+          docker push $IMAGE_TAG
