@@ -13,7 +13,7 @@ import (
 type ServiceDisruptor interface {
 	// InjectHttpFault injects faults in the http requests sent to the disruptor's target
 	// for the specified duration (in seconds)
-	InjectHttpFaults(fault HttpFault, duration uint) error
+	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 }
@@ -22,10 +22,6 @@ type ServiceDisruptor interface {
 type ServiceDisruptorOptions struct {
 	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
 	InjectTimeout int
-	// port used by the agent's proxy
-	ProxyPort uint
-	// interface the agent's proxy will be receiving traffic from
-	Iface string
 }
 
 // serviceDisruptor is an instance of a ServiceDisruptor
@@ -34,7 +30,6 @@ type serviceDisruptor struct {
 	namespace    string
 	k8s          kubernetes.Kubernetes
 	options      ServiceDisruptorOptions
-	httpOptions  HttpDisruptionOptions
 	podDisruptor PodDisruptor
 }
 
@@ -84,22 +79,17 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 		return nil, fmt.Errorf("error creating pod disruptor %w", err)
 	}
 
-	httpOptions := HttpDisruptionOptions{
-		ProxyPort: options.ProxyPort,
-		Iface:     options.Iface,
-	}
 
 	return &serviceDisruptor{
 		service:      service,
 		namespace:    namespace,
 		k8s:          k8s,
 		options:      options,
-		httpOptions:  httpOptions,
 		podDisruptor: podDisruptor,
 	}, nil
 }
 
-func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint) error {
+func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
 	svc, err := d.k8s.CoreV1().
 		Services(d.namespace).
 		Get(d.k8s.Context(), d.service, metav1.GetOptions{})
@@ -114,7 +104,7 @@ func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint) erro
 	}
 
 	fault.Port = port
-	return d.podDisruptor.InjectHttpFaults(fault, duration, d.httpOptions)
+	return d.podDisruptor.InjectHttpFaults(fault, duration, options)
 }
 
 func (d *serviceDisruptor) Targets() ([]string, error) {

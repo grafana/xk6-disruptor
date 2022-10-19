@@ -119,8 +119,6 @@ The `ServiceDisruptor` allows the injection of different types of faults in the 
 
 The `options` control the creation and behavior of the service disruptor:
 - inject_timeout: maximum time for waiting the [agent](#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
-- proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
-- iface: network interface where the agent will capture the traffic ( default `eth0`)
 
 Methods:
 
@@ -131,6 +129,9 @@ Methods:
         duration: duration of the disruption in seconds (default 30s)
         options: options that control the injection of the fault
 
+The injection of the fault is controlled by the following options:
+  - proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
+  - iface: network interface where the agent will capture the traffic ( default `eth0`)
 
 `targets`: returns the list of target pods for the disruptor.
 

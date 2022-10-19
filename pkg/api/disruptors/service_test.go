@@ -216,6 +216,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 		options     ServiceDisruptorOptions
 		fault       HttpFault
 		duration    uint
+		httpOptions HttpDisruptionOptions
 		pods        []podDesc
 		expectError bool
 	}{
@@ -241,6 +242,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 				Port: 80,
 			},
 			duration: 1,
+			httpOptions: HttpDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -274,6 +276,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 				Port: 8080,
 			},
 			duration: 1,
+			httpOptions: HttpDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -307,6 +310,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 				Port: 0,
 			},
 			duration: 1,
+			httpOptions: HttpDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -357,7 +361,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 				return
 			}
 
-			err = d.InjectHttpFaults(tc.fault, tc.duration)
+			err = d.InjectHttpFaults(tc.fault, tc.duration, tc.httpOptions)
 			if !tc.expectError && err != nil {
 				t.Errorf(" unexpected error creating service disruptor: %v", err)
 				return
