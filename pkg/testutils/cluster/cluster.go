@@ -141,7 +141,9 @@ func checkHostPort(port int32) error {
 	if err != nil {
 		return fmt.Errorf("host port is not available %d", port)
 	}
-	l.Close()
+	// ignore error
+	_ = l.Close()
+
 	return nil
 }
 
@@ -153,7 +155,11 @@ func loadImages(images []string, nodes []nodes.Node) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(imagesTar.Name())
+
+	defer func() {
+		// ignore error. Nothing to do if cannot remove image
+		_ = os.Remove(imagesTar.Name())
+	}()
 
 	// save the images to a tar
 	saveCmd := append([]string{"save", "-o", imagesTar.Name()}, images...)
@@ -169,7 +175,8 @@ func loadImages(images []string, nodes []nodes.Node) error {
 			return err
 		}
 		err = nodeutils.LoadImageArchive(n, image)
-		image.Close()
+		// ignore error. Nothing to do if cannot close file
+		_ = image.Close()
 
 		if err != nil {
 			return err
