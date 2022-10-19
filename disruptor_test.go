@@ -90,9 +90,12 @@ func Test_PodDisruptor(t *testing.T) {
 	client := fake.NewSimpleClientset(pod)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
-	setTestModule(k8s, vu)
+	err := setTestModule(k8s, vu)
+	if err != nil {
+		t.Errorf("test setup failed: %v", err)
+	}
 
-	_, err := vu.Runtime().RunString(listTargetsScript)
+	_, err = vu.Runtime().RunString(listTargetsScript)
 	if err != nil {
 		t.Errorf("failed %v", err)
 	}
@@ -124,9 +127,12 @@ func Test_ServiceDisruptor(t *testing.T) {
 	client := fake.NewSimpleClientset(pod, svc)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
-	setTestModule(k8s, vu)
+	err := setTestModule(k8s, vu)
+	if err != nil {
+		t.Errorf("test setup failed: %v", err)
+	}
 
-	_, err := vu.Runtime().RunString(listServiceTargetsScript)
+	_, err = vu.Runtime().RunString(listServiceTargetsScript)
 	if err != nil {
 		t.Errorf("failed %v", err)
 	}
