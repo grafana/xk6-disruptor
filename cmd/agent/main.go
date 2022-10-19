@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
 	"github.com/spf13/cobra"
 )
@@ -14,5 +16,8 @@ func main() {
 	}
 
 	rootCmd.AddCommand(commands.BuildHttpCmd())
-	rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }
