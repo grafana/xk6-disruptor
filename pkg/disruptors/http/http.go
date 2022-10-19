@@ -166,8 +166,9 @@ func (d *httpDisruptor) Apply(duration time.Duration) error {
 
 	// On termination, restore traffic and stop proxy
 	defer func() {
-		d.redirector.Stop()
-		d.proxy.Stop()
+		// ignore errors when stopping. Nothing to do
+		_ = d.redirector.Stop()
+		_ = d.proxy.Stop()
 	}()
 
 	// Wait for request duration or proxy server error

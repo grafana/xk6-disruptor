@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -122,28 +123,43 @@ func Test_Proxy(t *testing.T) {
 				return
 			}
 
+			errChannel := make(chan error)
+
 			// create and start upstream server
 			srv := &http.Server{
 				Addr:    fmt.Sprintf("127.0.0.1:%d", tc.target.Port),
 				Handler: http.HandlerFunc(tc.handler),
 			}
-			go func() {
-				srv.ListenAndServe()
-			}()
+			go func(c chan error) {
+				err := srv.ListenAndServe()
+				if !errors.Is(err, http.ErrServerClosed) {
+					c<-err
+				}
+			}(errChannel)
 
 			// start proxy
-			go func() {
-				proxy.Start()
-			}()
+			go func(c chan error) {
+				err := proxy.Start()
+				if err != nil {
+					c <- err
+				}
+			}(errChannel)
 
 			// ensure upstream server and proxy are stopped
 			defer func() {
-				srv.Close()
-				proxy.Force()
+				// ignore errors, nothing to do
+				_ = srv.Close()
+				_ = proxy.Force()
 			}()
 
 			// wait for proxy and upstream server to start
 			time.Sleep(1 * time.Second)
+			select {
+			case err := <- errChannel:
+				t.Errorf("error setting up test %v", err)
+				return
+			default:
+			}
 
 			proxyURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
 

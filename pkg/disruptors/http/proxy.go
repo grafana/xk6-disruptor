@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -108,7 +109,9 @@ func (p *proxy) Start() error {
 		// return response to the client
 		// TODO: return headers
 		rw.WriteHeader(statusCode)
-		io.Copy(rw, body)
+
+		// ignore errors writing body, nothing to do.
+		_, _ = io.Copy(rw, body)
 	})
 
 	p.srv = &http.Server{
@@ -116,7 +119,11 @@ func (p *proxy) Start() error {
 		Handler: reverseProxy,
 	}
 
-	return p.srv.ListenAndServe()
+	err = p.srv.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 // Stop stops the execution of the proxy
