@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	testName      = "pod-test"
 	testNamespace = "ns-test"
 )
 
