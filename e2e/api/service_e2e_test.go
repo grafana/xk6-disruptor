@@ -78,7 +78,8 @@ func Test_ServiceDisruptor(t *testing.T) {
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
-			err := disruptor.InjectHttpFaults(fault, 10)
+			httpOptions := disruptors.HttpDisruptionOptions{}
+			err := disruptor.InjectHttpFaults(fault, 10, httpOptions)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}
