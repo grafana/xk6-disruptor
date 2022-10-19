@@ -115,7 +115,8 @@ func (tr *redirector) execResetCmd(a action, port uint) error {
 
 // Starts applies the TrafficRedirect
 func (tr *redirector) Start() error {
-	tr.execResetCmd(DELETE, tr.RedirectPort)
+	// error is ignored as the rule may not exist
+	_ = tr.execResetCmd(DELETE, tr.RedirectPort)
 	err := tr.execRedirectCmd(ADD)
 	if err != nil {
 		return err
@@ -130,7 +131,10 @@ func (tr *redirector) Stop() error {
 		return err
 	}
 
-	tr.execResetCmd(ADD, tr.RedirectPort)
-	err = tr.execResetCmd(DELETE, tr.DestinationPort)
-	return err
+	err = tr.execResetCmd(ADD, tr.RedirectPort)
+	if err != nil {
+		return err
+	}
+
+	return tr.execResetCmd(DELETE, tr.DestinationPort)
 }
