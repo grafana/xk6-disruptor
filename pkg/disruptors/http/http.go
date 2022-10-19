@@ -177,7 +177,6 @@ func (d *httpDisruptor) Apply(duration time.Duration) error {
 		case err := <-wc:
 			if err != nil {
 				return fmt.Errorf(" proxy ended with error: %s", err)
-
 			}
 		case <-time.After(duration):
 			return nil

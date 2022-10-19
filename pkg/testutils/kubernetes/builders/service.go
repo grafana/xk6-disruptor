@@ -12,7 +12,7 @@ type ServiceBuilder interface {
 	Build() *corev1.Service
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) ServiceBuilder
-	//WithPorts sets the ports exposed by the service
+	// WithPorts sets the ports exposed by the service
 	WithPorts(ports []corev1.ServicePort) ServiceBuilder
 	// WithSelector sets the service's selector labels
 	WithSelector(labels map[string]string) ServiceBuilder

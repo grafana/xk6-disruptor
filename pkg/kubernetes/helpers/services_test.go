@@ -161,7 +161,6 @@ func Test_WaitServiceReady(t *testing.T) {
 				if err != nil {
 					t.Errorf("error updating endpoint: %v", err)
 				}
-
 			}(tc)
 
 			h := NewHelper(client, nil, context.TODO(), "default")

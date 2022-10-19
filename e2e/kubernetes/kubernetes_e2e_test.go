@@ -48,7 +48,6 @@ func Test_Kubernetes(t *testing.T) {
 		}
 		if !strings.HasPrefix(ns, prefix) {
 			t.Errorf("returned namespace does not have expected prefix '%s': %s", prefix, ns)
-
 		}
 	})
 

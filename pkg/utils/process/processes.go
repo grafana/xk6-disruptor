@@ -16,8 +16,7 @@ type ProcessExecutor interface {
 
 // An instance of a process executor that uses the os/exec package for
 // executing processes
-type executor struct {
-}
+type executor struct{}
 
 // Returns a default process executor
 func DefaultProcessExecutor() ProcessExecutor {

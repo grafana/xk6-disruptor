@@ -52,7 +52,6 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 
 	for _, tc := range TestCases {
-
 		t.Run(tc.title, func(t *testing.T) {
 			_, err := NewTrafficRedirector(&tc.redirect)
 			if tc.expectError && err == nil {
@@ -161,7 +160,6 @@ func Test_Commands(t *testing.T) {
 				)
 				return
 			}
-
 		})
 	}
 }

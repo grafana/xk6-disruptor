@@ -129,7 +129,6 @@ func Test_PreloadImages(t *testing.T) {
 		t.Errorf("pod is waiting for image")
 		return
 	}
-
 }
 
 func Test_PortAllocation(t *testing.T) {

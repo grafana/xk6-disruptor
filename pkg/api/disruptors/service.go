@@ -58,7 +58,6 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 	svc, err := k8s.CoreV1().
 		Services(namespace).
 		Get(k8s.Context(), service, metav1.GetOptions{})
-
 	if err != nil {
 		return nil, err
 	}

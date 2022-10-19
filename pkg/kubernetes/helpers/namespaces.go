@@ -10,7 +10,6 @@ type NamespaceHelper interface {
 }
 
 func (h *helpers) CreateRandomNamespace(prefix string) (string, error) {
-
 	ns, err := h.client.CoreV1().Namespaces().Create(
 		h.ctx,
 		&corev1.Namespace{
@@ -18,7 +17,6 @@ func (h *helpers) CreateRandomNamespace(prefix string) (string, error) {
 		},
 		metav1.CreateOptions{},
 	)
-
 	if err != nil {
 		return "", err
 	}

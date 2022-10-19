@@ -40,7 +40,6 @@ func CheckService(c ServiceCheck) error {
 	resp, err := http.Get(requestUrl)
 	if err != nil {
 		return fmt.Errorf("failed to access service at %s: %v", url, err)
-
 	}
 
 	if resp.StatusCode != c.ExpectedCode {

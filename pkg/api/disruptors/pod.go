@@ -287,7 +287,7 @@ func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOpt
 	return cmd, nil
 }
 
-//InjectHttpFault injects faults in the http requests sent to the disruptor's targets
+// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
 func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
 	cmd, err := buildHttpFaultCmd(fault, duration, options)
 	if err != nil {

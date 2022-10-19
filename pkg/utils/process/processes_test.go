@@ -51,7 +51,6 @@ func Test_Exec(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			executor := DefaultProcessExecutor()
 			out, err := executor.Exec(tc.cmd, tc.args...)
-
 			if err != nil {
 				t.Logf("error: %v", err)
 			}
@@ -70,7 +69,6 @@ func Test_Exec(t *testing.T) {
 				)
 				return
 			}
-
 		})
 	}
 }

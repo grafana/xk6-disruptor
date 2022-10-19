@@ -133,7 +133,7 @@ func Test_Proxy(t *testing.T) {
 			go func(c chan error) {
 				err := srv.ListenAndServe()
 				if !errors.Is(err, http.ErrServerClosed) {
-					c<-err
+					c <- err
 				}
 			}(errChannel)
 
@@ -155,7 +155,7 @@ func Test_Proxy(t *testing.T) {
 			// wait for proxy and upstream server to start
 			time.Sleep(1 * time.Second)
 			select {
-			case err := <- errChannel:
+			case err := <-errChannel:
 				t.Errorf("error setting up test %v", err)
 				return
 			default:

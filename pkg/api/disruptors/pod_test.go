@@ -337,7 +337,6 @@ func Test_ExecCommand(t *testing.T) {
 			if tc.expectError && err != nil {
 				return
 			}
-
 		})
 	}
 }

@@ -30,7 +30,7 @@ type podBuilder struct {
 // and default attributes such as containers and namespace
 func NewPodBuilder(name string) *podBuilder {
 	return &podBuilder{
-		name: name,
+		name:      name,
 		namespace: metav1.NamespaceDefault,
 		containers: []corev1.Container{
 			{

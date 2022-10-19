@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	var rootCmd = &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
 		Short: "Inject disruptions in a system",
 		Long: "A command for injecting disruptions in a target system.\n" +
