@@ -25,11 +25,15 @@ func NewFakeProcessExecutor(output []byte, err error) *FakeProcessExecutor {
 	}
 }
 
-// Exec mocks the executing of the process according to
-func (p *FakeProcessExecutor) Exec(cmd string, args ...string) ([]byte, error) {
+func (p *FakeProcessExecutor) updateHistory(cmd string, args ...string) {
 	cmdLine := cmd + " " + strings.Join(args, " ")
 	p.commands = append(p.commands, cmdLine)
 	p.invocations++
+}
+
+// Exec mocks the executing of the process according to
+func (p *FakeProcessExecutor) Exec(cmd string, args ...string) ([]byte, error) {
+	p.updateHistory(cmd, args...)
 	return p.output, p.err
 }
 
@@ -77,7 +81,7 @@ type CallbackProcessExecutor struct {
 // Forward exec to the callback
 func (c *CallbackProcessExecutor) Exec(cmd string, args ...string) ([]byte, error) {
 	// update command history but ignore outputs
-	c.FakeProcessExecutor.Exec(cmd, args...)
+	c.FakeProcessExecutor.updateHistory(cmd, args...)
 	// return outputs from callback
 	return c.callback(cmd, args...)
 }
