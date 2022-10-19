@@ -45,6 +45,11 @@ linters-settings:
     check-shadowing: true
   maligned:
     suggest-new: true
+  gosec:
+    excludes:
+      - G107 # Http request made with variable url
+      - G204 # exec with variable command
+      - G404 # use of weak random number (not used for cryptographic purposes)
 
 linters:
   enable-all: true
