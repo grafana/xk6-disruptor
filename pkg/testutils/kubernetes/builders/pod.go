@@ -27,9 +27,9 @@ type podBuilder struct {
 	containers []corev1.Container
 }
 
-// NewPodBuilder creates a new instance of NewPodBuilder with the given pod name
+// NewPodBuilder creates a new instance of PodBuilder with the given pod name
 // and default attributes such as containers and namespace
-func NewPodBuilder(name string) *podBuilder {
+func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
 		name:      name,
 		namespace: metav1.NamespaceDefault,
