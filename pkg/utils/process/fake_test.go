@@ -1,6 +1,7 @@
 package process
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -45,9 +46,9 @@ func Test_FakeExecutor(t *testing.T) {
 				return
 			}
 
-			if err != tc.err {
+			if !errors.Is(err,tc.err) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
+					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",
 					tc.err,
 					err,
@@ -92,9 +93,9 @@ func Test_MultipleExecutions(t *testing.T) {
 				args := strings.Split(cmdline, " ")[1:]
 				out, err := fake.Exec(cmd, args...)
 
-				if err != tc.err {
+				if !errors.Is(err,tc.err) {
 					t.Errorf(
-						"returned output does not match expected value.\n"+
+						"returned error does not match expected value.\n"+
 							"Expected: %v\nActual: %v\n",
 						tc.err,
 						err,
@@ -169,9 +170,9 @@ func Test_Callbacks(t *testing.T) {
 				return
 			}
 
-			if err != tc.err {
+			if !errors.Is(err,tc.err) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
+					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",
 					tc.err,
 					err,
