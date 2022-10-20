@@ -25,8 +25,8 @@ func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 }
 
 // Context returns the context for executing k8s actions
-func (k *FakeKubernetes) Context() context.Context {
-	return k.ctx
+func (f *FakeKubernetes) Context() context.Context {
+	return f.ctx
 }
 
 // Helpers return a instance of FakeHelper
