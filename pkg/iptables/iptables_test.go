@@ -8,6 +8,8 @@ import (
 )
 
 func Test_validateTrafficRedirect(t *testing.T) {
+	t.Parallel()
+
 	TestCases := []struct {
 		title       string
 		redirect    TrafficRedirectionSpec
@@ -52,7 +54,11 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 
 	for _, tc := range TestCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := NewTrafficRedirector(&tc.redirect)
 			if tc.expectError && err == nil {
 				t.Errorf("error expected but none returned")
@@ -80,6 +86,8 @@ func compareCmds(a, b []string) bool {
 }
 
 func Test_Commands(t *testing.T) {
+	t.Parallel()
+
 	TestCases := []struct {
 		title        string
 		redirect     TrafficRedirectionSpec
@@ -124,7 +132,11 @@ func Test_Commands(t *testing.T) {
 	}
 
 	for _, tc := range TestCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			executor := process.NewFakeExecutor([]byte{}, nil)
 			config := TrafficRedirectorConfig{
 				Executor: executor,

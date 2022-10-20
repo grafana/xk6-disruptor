@@ -82,6 +82,8 @@ if (targets.length != 1) {
 `
 
 func Test_PodDisruptor(t *testing.T) {
+	t.Parallel()
+
 	pod := builders.NewPodBuilder("pod-with-app-label").
 		WithLabels(map[string]string{
 			"app": "test",
@@ -114,6 +116,8 @@ if (targets.length != 1) {
 `
 
 func Test_ServiceDisruptor(t *testing.T) {
+	t.Parallel()
+
 	pod := builders.NewPodBuilder("pod-with-app-label").
 		WithLabels(map[string]string{
 			"app": "test",

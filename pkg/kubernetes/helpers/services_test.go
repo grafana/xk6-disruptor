@@ -91,6 +91,8 @@ func buildEndpointsWithNotReadyAddresses()  *corev1.Endpoints {
 }
 
 func Test_WaitServiceReady(t *testing.T) {
+	t.Parallel()
+
 	type TestCase struct {
 		test        string
 		delay       time.Duration
@@ -151,7 +153,11 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+
 			client := fake.NewSimpleClientset()
 			if tc.endpoints != nil {
 				_, err := client.CoreV1().Endpoints("default").Create(context.TODO(), tc.endpoints, metav1.CreateOptions{})

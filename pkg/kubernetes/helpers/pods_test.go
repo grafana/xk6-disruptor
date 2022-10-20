@@ -19,6 +19,7 @@ const (
 
 func TestPods_Wait(t *testing.T) {
 	t.Parallel()
+
 	type TestCase struct {
 		test           string
 		name           string
@@ -59,7 +60,11 @@ func TestPods_Wait(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
@@ -97,6 +102,7 @@ func TestPods_Wait(t *testing.T) {
 
 func TestPods_AddEphemeralContainer(t *testing.T) {
 	t.Parallel()
+
 	type TestCase struct {
 		test        string
 		podName     string
@@ -148,8 +154,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
+
 			pod := builders.NewPodBuilder(tc.podName).
 				WithNamespace(testNamespace).
 				Build()

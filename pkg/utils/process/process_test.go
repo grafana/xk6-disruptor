@@ -5,6 +5,8 @@ import (
 )
 
 func Test_Exec(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title        string
 		cmd          string
@@ -48,7 +50,11 @@ func Test_Exec(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			executor := DefaultExecutor()
 			out, err := executor.Exec(tc.cmd, tc.args...)
 			if err != nil {

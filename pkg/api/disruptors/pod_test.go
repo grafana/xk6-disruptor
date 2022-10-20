@@ -15,6 +15,8 @@ import (
 )
 
 func Test_PodSelectorWithLabels(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title        string
 		pods         []podDesc
@@ -171,7 +173,11 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			pods := []runtime.Object{}
 			for _, p := range tc.pods {
 				pod := builders.NewPodBuilder(p.name).
@@ -216,6 +222,8 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 }
 
 func Test_InjectAgent(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title       string
 		targets     []string
@@ -230,7 +238,11 @@ func Test_InjectAgent(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			objs := []runtime.Object{}
 			for _, podName := range tc.targets {
 				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
@@ -279,6 +291,8 @@ func Test_InjectAgent(t *testing.T) {
 }
 
 func Test_ExecCommand(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title       string
 		targets     []string
@@ -306,7 +320,11 @@ func Test_ExecCommand(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			objs := []runtime.Object{}
 			for _, podName := range tc.targets {
 				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()

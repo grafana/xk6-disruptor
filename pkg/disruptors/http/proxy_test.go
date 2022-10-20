@@ -36,10 +36,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       nil,
 			},
 			target: Target{
-				Port: 0, // to be set in the test
+				Port: 8080,
 			},
 			config: ProxyConfig{
-				ListeningPort: 0, // to be set in the test
+				ListeningPort: 9080,
 			},
 			handler:    return200Handler,
 			path:       "",
@@ -55,10 +55,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       nil,
 			},
 			target: Target{
-				Port: 0, // to be set in the test
+				Port: 8081,
 			},
 			config: ProxyConfig{
-				ListeningPort: 0, // to be set in the test
+				ListeningPort: 9081,
 			},
 			handler:    return200Handler,
 			path:       "",
@@ -74,10 +74,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			target: Target{
-				Port: 0, // to be set in the test
+				Port: 8082,
 			},
 			config: ProxyConfig{
-				ListeningPort: 0, // to be set in the test
+				ListeningPort: 9082,
 			},
 			handler:    return200Handler,
 			path:       "/excluded/path",
@@ -93,10 +93,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			target: Target{
-				Port: 0, // to be set in the test
+				Port: 8083,
 			},
 			config: ProxyConfig{
-				ListeningPort: 0, // to be set in the test
+				ListeningPort: 9083,
 			},
 			handler:    return200Handler,
 			path:       "/non-excluded/path",
@@ -104,13 +104,11 @@ func Test_Proxy(t *testing.T) {
 		},
 	}
 
-	proxyPort := uint(32080) // proxy ports will be in the range 32080-32089
-	srvPort := uint(32090)   // server ports will be in the range 32090-32099
-	for i, tc := range testCases {
+	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			// ensure unique ports for each test but limit port range
-			tc.config.ListeningPort = proxyPort + uint(i%10)
-			tc.target.Port = srvPort + uint(i%10)
+			t.Parallel()
 
 			// create the proxy
 			proxy, err := NewProxy(

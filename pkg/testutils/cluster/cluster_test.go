@@ -30,6 +30,8 @@ nodes:
 - role: worker`
 
 func Test_CreateConfig(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title          string
 		options        Options
@@ -87,7 +89,11 @@ func Test_CreateConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			config, err := NewConfig("test-cluster", tc.options)
 
 			if !tc.expectError && err != nil {
