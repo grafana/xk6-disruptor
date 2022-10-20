@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	DefaultSvcURL  = "http://127.0.0.1"
-	DefaultSvcPort = 32080
+	defaultSvcURL  = "http://127.0.0.1"
+	defaultSvcPort = 32080
 )
 
 // ServiceCheck defines the conditions to check in the access to a service
@@ -30,11 +30,11 @@ func CheckService(c ServiceCheck) error {
 
 	url := c.Url
 	if url == "" {
-		url = DefaultSvcURL
+		url = defaultSvcURL
 	}
 	port := c.Port
 	if port == 0 {
-		port = DefaultSvcPort
+		port = defaultSvcPort
 	}
 	requestUrl := fmt.Sprintf("%s:%d", url, port)
 	resp, err := http.Get(requestUrl)

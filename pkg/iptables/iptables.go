@@ -13,8 +13,8 @@ import (
 type action string
 
 const (
-	ADD    action = "-A"
-	DELETE action = "-D"
+	add    action = "-A"
+	delete action = "-D"
 )
 
 const redirectCommand = "%s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
@@ -119,25 +119,25 @@ func (tr *redirector) execResetCmd(a action, port uint) error {
 // Starts applies the TrafficRedirect
 func (tr *redirector) Start() error {
 	// error is ignored as the rule may not exist
-	_ = tr.execResetCmd(DELETE, tr.RedirectPort)
-	err := tr.execRedirectCmd(ADD)
+	_ = tr.execResetCmd(delete, tr.RedirectPort)
+	err := tr.execRedirectCmd(add)
 	if err != nil {
 		return err
 	}
-	return tr.execResetCmd(ADD, tr.DestinationPort)
+	return tr.execResetCmd(add, tr.DestinationPort)
 }
 
 // Stops removes the TrafficRedirect
 func (tr *redirector) Stop() error {
-	err := tr.execRedirectCmd(DELETE)
+	err := tr.execRedirectCmd(delete)
 	if err != nil {
 		return err
 	}
 
-	err = tr.execResetCmd(ADD, tr.RedirectPort)
+	err = tr.execResetCmd(add, tr.RedirectPort)
 	if err != nil {
 		return err
 	}
 
-	return tr.execResetCmd(DELETE, tr.DestinationPort)
+	return tr.execResetCmd(delete, tr.DestinationPort)
 }
