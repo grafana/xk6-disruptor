@@ -1,9 +1,9 @@
 // Package http implements an disruptor for http requests.
 // The disruptor runs as a proxy, redirecting the traffic from
-// a target defined in [HttpDisruptionTarget] using iptables.
+// a target defined in [DisruptionTarget] using iptables.
 // The intercepted requests are forwarded to the target and optionally are
-// disrupted according to the disruption options defined in [HttpDisruption].
-// The configuration of the proxy is defined in the [HttpDisruptorConfig].
+// disrupted according to the disruption options defined in [Disruption].
+// The configuration of the proxy is defined in the [DisruptorConfig].
 package http
 
 import (
@@ -13,13 +13,13 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
 )
 
-// HttpDisruptor defines the interface disruptor of http requests
-type HttpDisruptor interface {
+// Disruptor defines the interface disruptor of http requests
+type Disruptor interface {
 	Apply(duration time.Duration) error
 }
 
-// HttpDisruption specifies disruptions in http requests
-type HttpDisruption struct {
+// Disruption specifies disruptions in http requests
+type Disruption struct {
 	// Average delay introduced to requests
 	AverageDelay uint
 	// Variation in the delay (with respect of the average delay)
@@ -32,36 +32,36 @@ type HttpDisruption struct {
 	Excluded []string
 }
 
-// HttpDisruptorConfig defines the configuration options for the HttpDisruptor
-type HttpDisruptorConfig struct {
-	ProxyConfig HttpProxyConfig
+// DisruptorConfig defines the configuration options for the Disruptor
+type DisruptorConfig struct {
+	ProxyConfig ProxyConfig
 }
 
-// HttpDisruptionTarget defines the target of the disruptions
-type HttpDisruptionTarget struct {
+// DisruptionTarget defines the target of the disruptions
+type DisruptionTarget struct {
 	// Destination port to intercept traffic
 	TargetPort uint
 	// Network interface where the traffic will be intercepted
 	Iface string
 }
 
-// httpDisruptor is an instance of a HttpDisruptor that applies a disruption
+// disruptor is an instance of a Disruptor that applies a disruption
 // to a target
-type httpDisruptor struct {
+type disruptor struct {
 	// Target of the disruption
-	target HttpDisruptionTarget
+	target DisruptionTarget
 	// Description of the disruption
-	disruption HttpDisruption
+	disruption Disruption
 	// Description of the http disruptor
-	config HttpDisruptorConfig
-	// HttpProxy
-	proxy HttpProxy
+	config DisruptorConfig
+	// Proxy
+	proxy Proxy
 	// TrafficRedirect
 	redirector iptables.TrafficRedirector
 }
 
-// validateHttpDisruption validates a HttpDisruption struct
-func validateHttpDisruption(d HttpDisruption) error {
+// validateDisruption validates a Disruption struct
+func validateDisruption(d Disruption) error {
 	if d.DelayVariation > d.AverageDelay {
 		return fmt.Errorf("variation must be less that average delay")
 	}
@@ -77,8 +77,8 @@ func validateHttpDisruption(d HttpDisruption) error {
 	return nil
 }
 
-// validateHttpDisruptionTarget validates a HttpDisruptionTarget
-func validateHttpDisruptionTarget(d HttpDisruptionTarget) error {
+// validateDisruptionTarget validates a DisruptionTarget
+func validateDisruptionTarget(d DisruptionTarget) error {
 	if d.TargetPort == 0 {
 		return fmt.Errorf("target port must be valid tcp port")
 	}
@@ -90,40 +90,40 @@ func validateHttpDisruptionTarget(d HttpDisruptionTarget) error {
 	return nil
 }
 
-// NewDefaultHttpDisruptor creates a HttpDisruptor with valid default configuration.
-func NewDefaultHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption) (HttpDisruptor, error) {
-	return NewHttpDisruptor(
+// NewDefaultDisruptor creates a Disruptor with valid default configuration.
+func NewDefaultDisruptor(target DisruptionTarget, disruption Disruption) (Disruptor, error) {
+	return NewDisruptor(
 		target,
 		disruption,
-		HttpDisruptorConfig{
-			ProxyConfig: HttpProxyConfig{
+		DisruptorConfig{
+			ProxyConfig: ProxyConfig{
 				ListeningPort: 8080,
 			},
 		},
 	)
 }
 
-// NewHttpDisruptor creates a new instance of a HttpDisruptor that applies a disruptions to a target
+// NewDisruptor creates a new instance of a Disruptor that applies a disruptions to a target
 // The configuration controls how the disruptor operates.
-func NewHttpDisruptor(
-	target HttpDisruptionTarget,
-	disruption HttpDisruption,
-	config HttpDisruptorConfig,
-) (HttpDisruptor, error) {
-	err := validateHttpDisruption(disruption)
+func NewDisruptor(
+	target DisruptionTarget,
+	disruption Disruption,
+	config DisruptorConfig,
+) (Disruptor, error) {
+	err := validateDisruption(disruption)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateHttpDisruptionTarget(target)
+	err = validateDisruptionTarget(target)
 	if err != nil {
 		return nil, err
 	}
 
-	proxyTarget := HttpProxyTarget{
+	proxyTarget := Target{
 		Port: target.TargetPort,
 	}
-	proxy, err := NewHttpProxy(
+	proxy, err := NewProxy(
 		proxyTarget,
 		disruption,
 		config.ProxyConfig,
@@ -143,7 +143,7 @@ func NewHttpDisruptor(
 		return nil, err
 	}
 
-	return &httpDisruptor{
+	return &disruptor{
 		target:     target,
 		disruption: disruption,
 		config:     config,
@@ -152,8 +152,8 @@ func NewHttpDisruptor(
 	}, nil
 }
 
-// Run applies the HttpDisruption to the target system
-func (d *httpDisruptor) Apply(duration time.Duration) error {
+// Apply applies the Disruption to the target system
+func (d *disruptor) Apply(duration time.Duration) error {
 	if duration < time.Second {
 		return fmt.Errorf("duration must be at least one second")
 	}

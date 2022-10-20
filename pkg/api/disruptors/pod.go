@@ -28,8 +28,8 @@ type PodSelector struct {
 	Exclude PodAttributes
 }
 
-// HttpDisruptionOptions defines options for the injection of Http faults in a target pod
-type HttpDisruptionOptions struct {
+// HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod
+type HTTPDisruptionOptions struct {
 	// Port used by the agent for listening
 	ProxyPort uint
 	// Network interface the agent will be listening traffic from
@@ -40,9 +40,9 @@ type HttpDisruptionOptions struct {
 type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
-	// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
+	// InjectHTTPFault injects faults in the HTP requests sent to the disruptor's targets
 	// for the specified duration (in seconds)
-	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
+	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
@@ -262,7 +262,7 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
 }
 
-func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOptions) ([]string, error) {
+func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) ([]string, error) {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
@@ -292,9 +292,9 @@ func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOpt
 	return cmd, nil
 }
 
-// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
-	cmd, err := buildHttpFaultCmd(fault, duration, options)
+// InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
+func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
+	cmd, err := buildHTTPFaultCmd(fault, duration, options)
 	if err != nil {
 		return err
 	}

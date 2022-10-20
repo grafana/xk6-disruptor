@@ -11,9 +11,9 @@ import (
 
 // ServiceDisruptor defines operations for injecting faults in services
 type ServiceDisruptor interface {
-	// InjectHttpFault injects faults in the http requests sent to the disruptor's target
+	// InjectHTTPFault injects faults in the http requests sent to the disruptor's target
 	// for the specified duration (in seconds)
-	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
+	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 }
@@ -94,7 +94,7 @@ func NewServiceDisruptor(
 	}, nil
 }
 
-func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
+func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	svc, err := d.k8s.CoreV1().
 		Services(d.namespace).
 		Get(d.k8s.Context(), d.service, metav1.GetOptions{})
@@ -109,7 +109,7 @@ func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint, opti
 	}
 
 	fault.Port = port
-	return d.podDisruptor.InjectHttpFaults(fault, duration, options)
+	return d.podDisruptor.InjectHTTPFaults(fault, duration, options)
 }
 
 func (d *serviceDisruptor) Targets() ([]string, error) {

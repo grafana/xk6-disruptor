@@ -15,7 +15,7 @@ func main() {
 			"It can run as stand-alone process or in a container",
 	}
 
-	rootCmd.AddCommand(commands.BuildHttpCmd())
+	rootCmd.AddCommand(commands.BuildHTTPCmd())
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

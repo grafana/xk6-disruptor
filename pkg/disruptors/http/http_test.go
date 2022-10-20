@@ -10,27 +10,27 @@ func Test_Validations(t *testing.T) {
 	testCases := []struct {
 		title       string
 		duration    time.Duration
-		target      HttpDisruptionTarget
-		disruption  HttpDisruption
-		config      HttpDisruptorConfig
+		target      DisruptionTarget
+		disruption  Disruption
+		config      DisruptorConfig
 		expectError bool
 	}{
 		{
 			title:    "valid defaults",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -39,19 +39,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "invalid listening port",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 0,
 				},
 			},
@@ -60,19 +60,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "invalid target port",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 0,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -81,19 +81,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "target port equals listening port",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 8080,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -102,19 +102,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "missing target iface",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -123,19 +123,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "variation larger than average delay",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   100,
 				DelayVariation: 200,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -144,19 +144,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "valid error rate",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.1,
 				ErrorCode:      500,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -165,19 +165,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "valid delay and variation",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   100,
 				DelayVariation: 10,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -186,19 +186,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "invalid error code",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -207,19 +207,19 @@ func Test_Validations(t *testing.T) {
 		{
 			title:    "negative error rate",
 			duration: time.Second * 1,
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      -1.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpDisruptionTarget{
+			target: DisruptionTarget{
 				Iface:      "eth0",
 				TargetPort: 80,
 			},
-			config: HttpDisruptorConfig{
-				ProxyConfig: HttpProxyConfig{
+			config: DisruptorConfig{
+				ProxyConfig: ProxyConfig{
 					ListeningPort: 8080,
 				},
 			},
@@ -229,7 +229,7 @@ func Test_Validations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			_, err := NewHttpDisruptor(
+			_, err := NewDisruptor(
 				tc.target,
 				tc.disruption,
 				tc.config,

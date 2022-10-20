@@ -17,9 +17,9 @@ func Test_Proxy(t *testing.T) {
 
 	type TestCase struct {
 		title      string
-		target     HttpProxyTarget
-		disruption HttpDisruption
-		config     HttpProxyConfig
+		target     Target
+		disruption Disruption
+		config     ProxyConfig
 		handler    func(http.ResponseWriter, *http.Request)
 		path       string
 		statusCode int
@@ -28,17 +28,17 @@ func Test_Proxy(t *testing.T) {
 	testCases := []TestCase{
 		{
 			title: "default proxy",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpProxyTarget{
+			target: Target{
 				Port: 0, // to be set in the test
 			},
-			config: HttpProxyConfig{
+			config: ProxyConfig{
 				ListeningPort: 0, // to be set in the test
 			},
 			handler:    return200Handler,
@@ -47,17 +47,17 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Error code 500",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       nil,
 			},
-			target: HttpProxyTarget{
+			target: Target{
 				Port: 0, // to be set in the test
 			},
-			config: HttpProxyConfig{
+			config: ProxyConfig{
 				ListeningPort: 0, // to be set in the test
 			},
 			handler:    return200Handler,
@@ -66,17 +66,17 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Exclude path",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: HttpProxyTarget{
+			target: Target{
 				Port: 0, // to be set in the test
 			},
-			config: HttpProxyConfig{
+			config: ProxyConfig{
 				ListeningPort: 0, // to be set in the test
 			},
 			handler:    return200Handler,
@@ -85,17 +85,17 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Not Excluded path",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: HttpProxyTarget{
+			target: Target{
 				Port: 0, // to be set in the test
 			},
-			config: HttpProxyConfig{
+			config: ProxyConfig{
 				ListeningPort: 0, // to be set in the test
 			},
 			handler:    return200Handler,
@@ -113,7 +113,7 @@ func Test_Proxy(t *testing.T) {
 			tc.target.Port = srvPort + uint(i%10)
 
 			// create the proxy
-			proxy, err := NewHttpProxy(
+			proxy, err := NewProxy(
 				tc.target,
 				tc.disruption,
 				tc.config,
