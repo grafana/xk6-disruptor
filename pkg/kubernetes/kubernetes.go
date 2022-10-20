@@ -75,9 +75,9 @@ func (k *k8s) Context() context.Context {
 // Helpers returns Helpers for the default namespace
 func (k *k8s) Helpers() helpers.Helpers {
 	return helpers.NewHelper(
+		k.ctx,
 		k.Interface,
 		k.config,
-		k.ctx,
 		"default",
 	)
 }
@@ -85,9 +85,9 @@ func (k *k8s) Helpers() helpers.Helpers {
 // NamespacedHelpers returns helpers for the given namespace
 func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
 	return helpers.NewHelper(
+		k.ctx,
 		k.Interface,
 		k.config,
-		k.ctx,
 		namespace,
 	)
 }
