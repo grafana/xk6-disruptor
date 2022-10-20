@@ -217,9 +217,9 @@ func BuildCluster(name string) (*cluster.Cluster, error) {
 		nodePorts = append(nodePorts, cluster.NodePort{HostPort: int32(port), NodePort: int32(port)})
 	}
 
-	config, err := cluster.NewClusterConfig(
+	config, err := cluster.NewConfig(
 		name,
-		cluster.ClusterOptions{
+		cluster.Options{
 			NodePorts: nodePorts,
 			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 			Wait:      time.Second * 60,

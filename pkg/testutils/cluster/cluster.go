@@ -46,8 +46,8 @@ type NodePort struct {
 	HostPort int32
 }
 
-// ClusterOptions defines options for customizing the cluster
-type ClusterOptions struct {
+// Options defines options for customizing the cluster
+type Options struct {
 	// cluster configuration to use. Overrides other options (NodePorts, Workers)
 	Config string
 	// List of images to pre-load on each node.
@@ -61,22 +61,22 @@ type ClusterOptions struct {
 	Workers int
 }
 
-// ClusterConfig contains the configuration for creating a cluster
-type ClusterConfig struct {
+// Config contains the configuration for creating a cluster
+type Config struct {
 	// name of the cluster
 	name string
 	// options for creating cluster
-	options ClusterOptions
+	options Options
 }
 
-// DefaultClusterConfig creates a ClusterConfig with default options and
+// DefaultConfig creates a ClusterConfig with default options and
 // default name "test-cluster"
-func DefaultClusterConfig() (*ClusterConfig, error) {
-	return NewClusterConfig("test-cluster", ClusterOptions{})
+func DefaultConfig() (*Config, error) {
+	return NewConfig("test-cluster", Options{})
 }
 
-// NewClusterConfig creates a ClusterConfig with the ClusterOptions
-func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, error) {
+// NewConfig creates a ClusterConfig with the ClusterOptions
+func NewConfig(name string, options Options) (*Config, error) {
 	if name == "" {
 		return nil, fmt.Errorf("cluster name is mandatory")
 	}
@@ -87,7 +87,7 @@ func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, erro
 		}
 	}
 
-	return &ClusterConfig{
+	return &Config{
 		name:    name,
 		options: options,
 	}, nil
@@ -95,7 +95,7 @@ func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, erro
 
 // Render returns the Kind configuration for creating a cluster
 // with this ClusterConfig
-func (c *ClusterConfig) Render() (string, error) {
+func (c *Config) Render() (string, error) {
 	if c.options.Config != "" {
 		return c.options.Config, nil
 	}
@@ -120,12 +120,12 @@ func (c *ClusterConfig) Render() (string, error) {
 // Cluster an active test cluster
 type Cluster struct {
 	// configuration used for creating the cluster
-	config *ClusterConfig
+	config *Config
 	//  path to the Kubeconfig
 	kubeconfig string
 	// kind cluster provider
 	provider kind.Provider
-	// mutex for cuncurrent modifications to cluster
+	// mutex for concurrent modifications to cluster
 	mtx sync.Mutex
 	// name of the cluster
 	name string
@@ -187,7 +187,7 @@ func loadImages(images []string, nodes []nodes.Node) error {
 }
 
 // Create creates a test cluster with the given name
-func (c *ClusterConfig) Create() (*Cluster, error) {
+func (c *Config) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster
 	ports := []NodePort{}
