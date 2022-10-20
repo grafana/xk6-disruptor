@@ -44,14 +44,14 @@ func getTargetPort(ports []corev1.ServicePort, port uint) (uint, error) {
 			}
 		}
 		return 0, fmt.Errorf("the service does not expose the given port: %d", port)
-	} else {
-		if len(ports) > 1 {
-			return 0, fmt.Errorf("service exposes multiple ports. Port option must be defined")
-		}
-
-		targetPort = uint(ports[0].TargetPort.IntVal)
-		return targetPort, nil
 	}
+
+	if len(ports) > 1 {
+		return 0, fmt.Errorf("service exposes multiple ports. Port option must be defined")
+	}
+
+	targetPort = uint(ports[0].TargetPort.IntVal)
+	return targetPort, nil
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
