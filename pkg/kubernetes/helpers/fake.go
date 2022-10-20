@@ -15,7 +15,7 @@ type Command struct {
 	Stdin     []byte
 }
 
-// PodCommandExecutor mocks the execution of a command in a pod
+// FakePodCommandExecutor mocks the execution of a command in a pod
 // recording the command history and returning a predefined stdout, stderr, and error
 type FakePodCommandExecutor struct {
 	mutex   sync.Mutex
@@ -69,7 +69,7 @@ type fakeHelper struct {
 	executor *FakePodCommandExecutor
 }
 
-// NewHelpers creates a set of helpers on the default namespace
+// NewFakeHelper creates a set of helpers on the default namespace
 func NewFakeHelper(client kubernetes.Interface, namespace string, executor *FakePodCommandExecutor) Helpers {
 	helpers := &helpers{
 		client:    client,

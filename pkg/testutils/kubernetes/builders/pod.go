@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// PodBuilder defines the methods for building a Pod
 type PodBuilder interface {
 	// Build returns a Pod with the attributes defined in the PodBuilder
 	Build() *corev1.Pod

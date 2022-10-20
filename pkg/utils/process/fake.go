@@ -4,8 +4,8 @@ import (
 	"strings"
 )
 
-// An instance of a ProcessExecutor that keeps the history of commands
-// for inspection and returns the predefined results.
+// FakeProcessExecutor is an instance of a ProcessExecutor that keeps the history
+// of commands for inspection and returns the predefined results.
 // Even when it allows multiple invocations to Exec, it only allows
 // setting one err and output which are returned on each call. If different
 // results are needed for each invocation, [CallbackProcessExecutor] may a
@@ -71,14 +71,14 @@ func (p *FakeProcessExecutor) Reset() {
 // The function must return the output of the invocation and the execution error, if any
 type ExecCallback func(cmd string, args ...string) ([]byte, error)
 
-// A fake process Executor that forwards the invocations of the exec to
-// a function that can dynamically return error and output.
+// CallbackProcessExecutor is fake process Executor that forwards the invocations
+// to a function that can dynamically return error and output.
 type CallbackProcessExecutor struct {
 	FakeProcessExecutor
 	callback ExecCallback
 }
 
-// Forward exec to the callback
+// Exec forwards invocation to the callback
 func (c *CallbackProcessExecutor) Exec(cmd string, args ...string) ([]byte, error) {
 	// update command history but ignore outputs
 	c.FakeProcessExecutor.updateHistory(cmd, args...)
@@ -86,6 +86,7 @@ func (c *CallbackProcessExecutor) Exec(cmd string, args ...string) ([]byte, erro
 	return c.callback(cmd, args...)
 }
 
+// NewCallbackProcessExecutor returns an instance of a CallbackProcessExecutor
 func NewCallbackProcessExecutor(callback ExecCallback) *CallbackProcessExecutor {
 	return &CallbackProcessExecutor{
 		callback: callback,

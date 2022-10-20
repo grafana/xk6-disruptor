@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Defines an interface that extends kubernetes interface[k8s.io/client-go/kubernetes.Interface]
+// Kubernetes defines an interface that extends kubernetes interface[k8s.io/client-go/kubernetes.Interface]
 // Adding helper functions for common tasks
 type Kubernetes interface {
 	kubernetes.Interface

@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// ServiceBuilder defines the methods for building a service
 type ServiceBuilder interface {
 	// Build returns a Service with the attributes defined in the ServiceBuilder
 	Build() *corev1.Service

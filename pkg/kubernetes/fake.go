@@ -1,4 +1,3 @@
-// Package fake offers a fake implementation of the Kubernetes interface
 package kubernetes
 
 import (
@@ -25,7 +24,7 @@ func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 	}, nil
 }
 
-// Returns the context for executing k8s actions
+// Context returns the context for executing k8s actions
 func (k *FakeKubernetes) Context() context.Context {
 	return k.ctx
 }

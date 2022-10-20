@@ -1,4 +1,3 @@
-// Package types defines the types supported by the API.
 package disruptors
 
 // HttpFault specifies a f to be injected in http requests

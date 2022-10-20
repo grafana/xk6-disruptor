@@ -5,7 +5,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NamespaceHelper defines helper methods for handling namespaces
 type NamespaceHelper interface {
+	// CreateRandomNamespace creates a namespace with a random name starting with
+        // the provided prefix and returns its name
 	CreateRandomNamespace(prefix string) (string, error)
 }
 

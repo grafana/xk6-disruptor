@@ -1,4 +1,3 @@
-// BuildHttpCmd returns a cobra command with the specification of the http command
 package commands
 
 import (
@@ -8,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// BuildHttpCmd returns a cobra command with the specification of the http command
 func BuildHttpCmd() *cobra.Command {
 	target := http.HttpDisruptionTarget{}
 	disruption := http.HttpDisruption{}

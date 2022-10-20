@@ -82,7 +82,7 @@ func (s *PodSelector) buildLabelSelector() (labels.Selector, error) {
 	return labelsSelector, nil
 }
 
-// getTargets retrieves the names of the targets of the disruptor
+// GetTargets retrieves the names of the targets of the disruptor
 func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	namespace := s.Namespace
 	if namespace == "" {
@@ -113,7 +113,7 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	return podNames, nil
 }
 
-// agentController controls de agents in a set of target pods
+// AgentController controls de agents in a set of target pods
 type AgentController struct {
 	k8s       kubernetes.Kubernetes
 	namespace string
@@ -184,7 +184,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	}
 }
 
-// RunCommand executes a command in the targets of the AgentController and reports any error
+// ExecCommand executes a command in the targets of the AgentController and reports any error
 func (c *AgentController) ExecCommand(cmd ...string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines

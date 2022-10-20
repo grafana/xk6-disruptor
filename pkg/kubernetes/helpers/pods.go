@@ -17,9 +17,15 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+// PodHelper defines helper methods for handling Pods
 type PodHelper interface {
+	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating if the status
+        // was reached. If the pod is Failed returns error.
 	WaitPodRunning(name string, timeout time.Duration) (bool, error)
+	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
+	// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
+        // a given timeout until the container is running
 	AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error
 }
 
@@ -71,8 +77,6 @@ func (h *helpers) waitForCondition(
 	}
 }
 
-// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating if the status
-// was reached. If the pod is Failed returns error.
 func (h *helpers) WaitPodRunning(name string, timeout time.Duration) (bool, error) {
 	return h.waitForCondition(
 		h.namespace,
@@ -90,7 +94,6 @@ func (h *helpers) WaitPodRunning(name string, timeout time.Duration) (bool, erro
 	)
 }
 
-// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 func (h *helpers) Exec(
 	pod string,
 	container string,
@@ -132,8 +135,6 @@ func (h *helpers) Exec(
 	return stdout.Bytes(), stderr.Bytes(), nil
 }
 
-// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
-// a given timeout until the container is running
 func (h *helpers) AttachEphemeralContainer(
 	podName string,
 	container corev1.EphemeralContainer,

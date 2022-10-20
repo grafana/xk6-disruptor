@@ -146,7 +146,7 @@ func BuildNginxService(nodeport int32) *corev1.Service {
 	}
 }
 
-// Exposes a Service in the given namespace and waits for it to be ready
+// ExposeService exposes a service in the given namespace and waits for it to be ready
 func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, timeout time.Duration) error {
 	_, err := k8s.CoreV1().Services(ns).Create(
 		context.TODO(),

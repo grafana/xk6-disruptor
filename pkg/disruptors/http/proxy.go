@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-// Defines an interface for a proxy
+// HttpProxy defines an interface for a proxy
 type HttpProxy interface {
 	Start() error
 	Stop() error
 	Force() error
 }
 
-// ProxyConfig specifies the configuration for the http proxy
+// HttpProxyConfig specifies the configuration for the http proxy
 type HttpProxyConfig struct {
 	// Port on which the proxy will be running
 	ListeningPort uint
@@ -39,7 +39,7 @@ type proxy struct {
 	srv        *http.Server
 }
 
-// NewProxy return a new HttpProxy
+// NewHttpProxy return a new HttpProxy
 func NewHttpProxy(target HttpProxyTarget, disruption HttpDisruption, config HttpProxyConfig) (HttpProxy, error) {
 	if config.ListeningPort == 0 {
 		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")

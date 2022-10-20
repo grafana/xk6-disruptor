@@ -24,7 +24,7 @@ type ServiceCheck struct {
 	Delay time.Duration
 }
 
-// Checks access to service
+// CheckService verifies access to service returns the expected result
 func CheckService(c ServiceCheck) error {
 	time.Sleep(c.Delay)
 

@@ -186,7 +186,7 @@ func loadImages(images []string, nodes []nodes.Node) error {
 	return nil
 }
 
-// CreateCluster creates a test cluster with the given name
+// Create creates a test cluster with the given name
 func (c *ClusterConfig) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster

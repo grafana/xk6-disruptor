@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-// Process offers methods for running processes
+// ProcessExecutor offers methods for running processes
 type ProcessExecutor interface {
 	// Exec executes a process and waits for its completion, returning
 	// the combined stdout and stdout
@@ -18,7 +18,7 @@ type ProcessExecutor interface {
 // executing processes
 type executor struct{}
 
-// Returns a default process executor
+// DefaultProcessExecutor returns a default process executor
 func DefaultProcessExecutor() ProcessExecutor {
 	return &executor{}
 }
