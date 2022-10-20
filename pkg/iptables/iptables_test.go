@@ -125,7 +125,7 @@ func Test_Commands(t *testing.T) {
 
 	for _, tc := range TestCases {
 		t.Run(tc.title, func(t *testing.T) {
-			executor := process.NewFakeProcessExecutor([]byte{}, nil)
+			executor := process.NewFakeExecutor([]byte{}, nil)
 			config := TrafficRedirectorConfig{
 				Executor: executor,
 			}

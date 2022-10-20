@@ -43,12 +43,12 @@ type TrafficRedirector interface {
 // trafficRedirect defines an instance of a TrafficRedirector
 type redirector struct {
 	*TrafficRedirectionSpec
-	executor process.ProcessExecutor
+	executor process.Executor
 }
 
 // TrafficRedirectorConfig defines the options for creating a TrafficRedirector
 type TrafficRedirectorConfig struct {
-	Executor process.ProcessExecutor
+	Executor process.Executor
 }
 
 // Creating instances passing a TrafficRedirectorConfig
@@ -77,7 +77,7 @@ func newTrafficRedirectorWithConfig(
 // NewTrafficRedirector creates an instance of a TrafficRedirector with default configuration
 func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error) {
 	config := TrafficRedirectorConfig{
-		Executor: process.DefaultProcessExecutor(),
+		Executor: process.DefaultExecutor(),
 	}
 	return newTrafficRedirectorWithConfig(tf, config)
 }

@@ -49,7 +49,7 @@ func Test_Exec(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			executor := DefaultProcessExecutor()
+			executor := DefaultExecutor()
 			out, err := executor.Exec(tc.cmd, tc.args...)
 			if err != nil {
 				t.Logf("error: %v", err)

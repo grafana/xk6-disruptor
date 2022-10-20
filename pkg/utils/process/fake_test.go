@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func Test_FakeProcessExecutor(t *testing.T) {
+func Test_FakeExecutor(t *testing.T) {
 	testCases := []struct {
 		title   string
 		cmdLine string
@@ -35,7 +35,7 @@ func Test_FakeProcessExecutor(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewFakeProcessExecutor(tc.out, tc.err)
+			fake := NewFakeExecutor(tc.out, tc.err)
 			cmd := strings.Split(tc.cmdLine, " ")[0]
 			args := strings.Split(tc.cmdLine, " ")[0:]
 			out, err := fake.Exec(cmd, args...)
@@ -85,7 +85,7 @@ func Test_MultipleExecutions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewFakeProcessExecutor(tc.out, tc.err)
+			fake := NewFakeExecutor(tc.out, tc.err)
 			// execute a sequence of commands
 			for _, cmdline := range tc.cmdLines {
 				cmd := strings.Split(cmdline, " ")[0]
@@ -156,7 +156,7 @@ func Test_Callbacks(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewCallbackProcessExecutor(func(cmd string, args ...string) ([]byte, error) {
+			fake := NewCallbackExecutor(func(cmd string, args ...string) ([]byte, error) {
 				return tc.out, tc.err
 			})
 

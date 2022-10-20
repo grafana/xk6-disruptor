@@ -7,19 +7,19 @@ import (
 	"os/exec"
 )
 
-// ProcessExecutor offers methods for running processes
-type ProcessExecutor interface {
+// Executor offers methods for running processes
+type Executor interface {
 	// Exec executes a process and waits for its completion, returning
 	// the combined stdout and stdout
 	Exec(cmd string, args ...string) ([]byte, error)
 }
 
-// An instance of a process executor that uses the os/exec package for
+// An instance of an executor that uses the os/exec package for
 // executing processes
 type executor struct{}
 
-// DefaultProcessExecutor returns a default process executor
-func DefaultProcessExecutor() ProcessExecutor {
+// DefaultExecutor returns a default executor
+func DefaultExecutor() Executor {
 	return &executor{}
 }
 
