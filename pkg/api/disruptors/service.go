@@ -20,7 +20,8 @@ type ServiceDisruptor interface {
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
 type ServiceDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
+	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// A Negative value forces no waiting.
 	InjectTimeout int
 }
 
@@ -54,7 +55,12 @@ func getTargetPort(ports []corev1.ServicePort, port uint) (uint, error) {
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
-func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace string, options ServiceDisruptorOptions) (ServiceDisruptor, error) {
+func NewServiceDisruptor(
+	k8s kubernetes.Kubernetes,
+	service string,
+	namespace string,
+	options ServiceDisruptorOptions,
+) (ServiceDisruptor, error) {
 	svc, err := k8s.CoreV1().
 		Services(namespace).
 		Get(k8s.Context(), service, metav1.GetOptions{})

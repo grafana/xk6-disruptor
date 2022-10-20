@@ -192,7 +192,13 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 }
 
 // DeployApp deploys a pod in a namespace and exposes it as a service in a cluster
-func DeployApp(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, svc *corev1.Service, timeout time.Duration) error {
+func DeployApp(
+	k8s kubernetes.Kubernetes,
+	ns string,
+	pod *corev1.Pod,
+	svc *corev1.Service,
+	timeout time.Duration,
+) error {
 	start := time.Now()
 	err := RunPod(k8s, ns, pod, timeout)
 	if err != nil {

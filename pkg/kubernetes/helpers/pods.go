@@ -134,7 +134,11 @@ func (h *helpers) Exec(
 
 // AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
 // a given timeout until the container is running
-func (h *helpers) AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error {
+func (h *helpers) AttachEphemeralContainer(
+	podName string,
+	container corev1.EphemeralContainer,
+	timeout time.Duration,
+) error {
 	pod, err := h.client.CoreV1().Pods(h.namespace).Get(
 		h.ctx,
 		podName,

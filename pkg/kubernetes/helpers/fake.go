@@ -26,7 +26,12 @@ type FakePodCommandExecutor struct {
 }
 
 // Exec records the execution of a command and returns the pre-defined
-func (f *FakePodCommandExecutor) Exec(pod string, container string, cmd []string, stdin []byte) ([]byte, []byte, error) {
+func (f *FakePodCommandExecutor) Exec(
+	pod string,
+	container string,
+	cmd []string,
+	stdin []byte,
+) ([]byte, []byte, error) {
 	f.mutex.Lock()
 	f.history = append(f.history, Command{
 		Pod:       pod,

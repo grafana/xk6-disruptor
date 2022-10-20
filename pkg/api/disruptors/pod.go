@@ -47,7 +47,8 @@ type PodDisruptor interface {
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
 type PodDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
+	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// A Negative value forces no waiting.
 	InjectTimeout int
 }
 
@@ -214,7 +215,11 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
-func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options PodDisruptorOptions) (PodDisruptor, error) {
+func NewPodDisruptor(
+	k8s kubernetes.Kubernetes,
+	selector PodSelector,
+	options PodDisruptorOptions,
+) (PodDisruptor, error) {
 	targets, err := selector.GetTargets(k8s)
 	if err != nil {
 		return nil, err

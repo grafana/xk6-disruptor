@@ -52,7 +52,10 @@ type TrafficRedirectorConfig struct {
 }
 
 // Creating instances passing a TrafficRedirectorConfig
-func newTrafficRedirectorWithConfig(tr *TrafficRedirectionSpec, config TrafficRedirectorConfig) (TrafficRedirector, error) {
+func newTrafficRedirectorWithConfig(
+	tr *TrafficRedirectionSpec,
+	config TrafficRedirectorConfig,
+) (TrafficRedirector, error) {
 	if tr.DestinationPort == 0 || tr.RedirectPort == 0 {
 		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be specified")
 	}

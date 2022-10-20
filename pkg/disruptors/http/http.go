@@ -105,7 +105,11 @@ func NewDefaultHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisrupt
 
 // NewHttpDisruptor creates a new instance of a HttpDisruptor that applies a disruptions to a target
 // The configuration controls how the disruptor operates.
-func NewHttpDisruptor(target HttpDisruptionTarget, disruption HttpDisruption, config HttpDisruptorConfig) (HttpDisruptor, error) {
+func NewHttpDisruptor(
+	target HttpDisruptionTarget,
+	disruption HttpDisruption,
+	config HttpDisruptorConfig,
+) (HttpDisruptor, error) {
 	err := validateHttpDisruption(disruption)
 	if err != nil {
 		return nil, err
