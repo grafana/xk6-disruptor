@@ -109,7 +109,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		delay       time.Duration
 		expectError bool
 		container   string
-		image       string
 		state       corev1.ContainerState
 		timeout     time.Duration
 	}
@@ -121,7 +120,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       1 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			image:       "busybox",
 			state:       corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
@@ -133,7 +131,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			image:       "busybox",
 			state:       corev1.ContainerState{
 				Running: &corev1.ContainerStateRunning{},
 			},
@@ -145,7 +142,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: true,
 			container:   "ephemeral",
-			image:       "busybox",
 			state:       corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
