@@ -154,13 +154,13 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create service %s: %v", svc.Name, err)
+		return fmt.Errorf("failed to create service %s: %w", svc.Name, err)
 	}
 
 	// wait for the service to be ready for accepting requests
 	err = k8s.NamespacedHelpers(ns).WaitServiceReady(svc.Name, timeout)
 	if err != nil {
-		return fmt.Errorf("error waiting for service %s: %v", svc.Name, err)
+		return fmt.Errorf("error waiting for service %s: %w", svc.Name, err)
 	}
 
 	return nil
@@ -174,7 +174,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("error creating pod %s: %v", pod.Name, err)
+		return fmt.Errorf("error creating pod %s: %w", pod.Name, err)
 	}
 
 	running, err := k8s.NamespacedHelpers(ns).WaitPodRunning(
@@ -182,7 +182,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 		timeout,
 	)
 	if err != nil {
-		return fmt.Errorf("error waiting for pod %s: %v", pod.Name, err)
+		return fmt.Errorf("error waiting for pod %s: %w", pod.Name, err)
 	}
 	if !running {
 		return fmt.Errorf("pod %s not ready after %f: ", pod.Name, timeout.Seconds())
@@ -202,7 +202,7 @@ func DeployApp(
 	start := time.Now()
 	err := RunPod(k8s, ns, pod, timeout)
 	if err != nil {
-		return fmt.Errorf("failed to create pod %s in namespace %s: %v", pod.Name, ns, err)
+		return fmt.Errorf("failed to create pod %s in namespace %s: %w", pod.Name, ns, err)
 	}
 
 	timeLeft := time.Duration(timeout - time.Since(start))

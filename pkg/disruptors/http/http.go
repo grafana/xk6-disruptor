@@ -165,7 +165,7 @@ func (d *disruptor) Apply(duration time.Duration) error {
 
 	err := d.redirector.Start()
 	if err != nil {
-		return fmt.Errorf(" failed traffic redirection: %s", err)
+		return fmt.Errorf(" failed traffic redirection: %w", err)
 	}
 
 	// On termination, restore traffic and stop proxy
@@ -180,7 +180,7 @@ func (d *disruptor) Apply(duration time.Duration) error {
 		select {
 		case err := <-wc:
 			if err != nil {
-				return fmt.Errorf(" proxy ended with error: %s", err)
+				return fmt.Errorf(" proxy ended with error: %w", err)
 			}
 		case <-time.After(duration):
 			return nil
