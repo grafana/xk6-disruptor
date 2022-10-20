@@ -19,8 +19,8 @@ import (
 
 // PodHelper defines helper methods for handling Pods
 type PodHelper interface {
-	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating if the status
-        // was reached. If the pod is Failed returns error.
+	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating
+	// if the status was reached. If the pod is Failed returns error.
 	WaitPodRunning(name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
