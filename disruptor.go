@@ -37,7 +37,7 @@ var (
 // NewModuleInstance returns a new instance of the disruptor module for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	kubeconfig := os.Getenv("KUBECONFIG")
-	cfg := kubernetes.KubernetesConfig{
+	cfg := kubernetes.Config{
 		Context:    vu.Context(),
 		Kubeconfig: kubeconfig,
 	}

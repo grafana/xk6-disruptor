@@ -21,8 +21,8 @@ type Kubernetes interface {
 	NamespacedHelpers(namespace string) helpers.Helpers
 }
 
-// KubernetesConfig defines the configuration for creating a Kubernetes instance
-type KubernetesConfig struct {
+// Config defines the configuration for creating a Kubernetes instance
+type Config struct {
 	// Context for executing kubernetes operations
 	Context context.Context
 	// Path to Kubernetes access configuration
@@ -38,13 +38,13 @@ type k8s struct {
 
 // NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
 func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
-	return NewFromConfig(KubernetesConfig{
+	return NewFromConfig(Config{
 		Kubeconfig: kubeconfig,
 	})
 }
 
 // NewFromConfig returns a Kubernetes instance configured with the given options
-func NewFromConfig(c KubernetesConfig) (Kubernetes, error) {
+func NewFromConfig(c Config) (Kubernetes, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", c.Kubeconfig)
 	if err != nil {
 		return nil, err
