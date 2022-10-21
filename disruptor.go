@@ -1,3 +1,5 @@
+// Package disruptor implement the k6 extension interface for calling disruptors from js scripts
+// running in the goya runtime
 package disruptor
 
 import (
