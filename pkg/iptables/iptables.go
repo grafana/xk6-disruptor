@@ -120,8 +120,7 @@ func (tr *redirector) execResetCmd(a action, port uint) error {
 func (tr *redirector) Start() error {
 	// error is ignored as the rule may not exist
 	_ = tr.execResetCmd(delete, tr.RedirectPort)
-	err := tr.execRedirectCmd(add)
-	if err != nil {
+	if err := tr.execRedirectCmd(add); err != nil {
 		return err
 	}
 	return tr.execResetCmd(add, tr.DestinationPort)

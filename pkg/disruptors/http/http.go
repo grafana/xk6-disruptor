@@ -163,8 +163,7 @@ func (d *disruptor) Apply(duration time.Duration) error {
 		wc <- d.proxy.Start()
 	}()
 
-	err := d.redirector.Start()
-	if err != nil {
+	if err := d.redirector.Start(); err != nil {
 		return fmt.Errorf(" failed traffic redirection: %w", err)
 	}
 

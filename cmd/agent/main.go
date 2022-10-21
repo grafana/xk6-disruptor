@@ -16,8 +16,7 @@ func main() {
 	}
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
