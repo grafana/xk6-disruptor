@@ -55,6 +55,7 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - noctx  # too many false positives when making simple http requests in tests
     - exhaustivestruct
     - gci
     - gochecknoinits
