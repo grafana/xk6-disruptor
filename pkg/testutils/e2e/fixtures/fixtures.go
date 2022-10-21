@@ -205,7 +205,7 @@ func DeployApp(
 		return fmt.Errorf("failed to create pod %s in namespace %s: %w", pod.Name, ns, err)
 	}
 
-	timeLeft := time.Duration(timeout - time.Since(start))
+	timeLeft := timeout - time.Since(start)
 	return ExposeService(k8s, ns, svc, timeLeft)
 }
 
