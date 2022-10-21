@@ -247,7 +247,6 @@ func Test_InjectAgent(t *testing.T) {
 			for _, podName := range tc.targets {
 				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
 				objs = append(objs, pod)
-
 			}
 			client := fake.NewSimpleClientset(objs...)
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
@@ -329,7 +328,6 @@ func Test_ExecCommand(t *testing.T) {
 			for _, podName := range tc.targets {
 				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
 				objs = append(objs, pod)
-
 			}
 			client := fake.NewSimpleClientset(objs...)
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
