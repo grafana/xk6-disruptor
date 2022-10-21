@@ -1,4 +1,4 @@
-# v1.43.0
+# v1.49.0
 # Please don't remove the first line. It is used in CI to determine the golangci version
 run:
   deadline: 5m
@@ -50,13 +50,16 @@ linters-settings:
       - G107 # Http request made with variable url
       - G204 # exec with variable command
       - G404 # use of weak random number (not used for cryptographic purposes)
-
+      - G112 # Potential Slowloris Attack
+  staticcheck:
+    checks: ["all", "-SA1019"]
 
 linters:
   enable-all: true
   disable:
     - noctx  # too many false positives when making simple http requests in tests
     - exhaustivestruct
+    - exhaustruct
     - gci
     - gochecknoinits
     - gocyclo # replaced by cyclop since it also calculates the package complexity
@@ -78,4 +81,6 @@ linters:
     - varnamelen # disabled before the final decision in (https://github.com/grafana/k6/pull/2323)
     - wrapcheck # a little bit too much for k6, maybe after https://github.com/tomarrell/wrapcheck/issues/2 is fixed
     - wsl
+    - containedctx
+    - usestdlibvars
   fast: false

@@ -1,3 +1,4 @@
+// Package main implements the root level command for the disruptor agent CLI
 package main
 
 import (
