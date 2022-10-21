@@ -262,7 +262,7 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
 }
 
-func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) ([]string, error) {
+func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
@@ -289,16 +289,13 @@ func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOpt
 		cmd = append(cmd, "-i", options.Iface)
 	}
 
-	return cmd, nil
+	return cmd
 }
 
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
 func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
-	cmd, err := buildHTTPFaultCmd(fault, duration, options)
-	if err != nil {
-		return err
-	}
+	cmd := buildHTTPFaultCmd(fault, duration, options)
 
-	err = d.controller.ExecCommand(cmd...)
+	err := d.controller.ExecCommand(cmd...)
 	return err
 }
