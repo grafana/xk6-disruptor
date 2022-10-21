@@ -87,10 +87,10 @@ func (p *proxy) Start() error {
 			req.URL.Host = originServerURL.Host
 			req.URL.Scheme = originServerURL.Scheme
 			req.RequestURI = ""
-			originServerResponse, err := http.DefaultClient.Do(req)
-			if err != nil {
+			originServerResponse, srvErr := http.DefaultClient.Do(req)
+			if srvErr != nil {
 				rw.WriteHeader(http.StatusInternalServerError)
-				_, _ = fmt.Fprint(rw, err)
+				_, _ = fmt.Fprint(rw, srvErr)
 				return
 			}
 

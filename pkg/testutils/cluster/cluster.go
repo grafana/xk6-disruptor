@@ -226,13 +226,13 @@ func (c *Config) Create() (*Cluster, error) {
 
 	// pre-load images
 	if len(c.options.Images) > 0 {
-		nodes, err := provider.ListInternalNodes(c.name)
-		if err != nil {
-			return nil, err
+		nodes, pErr := provider.ListInternalNodes(c.name)
+		if pErr != nil {
+			return nil, pErr
 		}
-		err = loadImages(c.options.Images, nodes)
+		pErr = loadImages(c.options.Images, nodes)
 		if err != nil {
-			return nil, err
+			return nil, pErr
 		}
 	}
 
