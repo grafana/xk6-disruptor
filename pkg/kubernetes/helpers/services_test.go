@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func buildEndpointsWithoutAddresses() *corev1.Endpoints{
+func buildEndpointsWithoutAddresses() *corev1.Endpoints {
 	return &corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -24,7 +24,7 @@ func buildEndpointsWithoutAddresses() *corev1.Endpoints{
 	}
 }
 
-func buildEndpointsWithAddresses()  *corev1.Endpoints {
+func buildEndpointsWithAddresses() *corev1.Endpoints {
 	return &corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -68,7 +68,7 @@ func buildOtherEndpointsWithAddresses() *corev1.Endpoints {
 	}
 }
 
-func buildEndpointsWithNotReadyAddresses()  *corev1.Endpoints {
+func buildEndpointsWithNotReadyAddresses() *corev1.Endpoints {
 	return &corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

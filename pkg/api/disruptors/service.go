@@ -85,7 +85,6 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("error creating pod disruptor %w", err)
 	}
 
-
 	return &serviceDisruptor{
 		service:      service,
 		namespace:    namespace,

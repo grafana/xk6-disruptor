@@ -25,7 +25,7 @@ type PodHelper interface {
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
-        // a given timeout until the container is running
+	// a given timeout until the container is running
 	AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error
 }
 

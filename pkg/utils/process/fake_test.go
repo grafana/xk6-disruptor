@@ -52,7 +52,7 @@ func Test_FakeExecutor(t *testing.T) {
 				return
 			}
 
-			if !errors.Is(err,tc.err) {
+			if !errors.Is(err, tc.err) {
 				t.Errorf(
 					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",
@@ -105,7 +105,7 @@ func Test_MultipleExecutions(t *testing.T) {
 				args := strings.Split(cmdline, " ")[1:]
 				out, err := fake.Exec(cmd, args...)
 
-				if !errors.Is(err,tc.err) {
+				if !errors.Is(err, tc.err) {
 					t.Errorf(
 						"returned error does not match expected value.\n"+
 							"Expected: %v\nActual: %v\n",
@@ -188,7 +188,7 @@ func Test_Callbacks(t *testing.T) {
 				return
 			}
 
-			if !errors.Is(err,tc.err) {
+			if !errors.Is(err, tc.err) {
 				t.Errorf(
 					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",

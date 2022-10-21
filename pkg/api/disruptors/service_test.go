@@ -241,7 +241,7 @@ func Test_HTTPFaultInjection(t *testing.T) {
 			fault: HTTPFault{
 				Port: 80,
 			},
-			duration: 1,
+			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{
@@ -275,7 +275,7 @@ func Test_HTTPFaultInjection(t *testing.T) {
 			fault: HTTPFault{
 				Port: 8080,
 			},
-			duration: 1,
+			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{
@@ -309,7 +309,7 @@ func Test_HTTPFaultInjection(t *testing.T) {
 			fault: HTTPFault{
 				Port: 0,
 			},
-			duration: 1,
+			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{

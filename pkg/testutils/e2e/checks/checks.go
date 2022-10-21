@@ -38,11 +38,10 @@ func CheckService(c ServiceCheck) error {
 	}
 	requestURL := fmt.Sprintf("%s:%d", url, port)
 	resp, err := http.Get(requestURL)
-
 	if err != nil {
 		return fmt.Errorf("failed to access service at %s: %w", url, err)
 	}
-	defer func(){
+	defer func() {
 		_ = resp.Body.Close()
 	}()
 

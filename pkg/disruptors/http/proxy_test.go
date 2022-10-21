@@ -166,7 +166,7 @@ func Test_Proxy(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
-			defer func(){
+			defer func() {
 				_ = resp.Body.Close()
 			}()
 

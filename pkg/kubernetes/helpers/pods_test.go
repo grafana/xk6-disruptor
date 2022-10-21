@@ -99,7 +99,6 @@ func TestPods_Wait(t *testing.T) {
 	}
 }
 
-
 func TestPods_AddEphemeralContainer(t *testing.T) {
 	t.Parallel()
 
@@ -120,10 +119,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       1 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			state:       corev1.ContainerState{
+			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout:     0,
+			timeout: 0,
 		},
 		{
 			test:        "Create ephemeral container waiting",
@@ -131,10 +130,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			state:       corev1.ContainerState{
+			state: corev1.ContainerState{
 				Running: &corev1.ContainerStateRunning{},
 			},
-			timeout:     5 * time.Second,
+			timeout: 5 * time.Second,
 		},
 		{
 			test:        "Fail waiting for container",
@@ -142,10 +141,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: true,
 			container:   "ephemeral",
-			state:       corev1.ContainerState{
+			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout:     5 * time.Second,
+			timeout: 5 * time.Second,
 		},
 	}
 	for _, tc := range testCases {
