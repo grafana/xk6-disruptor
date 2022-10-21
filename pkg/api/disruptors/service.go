@@ -75,6 +75,7 @@ func NewServiceDisruptor(
 		},
 	}
 
+	//nolint:gosimple
 	podOpts := PodDisruptorOptions{
 		InjectTimeout: options.InjectTimeout,
 	}
