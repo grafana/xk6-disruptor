@@ -166,6 +166,9 @@ func Test_Proxy(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
+			defer func(){
+				_ = resp.Body.Close()
+			}()
 
 			if tc.statusCode != resp.StatusCode {
 				t.Errorf("expected status code '%d' but '%d' received ", tc.statusCode, resp.StatusCode)

@@ -51,6 +51,7 @@ linters-settings:
       - G204 # exec with variable command
       - G404 # use of weak random number (not used for cryptographic purposes)
 
+
 linters:
   enable-all: true
   disable:
