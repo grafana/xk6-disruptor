@@ -30,21 +30,23 @@ nodes:
 - role: worker`
 
 func Test_CreateConfig(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title          string
-		options        ClusterOptions
+		options        Options
 		expectError    bool
 		expectedConfig string
 	}{
 		{
 			title:          "Default config",
-			options:        ClusterOptions{},
+			options:        Options{},
 			expectError:    false,
 			expectedConfig: defaultConfig,
 		},
 		{
 			title: "Node Ports",
-			options: ClusterOptions{
+			options: Options{
 				NodePorts: []NodePort{
 					{
 						NodePort: 32080,
@@ -57,7 +59,7 @@ func Test_CreateConfig(t *testing.T) {
 		},
 		{
 			title: "Invalid Node Ports",
-			options: ClusterOptions{
+			options: Options{
 				NodePorts: []NodePort{
 					{
 						NodePort: 0,
@@ -70,7 +72,7 @@ func Test_CreateConfig(t *testing.T) {
 		},
 		{
 			title: "Worker nodes",
-			options: ClusterOptions{
+			options: Options{
 				Workers: 2,
 			},
 			expectError:    false,
@@ -78,7 +80,7 @@ func Test_CreateConfig(t *testing.T) {
 		},
 		{
 			title: "Custom config",
-			options: ClusterOptions{
+			options: Options{
 				Config: defaultConfig,
 			},
 			expectError:    false,
@@ -87,8 +89,12 @@ func Test_CreateConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			config, err := NewClusterConfig("test-cluster", tc.options)
+			t.Parallel()
+
+			config, err := NewConfig("test-cluster", tc.options)
 
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)

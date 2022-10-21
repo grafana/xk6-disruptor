@@ -11,16 +11,17 @@ import (
 
 // ServiceDisruptor defines operations for injecting faults in services
 type ServiceDisruptor interface {
-	// InjectHttpFault injects faults in the http requests sent to the disruptor's target
+	// InjectHTTPFault injects faults in the http requests sent to the disruptor's target
 	// for the specified duration (in seconds)
-	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
+	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 }
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
 type ServiceDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
+	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// A Negative value forces no waiting.
 	InjectTimeout int
 }
 
@@ -43,22 +44,26 @@ func getTargetPort(ports []corev1.ServicePort, port uint) (uint, error) {
 			}
 		}
 		return 0, fmt.Errorf("the service does not expose the given port: %d", port)
-	} else {
-		if len(ports) > 1 {
-			return 0, fmt.Errorf("service exposes multiple ports. Port option must be defined")
-		}
-
-		targetPort = uint(ports[0].TargetPort.IntVal)
-		return targetPort, nil
 	}
+
+	if len(ports) > 1 {
+		return 0, fmt.Errorf("service exposes multiple ports. Port option must be defined")
+	}
+
+	targetPort = uint(ports[0].TargetPort.IntVal)
+	return targetPort, nil
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
-func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace string, options ServiceDisruptorOptions) (ServiceDisruptor, error) {
+func NewServiceDisruptor(
+	k8s kubernetes.Kubernetes,
+	service string,
+	namespace string,
+	options ServiceDisruptorOptions,
+) (ServiceDisruptor, error) {
 	svc, err := k8s.CoreV1().
 		Services(namespace).
 		Get(k8s.Context(), service, metav1.GetOptions{})
-
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +75,7 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 		},
 	}
 
+	//nolint:gosimple
 	podOpts := PodDisruptorOptions{
 		InjectTimeout: options.InjectTimeout,
 	}
@@ -78,7 +84,6 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 	if err != nil {
 		return nil, fmt.Errorf("error creating pod disruptor %w", err)
 	}
-
 
 	return &serviceDisruptor{
 		service:      service,
@@ -89,7 +94,7 @@ func NewServiceDisruptor(k8s kubernetes.Kubernetes, service string, namespace st
 	}, nil
 }
 
-func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
+func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	svc, err := d.k8s.CoreV1().
 		Services(d.namespace).
 		Get(d.k8s.Context(), d.service, metav1.GetOptions{})
@@ -104,7 +109,7 @@ func (d *serviceDisruptor) InjectHttpFaults(fault HttpFault, duration uint, opti
 	}
 
 	fault.Port = port
-	return d.podDisruptor.InjectHttpFaults(fault, duration, options)
+	return d.podDisruptor.InjectHTTPFaults(fault, duration, options)
 }
 
 func (d *serviceDisruptor) Targets() ([]string, error) {

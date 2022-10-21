@@ -1,4 +1,4 @@
-// Package Utils offers functions of general utility in other parts of the system
+// Package utils offers functions of general utility in other parts of the system
 package utils
 
 import (

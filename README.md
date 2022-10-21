@@ -61,7 +61,7 @@ The `options` control the creation and behavior of the pod disruptor:
 
 Methods:
 
-`injectHttpFaults`: disrupts http requests served by the target pods.
+`injectHTTPFaults`: disrupts http requests served by the target pods.
 
       Parameters:
         fault: description of the http faults to be injected
@@ -101,7 +101,7 @@ export default func() {
       throw new Error("expected list to have one target")
     }
 
-    disruptor.injectHttpFault(30, fault)
+    disruptor.injectHTTPFault(30, fault)
 }
 ```
 
@@ -122,7 +122,7 @@ The `options` control the creation and behavior of the service disruptor:
 
 Methods:
 
-`injectHttpFaults`: disrupts http requests served by the target pods.
+`injectHTTPFaults`: disrupts http requests served by the target pods.
 
       Parameters:
         fault: description of the http faults to be injected
@@ -154,7 +154,7 @@ export default func() {
       throw new Error("expected list to have one target")
     }
 
-    disruptor.injectHttpFault(30, fault)
+    disruptor.injectHTTPFault(30, fault)
 }
 ```
 

@@ -28,8 +28,8 @@ type PodSelector struct {
 	Exclude PodAttributes
 }
 
-// HttpDisruptionOptions defines options for the injection of Http faults in a target pod
-type HttpDisruptionOptions struct {
+// HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod
+type HTTPDisruptionOptions struct {
 	// Port used by the agent for listening
 	ProxyPort uint
 	// Network interface the agent will be listening traffic from
@@ -40,14 +40,15 @@ type HttpDisruptionOptions struct {
 type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
-	// InjectHttpFault injects faults in the http requests sent to the disruptor's targets
+	// InjectHTTPFault injects faults in the HTP requests sent to the disruptor's targets
 	// for the specified duration (in seconds)
-	InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error
+	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
 type PodDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default. A Negative value forces no waiting.
+	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// A Negative value forces no waiting.
 	InjectTimeout int
 }
 
@@ -81,7 +82,7 @@ func (s *PodSelector) buildLabelSelector() (labels.Selector, error) {
 	return labelsSelector, nil
 }
 
-// getTargets retrieves the names of the targets of the disruptor
+// GetTargets retrieves the names of the targets of the disruptor
 func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	namespace := s.Namespace
 	if namespace == "" {
@@ -112,7 +113,7 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 	return podNames, nil
 }
 
-// agentController controls de agents in a set of target pods
+// AgentController controls de agents in a set of target pods
 type AgentController struct {
 	k8s       kubernetes.Kubernetes
 	namespace string
@@ -183,7 +184,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	}
 }
 
-// RunCommand executes a command in the targets of the AgentController and reports any error
+// ExecCommand executes a command in the targets of the AgentController and reports any error
 func (c *AgentController) ExecCommand(cmd ...string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
@@ -214,7 +215,11 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
-func NewPodDisruptor(k8s kubernetes.Kubernetes, selector PodSelector, options PodDisruptorOptions) (PodDisruptor, error) {
+func NewPodDisruptor(
+	k8s kubernetes.Kubernetes,
+	selector PodSelector,
+	options PodDisruptorOptions,
+) (PodDisruptor, error) {
 	targets, err := selector.GetTargets(k8s)
 	if err != nil {
 		return nil, err
@@ -257,7 +262,7 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.targets, nil
 }
 
-func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOptions) ([]string, error) {
+func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
@@ -284,16 +289,13 @@ func buildHttpFaultCmd(fault HttpFault, duration uint, options HttpDisruptionOpt
 		cmd = append(cmd, "-i", options.Iface)
 	}
 
-	return cmd, nil
+	return cmd
 }
 
-//InjectHttpFault injects faults in the http requests sent to the disruptor's targets
-func (d *podDisruptor) InjectHttpFaults(fault HttpFault, duration uint, options HttpDisruptionOptions) error {
-	cmd, err := buildHttpFaultCmd(fault, duration, options)
-	if err != nil {
-		return err
-	}
+// InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
+func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
+	cmd := buildHTTPFaultCmd(fault, duration, options)
 
-	err = d.controller.ExecCommand(cmd...)
+	err := d.controller.ExecCommand(cmd...)
 	return err
 }

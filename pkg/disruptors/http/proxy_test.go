@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -16,9 +17,9 @@ func Test_Proxy(t *testing.T) {
 
 	type TestCase struct {
 		title      string
-		target     HttpProxyTarget
-		disruption HttpDisruption
-		config     HttpProxyConfig
+		target     Target
+		disruption Disruption
+		config     ProxyConfig
 		handler    func(http.ResponseWriter, *http.Request)
 		path       string
 		statusCode int
@@ -27,18 +28,18 @@ func Test_Proxy(t *testing.T) {
 	testCases := []TestCase{
 		{
 			title: "default proxy",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.0,
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: HttpProxyTarget{
-				Port: 0, // to be set in the test
+			target: Target{
+				Port: 8080,
 			},
-			config: HttpProxyConfig{
-				ListeningPort: 0, // to be set in the test
+			config: ProxyConfig{
+				ListeningPort: 9080,
 			},
 			handler:    return200Handler,
 			path:       "",
@@ -46,18 +47,18 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Error code 500",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       nil,
 			},
-			target: HttpProxyTarget{
-				Port: 0, // to be set in the test
+			target: Target{
+				Port: 8081,
 			},
-			config: HttpProxyConfig{
-				ListeningPort: 0, // to be set in the test
+			config: ProxyConfig{
+				ListeningPort: 9081,
 			},
 			handler:    return200Handler,
 			path:       "",
@@ -65,18 +66,18 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Exclude path",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: HttpProxyTarget{
-				Port: 0, // to be set in the test
+			target: Target{
+				Port: 8082,
 			},
-			config: HttpProxyConfig{
-				ListeningPort: 0, // to be set in the test
+			config: ProxyConfig{
+				ListeningPort: 9082,
 			},
 			handler:    return200Handler,
 			path:       "/excluded/path",
@@ -84,18 +85,18 @@ func Test_Proxy(t *testing.T) {
 		},
 		{
 			title: "Not Excluded path",
-			disruption: HttpDisruption{
+			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: HttpProxyTarget{
-				Port: 0, // to be set in the test
+			target: Target{
+				Port: 8083,
 			},
-			config: HttpProxyConfig{
-				ListeningPort: 0, // to be set in the test
+			config: ProxyConfig{
+				ListeningPort: 9083,
 			},
 			handler:    return200Handler,
 			path:       "/non-excluded/path",
@@ -103,16 +104,14 @@ func Test_Proxy(t *testing.T) {
 		},
 	}
 
-	proxyPort := uint(32080) // proxy ports will be in the range 32080-32089
-	srvPort := uint(32090)   // server ports will be in the range 32090-32099
-	for i, tc := range testCases {
+	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			// ensure unique ports for each test but limit port range
-			tc.config.ListeningPort = proxyPort + uint(i%10)
-			tc.target.Port = srvPort + uint(i%10)
+			t.Parallel()
 
 			// create the proxy
-			proxy, err := NewHttpProxy(
+			proxy, err := NewProxy(
 				tc.target,
 				tc.disruption,
 				tc.config,
@@ -122,28 +121,43 @@ func Test_Proxy(t *testing.T) {
 				return
 			}
 
+			errChannel := make(chan error)
+
 			// create and start upstream server
 			srv := &http.Server{
 				Addr:    fmt.Sprintf("127.0.0.1:%d", tc.target.Port),
 				Handler: http.HandlerFunc(tc.handler),
 			}
-			go func() {
-				srv.ListenAndServe()
-			}()
+			go func(c chan error) {
+				svrErr := srv.ListenAndServe()
+				if !errors.Is(svrErr, http.ErrServerClosed) {
+					c <- svrErr
+				}
+			}(errChannel)
 
 			// start proxy
-			go func() {
-				proxy.Start()
-			}()
+			go func(c chan error) {
+				proxyErr := proxy.Start()
+				if proxyErr != nil {
+					c <- proxyErr
+				}
+			}(errChannel)
 
 			// ensure upstream server and proxy are stopped
 			defer func() {
-				srv.Close()
-				proxy.Force()
+				// ignore errors, nothing to do
+				_ = srv.Close()
+				_ = proxy.Force()
 			}()
 
 			// wait for proxy and upstream server to start
 			time.Sleep(1 * time.Second)
+			select {
+			case err = <-errChannel:
+				t.Errorf("error setting up test %v", err)
+				return
+			default:
+			}
 
 			proxyURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
 
@@ -152,6 +166,9 @@ func Test_Proxy(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
+			defer func() {
+				_ = resp.Body.Close()
+			}()
 
 			if tc.statusCode != resp.StatusCode {
 				t.Errorf("expected status code '%d' but '%d' received ", tc.statusCode, resp.StatusCode)

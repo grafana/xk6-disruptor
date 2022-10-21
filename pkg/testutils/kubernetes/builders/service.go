@@ -7,12 +7,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// ServiceBuilder defines the methods for building a service
 type ServiceBuilder interface {
 	// Build returns a Service with the attributes defined in the ServiceBuilder
 	Build() *corev1.Service
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) ServiceBuilder
-	//WithPorts sets the ports exposed by the service
+	// WithPorts sets the ports exposed by the service
 	WithPorts(ports []corev1.ServicePort) ServiceBuilder
 	// WithSelector sets the service's selector labels
 	WithSelector(labels map[string]string) ServiceBuilder

@@ -1,12 +1,15 @@
 package process
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 )
 
-func Test_FakeProcessExecutor(t *testing.T) {
+func Test_FakeExecutor(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title   string
 		cmdLine string
@@ -34,8 +37,12 @@ func Test_FakeProcessExecutor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewFakeProcessExecutor(tc.out, tc.err)
+			t.Parallel()
+
+			fake := NewFakeExecutor(tc.out, tc.err)
 			cmd := strings.Split(tc.cmdLine, " ")[0]
 			args := strings.Split(tc.cmdLine, " ")[0:]
 			out, err := fake.Exec(cmd, args...)
@@ -45,9 +52,9 @@ func Test_FakeProcessExecutor(t *testing.T) {
 				return
 			}
 
-			if err != tc.err {
+			if !errors.Is(err, tc.err) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
+					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",
 					tc.err,
 					err,
@@ -69,6 +76,8 @@ func Test_FakeProcessExecutor(t *testing.T) {
 }
 
 func Test_MultipleExecutions(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title    string
 		cmdLines []string
@@ -84,17 +93,21 @@ func Test_MultipleExecutions(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewFakeProcessExecutor(tc.out, tc.err)
+			t.Parallel()
+
+			fake := NewFakeExecutor(tc.out, tc.err)
 			// execute a sequence of commands
 			for _, cmdline := range tc.cmdLines {
 				cmd := strings.Split(cmdline, " ")[0]
 				args := strings.Split(cmdline, " ")[1:]
 				out, err := fake.Exec(cmd, args...)
 
-				if err != tc.err {
+				if !errors.Is(err, tc.err) {
 					t.Errorf(
-						"returned output does not match expected value.\n"+
+						"returned error does not match expected value.\n"+
 							"Expected: %v\nActual: %v\n",
 						tc.err,
 						err,
@@ -128,6 +141,8 @@ func Test_MultipleExecutions(t *testing.T) {
 }
 
 func Test_Callbacks(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title   string
 		cmdLine string
@@ -155,8 +170,12 @@ func Test_Callbacks(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
-			fake := NewCallbackProcessExecutor(func(cmd string, args ...string) ([]byte, error) {
+			t.Parallel()
+
+			fake := NewCallbackExecutor(func(cmd string, args ...string) ([]byte, error) {
 				return tc.out, tc.err
 			})
 
@@ -169,9 +188,9 @@ func Test_Callbacks(t *testing.T) {
 				return
 			}
 
-			if err != tc.err {
+			if !errors.Is(err, tc.err) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
+					"returned error does not match expected value.\n"+
 						"Expected: %v\nActual: %v\n",
 					tc.err,
 					err,

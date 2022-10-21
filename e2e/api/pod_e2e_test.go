@@ -81,16 +81,15 @@ func Test_PodDisruptor(t *testing.T) {
 
 		// apply disruption in a go-routine as it is a blocking function
 		go func() {
-			// apply httpfailure
-			fault := disruptors.HttpFault{
+			fault := disruptors.HTTPFault{
 				Port:      80,
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
-			opts := disruptors.HttpDisruptionOptions{
+			opts := disruptors.HTTPDisruptionOptions{
 				ProxyPort: 8080,
 			}
-			err := disruptor.InjectHttpFaults(fault, 10, opts)
+			err := disruptor.InjectHTTPFaults(fault, 10, opts)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}

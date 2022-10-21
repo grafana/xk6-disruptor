@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -11,35 +12,35 @@ import (
 	"time"
 )
 
-// Defines an interface for a proxy
-type HttpProxy interface {
+// Proxy defines an interface for a proxy
+type Proxy interface {
 	Start() error
 	Stop() error
 	Force() error
 }
 
 // ProxyConfig specifies the configuration for the http proxy
-type HttpProxyConfig struct {
+type ProxyConfig struct {
 	// Port on which the proxy will be running
 	ListeningPort uint
 }
 
-// HttpProxyTarget defines the upstream target  to forward requests to
-type HttpProxyTarget struct {
+// Target defines the upstream target  to forward requests to
+type Target struct {
 	// Port to redirect traffic to
 	Port uint
 }
 
 // Proxy defines the parameters used by the proxy for processing http requests and its execution state
 type proxy struct {
-	config     HttpProxyConfig
-	target     HttpProxyTarget
-	disruption HttpDisruption
+	config     ProxyConfig
+	target     Target
+	disruption Disruption
 	srv        *http.Server
 }
 
 // NewProxy return a new HttpProxy
-func NewHttpProxy(target HttpProxyTarget, disruption HttpDisruption, config HttpProxyConfig) (HttpProxy, error) {
+func NewProxy(target Target, disruption Disruption, config ProxyConfig) (Proxy, error) {
 	if config.ListeningPort == 0 {
 		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")
 	}
@@ -73,7 +74,7 @@ func (p *proxy) Start() error {
 	}
 
 	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		statusCode := 0
+		var statusCode int
 		body := io.NopCloser(strings.NewReader(""))
 
 		excluded := contains(p.disruption.Excluded, req.URL.Path)
@@ -86,15 +87,16 @@ func (p *proxy) Start() error {
 			req.URL.Host = originServerURL.Host
 			req.URL.Scheme = originServerURL.Scheme
 			req.RequestURI = ""
-			originServerResponse, err := http.DefaultClient.Do(req)
-			if err != nil {
+			originServerResponse, srvErr := http.DefaultClient.Do(req)
+			if srvErr != nil {
 				rw.WriteHeader(http.StatusInternalServerError)
-				_, _ = fmt.Fprint(rw, err)
+				_, _ = fmt.Fprint(rw, srvErr)
 				return
 			}
 
 			statusCode = originServerResponse.StatusCode
 			body = originServerResponse.Body
+			_ = originServerResponse.Body.Close()
 		}
 
 		if !excluded && p.disruption.AverageDelay > 0 {
@@ -108,7 +110,9 @@ func (p *proxy) Start() error {
 		// return response to the client
 		// TODO: return headers
 		rw.WriteHeader(statusCode)
-		io.Copy(rw, body)
+
+		// ignore errors writing body, nothing to do.
+		_, _ = io.Copy(rw, body)
 	})
 
 	p.srv = &http.Server{
@@ -116,7 +120,11 @@ func (p *proxy) Start() error {
 		Handler: reverseProxy,
 	}
 
-	return p.srv.ListenAndServe()
+	err = p.srv.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 // Stop stops the execution of the proxy

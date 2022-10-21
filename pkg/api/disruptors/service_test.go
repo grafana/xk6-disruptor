@@ -207,16 +207,16 @@ func Test_NewServiceDisruptor(t *testing.T) {
 }
 
 // TODO: check the commands sent to the pods
-func Test_HttpFaultInjection(t *testing.T) {
+func Test_HTTPFaultInjection(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title       string
 		service     serviceDesc
 		options     ServiceDisruptorOptions
-		fault       HttpFault
+		fault       HTTPFault
 		duration    uint
-		httpOptions HttpDisruptionOptions
+		httpOptions HTTPDisruptionOptions
 		pods        []podDesc
 		expectError bool
 	}{
@@ -238,11 +238,11 @@ func Test_HttpFaultInjection(t *testing.T) {
 			options: ServiceDisruptorOptions{
 				InjectTimeout: -1,
 			},
-			fault: HttpFault{
+			fault: HTTPFault{
 				Port: 80,
 			},
-			duration: 1,
-			httpOptions: HttpDisruptionOptions{},
+			duration:    1,
+			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -272,11 +272,11 @@ func Test_HttpFaultInjection(t *testing.T) {
 			options: ServiceDisruptorOptions{
 				InjectTimeout: -1,
 			},
-			fault: HttpFault{
+			fault: HTTPFault{
 				Port: 8080,
 			},
-			duration: 1,
-			httpOptions: HttpDisruptionOptions{},
+			duration:    1,
+			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -306,11 +306,11 @@ func Test_HttpFaultInjection(t *testing.T) {
 			options: ServiceDisruptorOptions{
 				InjectTimeout: -1,
 			},
-			fault: HttpFault{
+			fault: HTTPFault{
 				Port: 0,
 			},
-			duration: 1,
-			httpOptions: HttpDisruptionOptions{},
+			duration:    1,
+			httpOptions: HTTPDisruptionOptions{},
 			pods: []podDesc{
 				{
 					name:      "pod-1",
@@ -361,7 +361,7 @@ func Test_HttpFaultInjection(t *testing.T) {
 				return
 			}
 
-			err = d.InjectHttpFaults(tc.fault, tc.duration, tc.httpOptions)
+			err = d.InjectHTTPFaults(tc.fault, tc.duration, tc.httpOptions)
 			if !tc.expectError && err != nil {
 				t.Errorf(" unexpected error creating service disruptor: %v", err)
 				return

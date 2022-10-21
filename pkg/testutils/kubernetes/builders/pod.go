@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// PodBuilder defines the methods for building a Pod
 type PodBuilder interface {
 	// Build returns a Pod with the attributes defined in the PodBuilder
 	Build() *corev1.Pod
@@ -26,11 +27,11 @@ type podBuilder struct {
 	containers []corev1.Container
 }
 
-// NewPodBuilder creates a new instance of NewPodBuilder with the given pod name
+// NewPodBuilder creates a new instance of PodBuilder with the given pod name
 // and default attributes such as containers and namespace
-func NewPodBuilder(name string) *podBuilder {
+func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
-		name: name,
+		name:      name,
 		namespace: metav1.NamespaceDefault,
 		containers: []corev1.Container{
 			{

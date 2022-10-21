@@ -19,9 +19,9 @@ import (
 
 func Test_DefaultConfig(t *testing.T) {
 	// create cluster with default configuration
-	config, err := cluster.NewClusterConfig(
+	config, err := cluster.NewConfig(
 		"e2e-default-cluster",
-		cluster.ClusterOptions{
+		cluster.Options{
 			Wait: time.Second * 60,
 		},
 	)
@@ -81,9 +81,9 @@ func Test_PreloadImages(t *testing.T) {
 	}
 
 	// create cluster with preloaded images
-	config, err := cluster.NewClusterConfig(
+	config, err := cluster.NewConfig(
 		"e2e-cluster-with-images",
-		cluster.ClusterOptions{
+		cluster.Options{
 			Wait:   time.Second * 60,
 			Images: []string{"busybox"},
 		},
@@ -129,7 +129,6 @@ func Test_PreloadImages(t *testing.T) {
 		t.Errorf("pod is waiting for image")
 		return
 	}
-
 }
 
 func Test_PortAllocation(t *testing.T) {
@@ -138,9 +137,9 @@ func Test_PortAllocation(t *testing.T) {
 		HostPort: 32090,
 		NodePort: 32090,
 	}
-	config, err := cluster.NewClusterConfig(
+	config, err := cluster.NewConfig(
 		"e2e-default-cluster",
-		cluster.ClusterOptions{
+		cluster.Options{
 			Wait: time.Second * 60,
 			NodePorts: []cluster.NodePort{
 				nodePort,

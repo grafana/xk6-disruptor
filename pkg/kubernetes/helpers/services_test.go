@@ -10,79 +10,89 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-var endpointsWithoutAddresses = &corev1.Endpoints{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "v1",
-		Kind:       "EndPoints",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "service",
-		Namespace: "default",
-	},
-	Subsets: []corev1.EndpointSubset{},
+func buildEndpointsWithoutAddresses() *corev1.Endpoints {
+	return &corev1.Endpoints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "EndPoints",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{},
+	}
 }
 
-var endpointsWithAddresses = &corev1.Endpoints{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "v1",
-		Kind:       "EndPoints",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "service",
-		Namespace: "default",
-	},
-	Subsets: []corev1.EndpointSubset{
-		{
-			Addresses: []corev1.EndpointAddress{
-				{
-					IP: "1.1.1.1",
+func buildEndpointsWithAddresses() *corev1.Endpoints {
+	return &corev1.Endpoints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "EndPoints",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: "1.1.1.1",
+					},
 				},
 			},
 		},
-	},
+	}
 }
 
-var otherEndpointsWithAddresses = &corev1.Endpoints{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "v1",
-		Kind:       "EndPoints",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "otherservice",
-		Namespace: "default",
-	},
-	Subsets: []corev1.EndpointSubset{
-		{
-			Addresses: []corev1.EndpointAddress{
-				{
-					IP: "1.1.1.1",
+func buildOtherEndpointsWithAddresses() *corev1.Endpoints {
+	return &corev1.Endpoints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "EndPoints",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "otherservice",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: "1.1.1.1",
+					},
 				},
 			},
 		},
-	},
+	}
 }
 
-var endpointsWithNotReadyAddresses = &corev1.Endpoints{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "v1",
-		Kind:       "EndPoints",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "service",
-		Namespace: "default",
-	},
-	Subsets: []corev1.EndpointSubset{
-		{
-			NotReadyAddresses: []corev1.EndpointAddress{
-				{
-					IP: "1.1.1.1",
+func buildEndpointsWithNotReadyAddresses() *corev1.Endpoints {
+	return &corev1.Endpoints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "EndPoints",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				NotReadyAddresses: []corev1.EndpointAddress{
+					{
+						IP: "1.1.1.1",
+					},
 				},
 			},
 		},
-	},
+	}
 }
 
 func Test_WaitServiceReady(t *testing.T) {
+	t.Parallel()
+
 	type TestCase struct {
 		test        string
 		delay       time.Duration
@@ -103,7 +113,7 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 		{
 			test:        "endpoint ready",
-			endpoints:   endpointsWithAddresses,
+			endpoints:   buildEndpointsWithAddresses(),
 			updated:     nil,
 			delay:       time.Second * 0,
 			expectError: false,
@@ -111,31 +121,31 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 		{
 			test:        "wait for endpoint to be ready",
-			endpoints:   endpointsWithoutAddresses,
-			updated:     endpointsWithAddresses,
+			endpoints:   buildEndpointsWithoutAddresses(),
+			updated:     buildEndpointsWithAddresses(),
 			delay:       time.Second * 2,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "not ready addresses",
-			endpoints:   endpointsWithoutAddresses,
-			updated:     endpointsWithNotReadyAddresses,
+			endpoints:   buildEndpointsWithoutAddresses(),
+			updated:     buildEndpointsWithNotReadyAddresses(),
 			delay:       time.Second * 2,
 			expectError: true,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "timeout waiting for addresses",
-			endpoints:   endpointsWithoutAddresses,
-			updated:     endpointsWithAddresses,
+			endpoints:   buildEndpointsWithoutAddresses(),
+			updated:     buildEndpointsWithAddresses(),
 			delay:       time.Second * 10,
 			expectError: true,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "other endpoint ready",
-			endpoints:   otherEndpointsWithAddresses,
+			endpoints:   buildOtherEndpointsWithAddresses(),
 			updated:     nil,
 			delay:       time.Second * 10,
 			expectError: true,
@@ -143,7 +153,11 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+
 			client := fake.NewSimpleClientset()
 			if tc.endpoints != nil {
 				_, err := client.CoreV1().Endpoints("default").Create(context.TODO(), tc.endpoints, metav1.CreateOptions{})
@@ -161,10 +175,9 @@ func Test_WaitServiceReady(t *testing.T) {
 				if err != nil {
 					t.Errorf("error updating endpoint: %v", err)
 				}
-
 			}(tc)
 
-			h := NewHelper(client, nil, context.TODO(), "default")
+			h := NewHelper(context.TODO(), client, nil, "default")
 
 			err := h.WaitServiceReady("service", tc.timeout)
 			if !tc.expectError && err != nil {

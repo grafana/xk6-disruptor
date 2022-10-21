@@ -146,7 +146,7 @@ func BuildNginxService(nodeport int32) *corev1.Service {
 	}
 }
 
-// Exposes a Service in the given namespace and waits for it to be ready
+// ExposeService exposes a service in the given namespace and waits for it to be ready
 func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, timeout time.Duration) error {
 	_, err := k8s.CoreV1().Services(ns).Create(
 		context.TODO(),
@@ -154,13 +154,13 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create service %s: %v", svc.Name, err)
+		return fmt.Errorf("failed to create service %s: %w", svc.Name, err)
 	}
 
 	// wait for the service to be ready for accepting requests
 	err = k8s.NamespacedHelpers(ns).WaitServiceReady(svc.Name, timeout)
 	if err != nil {
-		return fmt.Errorf("error waiting for service %s: %v", svc.Name, err)
+		return fmt.Errorf("error waiting for service %s: %w", svc.Name, err)
 	}
 
 	return nil
@@ -174,7 +174,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		return fmt.Errorf("error creating pod %s: %v", pod.Name, err)
+		return fmt.Errorf("error creating pod %s: %w", pod.Name, err)
 	}
 
 	running, err := k8s.NamespacedHelpers(ns).WaitPodRunning(
@@ -182,7 +182,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 		timeout,
 	)
 	if err != nil {
-		return fmt.Errorf("error waiting for pod %s: %v", pod.Name, err)
+		return fmt.Errorf("error waiting for pod %s: %w", pod.Name, err)
 	}
 	if !running {
 		return fmt.Errorf("pod %s not ready after %f: ", pod.Name, timeout.Seconds())
@@ -192,14 +192,20 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 }
 
 // DeployApp deploys a pod in a namespace and exposes it as a service in a cluster
-func DeployApp(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, svc *corev1.Service, timeout time.Duration) error {
+func DeployApp(
+	k8s kubernetes.Kubernetes,
+	ns string,
+	pod *corev1.Pod,
+	svc *corev1.Service,
+	timeout time.Duration,
+) error {
 	start := time.Now()
 	err := RunPod(k8s, ns, pod, timeout)
 	if err != nil {
-		return fmt.Errorf("failed to create pod %s in namespace %s: %v", pod.Name, ns, err)
+		return fmt.Errorf("failed to create pod %s in namespace %s: %w", pod.Name, ns, err)
 	}
 
-	timeLeft := time.Duration(timeout - time.Since(start))
+	timeLeft := timeout - time.Since(start)
 	return ExposeService(k8s, ns, svc, timeLeft)
 }
 
@@ -211,9 +217,9 @@ func BuildCluster(name string) (*cluster.Cluster, error) {
 		nodePorts = append(nodePorts, cluster.NodePort{HostPort: int32(port), NodePort: int32(port)})
 	}
 
-	config, err := cluster.NewClusterConfig(
+	config, err := cluster.NewConfig(
 		name,
-		cluster.ClusterOptions{
+		cluster.Options{
 			NodePorts: nodePorts,
 			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 			Wait:      time.Second * 60,

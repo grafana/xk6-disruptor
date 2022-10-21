@@ -7,6 +7,8 @@ import (
 )
 
 func Test_Retry(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		title         string
 		timeout       time.Duration
@@ -58,7 +60,11 @@ func Test_Retry(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			retries := 0
 			err := Retry(tc.timeout, tc.backoff, func() (bool, error) {
 				retries++

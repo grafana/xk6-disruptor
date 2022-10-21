@@ -1,4 +1,3 @@
-// BuildHttpCmd returns a cobra command with the specification of the http command
 package commands
 
 import (
@@ -8,10 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func BuildHttpCmd() *cobra.Command {
-	target := http.HttpDisruptionTarget{}
-	disruption := http.HttpDisruption{}
-	config := http.HttpDisruptorConfig{}
+// BuildHTTPCmd returns a cobra command with the specification of the http command
+func BuildHTTPCmd() *cobra.Command {
+	target := http.DisruptionTarget{}
+	disruption := http.Disruption{}
+	config := http.DisruptorConfig{}
 	var duration time.Duration
 	cmd := &cobra.Command{
 		Use:   "http",
@@ -19,8 +19,7 @@ func BuildHttpCmd() *cobra.Command {
 		Long: "Disrupts http request by introducing delays and errors." +
 			" Requires NET_ADMIM capabilities for setting iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			disruptor, err := http.NewHttpDisruptor(
+			disruptor, err := http.NewDisruptor(
 				target,
 				disruption,
 				config,

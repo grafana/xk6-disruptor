@@ -1,3 +1,5 @@
+// Package disruptor implement the k6 extension interface for calling disruptors from js scripts
+// running in the goya runtime
 package disruptor
 
 import (
@@ -37,7 +39,7 @@ var (
 // NewModuleInstance returns a new instance of the disruptor module for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	kubeconfig := os.Getenv("KUBECONFIG")
-	cfg := kubernetes.KubernetesConfig{
+	cfg := kubernetes.Config{
 		Context:    vu.Context(),
 		Kubeconfig: kubeconfig,
 	}

@@ -30,7 +30,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		return
 	}
 
-	t.Run("Inject Http error 500", func(t *testing.T) {
+	t.Run("Inject HTTP error 500", func(t *testing.T) {
 		ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
@@ -73,13 +73,12 @@ func Test_ServiceDisruptor(t *testing.T) {
 
 		// apply disruption in a go-routine as it is a blocking function
 		go func() {
-			// apply httpfailure
-			fault := disruptors.HttpFault{
+			fault := disruptors.HTTPFault{
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
-			httpOptions := disruptors.HttpDisruptionOptions{}
-			err := disruptor.InjectHttpFaults(fault, 10, httpOptions)
+			httpOptions := disruptors.HTTPDisruptionOptions{}
+			err := disruptor.InjectHTTPFaults(fault, 10, httpOptions)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}

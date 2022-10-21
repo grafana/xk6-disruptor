@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	testName      = "pod-test"
 	testNamespace = "ns-test"
 )
 
 func TestPods_Wait(t *testing.T) {
 	t.Parallel()
+
 	type TestCase struct {
 		test           string
 		name           string
@@ -60,11 +60,15 @@ func TestPods_Wait(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, context.TODO(), testNamespace)
+			h := NewHelper(context.TODO(), client, nil, testNamespace)
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
@@ -95,23 +99,15 @@ func TestPods_Wait(t *testing.T) {
 	}
 }
 
-var containerRunning = corev1.ContainerState{
-	Running: &corev1.ContainerStateRunning{},
-}
-
-var containerWaiting = corev1.ContainerState{
-	Waiting: &corev1.ContainerStateWaiting{},
-}
-
 func TestPods_AddEphemeralContainer(t *testing.T) {
 	t.Parallel()
+
 	type TestCase struct {
 		test        string
 		podName     string
 		delay       time.Duration
 		expectError bool
 		container   string
-		image       string
 		state       corev1.ContainerState
 		timeout     time.Duration
 	}
@@ -123,9 +119,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       1 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			image:       "busybox",
-			state:       containerWaiting,
-			timeout:     0,
+			state: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{},
+			},
+			timeout: 0,
 		},
 		{
 			test:        "Create ephemeral container waiting",
@@ -133,9 +130,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			image:       "busybox",
-			state:       containerRunning,
-			timeout:     5 * time.Second,
+			state: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{},
+			},
+			timeout: 5 * time.Second,
 		},
 		{
 			test:        "Fail waiting for container",
@@ -143,22 +141,25 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			delay:       3 * time.Second,
 			expectError: true,
 			container:   "ephemeral",
-			image:       "busybox",
-			state:       containerWaiting,
-			timeout:     5 * time.Second,
+			state: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{},
+			},
+			timeout: 5 * time.Second,
 		},
 	}
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
+
 			pod := builders.NewPodBuilder(tc.podName).
 				WithNamespace(testNamespace).
 				Build()
 			client := fake.NewSimpleClientset(pod)
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, context.TODO(), testNamespace)
+			h := NewHelper(context.TODO(), client, nil, testNamespace)
 
 			// add watcher to update ephemeral container's status
 			go func(tc TestCase) {

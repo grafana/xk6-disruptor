@@ -46,8 +46,8 @@ type NodePort struct {
 	HostPort int32
 }
 
-// ClusterOptions defines options for customizing the cluster
-type ClusterOptions struct {
+// Options defines options for customizing the cluster
+type Options struct {
 	// cluster configuration to use. Overrides other options (NodePorts, Workers)
 	Config string
 	// List of images to pre-load on each node.
@@ -61,22 +61,22 @@ type ClusterOptions struct {
 	Workers int
 }
 
-// ClusterConfig contains the configuration for creating a cluster
-type ClusterConfig struct {
+// Config contains the configuration for creating a cluster
+type Config struct {
 	// name of the cluster
 	name string
 	// options for creating cluster
-	options ClusterOptions
+	options Options
 }
 
-// DefaultClusterConfig creates a ClusterConfig with default options and
+// DefaultConfig creates a ClusterConfig with default options and
 // default name "test-cluster"
-func DefaultClusterConfig() (*ClusterConfig, error) {
-	return NewClusterConfig("test-cluster", ClusterOptions{})
+func DefaultConfig() (*Config, error) {
+	return NewConfig("test-cluster", Options{})
 }
 
-// NewClusterConfig creates a ClusterConfig with the ClusterOptions
-func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, error) {
+// NewConfig creates a ClusterConfig with the ClusterOptions
+func NewConfig(name string, options Options) (*Config, error) {
 	if name == "" {
 		return nil, fmt.Errorf("cluster name is mandatory")
 	}
@@ -87,7 +87,7 @@ func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, erro
 		}
 	}
 
-	return &ClusterConfig{
+	return &Config{
 		name:    name,
 		options: options,
 	}, nil
@@ -95,7 +95,7 @@ func NewClusterConfig(name string, options ClusterOptions) (*ClusterConfig, erro
 
 // Render returns the Kind configuration for creating a cluster
 // with this ClusterConfig
-func (c *ClusterConfig) Render() (string, error) {
+func (c *Config) Render() (string, error) {
 	if c.options.Config != "" {
 		return c.options.Config, nil
 	}
@@ -120,12 +120,12 @@ func (c *ClusterConfig) Render() (string, error) {
 // Cluster an active test cluster
 type Cluster struct {
 	// configuration used for creating the cluster
-	config *ClusterConfig
+	config *Config
 	//  path to the Kubeconfig
 	kubeconfig string
 	// kind cluster provider
 	provider kind.Provider
-	// mutex for cuncurrent modifications to cluster
+	// mutex for concurrent modifications to cluster
 	mtx sync.Mutex
 	// name of the cluster
 	name string
@@ -141,7 +141,9 @@ func checkHostPort(port int32) error {
 	if err != nil {
 		return fmt.Errorf("host port is not available %d", port)
 	}
-	l.Close()
+	// ignore error
+	_ = l.Close()
+
 	return nil
 }
 
@@ -153,7 +155,11 @@ func loadImages(images []string, nodes []nodes.Node) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(imagesTar.Name())
+
+	defer func() {
+		// ignore error. Nothing to do if cannot remove image
+		_ = os.Remove(imagesTar.Name())
+	}()
 
 	// save the images to a tar
 	saveCmd := append([]string{"save", "-o", imagesTar.Name()}, images...)
@@ -169,7 +175,8 @@ func loadImages(images []string, nodes []nodes.Node) error {
 			return err
 		}
 		err = nodeutils.LoadImageArchive(n, image)
-		image.Close()
+		// ignore error. Nothing to do if cannot close file
+		_ = image.Close()
 
 		if err != nil {
 			return err
@@ -179,8 +186,8 @@ func loadImages(images []string, nodes []nodes.Node) error {
 	return nil
 }
 
-// CreateCluster creates a test cluster with the given name
-func (c *ClusterConfig) Create() (*Cluster, error) {
+// Create creates a test cluster with the given name
+func (c *Config) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster
 	ports := []NodePort{}
@@ -219,13 +226,13 @@ func (c *ClusterConfig) Create() (*Cluster, error) {
 
 	// pre-load images
 	if len(c.options.Images) > 0 {
-		nodes, err := provider.ListInternalNodes(c.name)
-		if err != nil {
-			return nil, err
+		nodes, pErr := provider.ListInternalNodes(c.name)
+		if pErr != nil {
+			return nil, pErr
 		}
-		err = loadImages(c.options.Images, nodes)
+		pErr = loadImages(c.options.Images, nodes)
 		if err != nil {
-			return nil, err
+			return nil, pErr
 		}
 	}
 
