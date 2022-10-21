@@ -10,13 +10,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/utils/process"
 )
 
-type action string
-
-const (
-	add    action = "-A"
-	delete action = "-D"
-)
-
 const redirectCommand = "%s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
 
 const resetCommand = "%s INPUT -i %s -p tcp --dport %d -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset"
@@ -82,11 +75,31 @@ func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error)
 	return newTrafficRedirectorWithConfig(tf, config)
 }
 
+// delete iptables rules for redirection
+func (tr *redirector) deleteRedirectRules() error {
+	return tr.execRedirectCmd("-D")
+}
+
+// add iptables rules for redirection
+func (tr *redirector) addRedirectRules() error {
+	return tr.execRedirectCmd("-A")
+}
+
+// add iptables rules for reset connections to port
+func (tr *redirector) addResetRules(port uint) error {
+	return tr.execResetCmd("-A", port)
+}
+
+// delete iptables rules for reset connections to port
+func (tr *redirector) deleteResetRules(port uint) error {
+	return tr.execResetCmd("-D", port)
+}
+
 // buildRedirectCmd builds a command for adding or removing a transparent proxy using iptables
-func (tr *redirector) execRedirectCmd(a action) error {
+func (tr *redirector) execRedirectCmd(action string) error {
 	cmd := fmt.Sprintf(
 		redirectCommand,
-		string(a),
+		action,
 		tr.Iface,
 		tr.DestinationPort,
 		tr.RedirectPort,
@@ -100,10 +113,10 @@ func (tr *redirector) execRedirectCmd(a action) error {
 	return nil
 }
 
-func (tr *redirector) execResetCmd(a action, port uint) error {
+func (tr *redirector) execResetCmd(action string, port uint) error {
 	cmd := fmt.Sprintf(
 		resetCommand,
-		string(a),
+		action,
 		tr.Iface,
 		port,
 	)
@@ -119,24 +132,24 @@ func (tr *redirector) execResetCmd(a action, port uint) error {
 // Starts applies the TrafficRedirect
 func (tr *redirector) Start() error {
 	// error is ignored as the rule may not exist
-	_ = tr.execResetCmd(delete, tr.RedirectPort)
-	if err := tr.execRedirectCmd(add); err != nil {
+	_ = tr.deleteResetRules(tr.RedirectPort)
+	if err := tr.addRedirectRules(); err != nil {
 		return err
 	}
-	return tr.execResetCmd(add, tr.DestinationPort)
+	return tr.addResetRules(tr.DestinationPort)
 }
 
 // Stops removes the TrafficRedirect
 func (tr *redirector) Stop() error {
-	err := tr.execRedirectCmd(delete)
+	err := tr.deleteRedirectRules()
 	if err != nil {
 		return err
 	}
 
-	err = tr.execResetCmd(add, tr.RedirectPort)
+	err = tr.addResetRules(tr.RedirectPort)
 	if err != nil {
 		return err
 	}
 
-	return tr.execResetCmd(delete, tr.DestinationPort)
+	return tr.deleteResetRules(tr.DestinationPort)
 }
