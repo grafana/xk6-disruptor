@@ -74,7 +74,7 @@ func (p *proxy) Start() error {
 	}
 
 	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		statusCode := 0
+		var statusCode int
 		body := io.NopCloser(strings.NewReader(""))
 
 		excluded := contains(p.disruption.Excluded, req.URL.Path)
