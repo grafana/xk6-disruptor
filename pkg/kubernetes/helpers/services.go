@@ -22,7 +22,7 @@ func (h *helpers) WaitServiceReady(service string, timeout time.Duration) error 
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
-			return false, fmt.Errorf("failed to access service: %v", err)
+			return false, fmt.Errorf("failed to access service: %w", err)
 		}
 
 		for _, subset := range ep.Subsets {
