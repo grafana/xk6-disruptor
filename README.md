@@ -1,9 +1,14 @@
 # xk6-disruptor
 
-xk6-disruptor is a [k6](https://k6.io) extension for injecting faults into the system under tests. It offers an API for creating disruptors that target one specific type of component (for example,  Pods) and are capable of injecting different types of [faults](#faults) such as errors in HTTP requests served by that component. Currently disruptors exist for [Pods](#pod-disruptor] and [Services](#service-disruptor), but others will be introduced in the future as well as additional types of faults for the existing disruptors.
+The xk6-disruptor is a [k6](https://k6.io) extension providing fault injection capabilities to test system's reliability under turbulent conditions. Think of it as "like unit testing, for reliability". 
 
+This project The project aims to aid developers in building reliable systems in k8s, implementing the goals of "Chaos Engineering" discipline in a k6 way - with the best developer experience as its primary objective. 
 
-> ⚠️  xk6-disruptor is in alpha stage. Breaking changes can be introduced at any time without prior notice. USE AT YOUR OWN RISK!
+xk6-disruptor is intended for systems running in k8bernetes. Other platforms are not supported at this time.
+
+The extension offers an API for creating disruptors that target one specific type of component (for example, Pods) and are capable of injecting different types of faults such as errors in HTTP requests served by that component. Currently disruptors exist for [Pods](#pod-disruptor] and [Services](#service-disruptor), but others will be introduced in the future as well as additional types of faults for the existing disruptors.
+
+> ⚠️  xk6-disruptor is in the alpha stage, undergoing active development. We do not guarantee API compatibility between releases - your k6 scripts may need to be updated on each release until this extension reaches v1.0 release.
 
 # Get started
 
@@ -11,7 +16,7 @@ xk6-disruptor is a [k6](https://k6.io) extension for injecting faults into the s
 
 The `xk6-disruptor` is a `k6` extension. In order to use it in a `k6` test script, it is necessary to use a custom build of `k6` that includes the disruptor. See the [Installation](#installation) section below for instructions on how to create this custom build.
 
-The `kx6-disruptor` needs to interact with the Kubernetes cluster on which the application under test is running. In order to do so, you must have the credentials to access the cluster in a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file. Ensure this file is pointed by the `KUBECONFIG` environment variable or it is located at the default location `$HOME/.kube/config`.
+The `xk6-disruptor` needs to interact with the Kubernetes cluster on which the application under test is running. In order to do so, you must have the credentials to access the cluster in a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file. Ensure this file is pointed by the `KUBECONFIG` environment variable or it is located at the default location `$HOME/.kube/config`.
 
 `xk6-disruptor` requires the [grafanax/k6-disruptor-agent](https://github.com/grafana/xk6-disruptor/pkgs/container/xk6-disruptor-agent) image for injecting the [disruptor agent](#xk6-disruptor-agent) into the disruption targets. Kubernetes clusters can be configured to restrict the download of images from public repositories. You need to ensure this image is available in the cluster where the application under test is running.
 
@@ -21,7 +26,7 @@ You also need to ensure your test application is accessible from the machine whe
 
 ### Built from source
 
-Before building a custom `k6` image that contains the `xk6-disruptor` extension ensure you have [Go](https://golang.org/doc/install) and [Git](https://git-scm.com/) installed.
+Before building a custom `k6` image that contains the `xk6-disruptor` extension ensure you have [Go 1.18](https://golang.org/doc/install) and [Git](https://git-scm.com/) installed.
 
 Once these requirements are satisfied, you will also need to install the [xk6 build tool](https://github.com/grafana/xk6#command-usage):
 ```bash
@@ -119,37 +124,45 @@ The injection of the fault is controlled by the following options:
 
 `targets`: returns the list of target pods for the disruptor.
 
-Example: [`examples/pod_disruptor.js`](examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `app=my-app` label and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
+Example: [`examples/pod_disruptor.js`](examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `run=nginx` label and inject a delay of 100ms and a 10% of requests returning a http response code 500.
+
 
 ```js
-import { PodDisruptor } from 'k6/x/disruptor';a
-  
+import { PodDisruptor } from 'k6/x/disruptor';
+
 const selector = {
-  namespace: "default"
-  select: {
-    labels: {
-      app: "my-app"
-    }
-  }
+        namespace: "default",
+        select: {
+                labels: {
+                        run: "nginx"
+                }
+        }
 }
 
 const fault = {
-        port: 80,
         average_delay: 100,
         error_rate: 0.1,
         error_code: 500
 }
 
-export default func() {
-    const disruptor = new PodDisruptor(selector)
-    const targets = disruptor.targets()
-    if (targets.length != 1) {
-      throw new Error("expected list to have one target")
-    }
+export default function () {
+        const disruptor = new PodDisruptor(selector)
+        const targets = disruptor.targets()
+        if (targets.length != 1) {
+        	throw new Error("expected list to have one target")
+        }
 
-    disruptor.injectHTTPFaults(fault, 30)
+       disruptor.injectHTTPFaults(fault, 30)
 }
+
 ```
+
+You can test this script by creating first a pod running nginx with the command below, assuming you have [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) installed in your environment:
+```bash
+> kubectl run nginx --image=nginx
+```
+
+You can also use the [xk6-kubernetes](https://github.com/grafana/xk6-kubernetes) extension for creating these resources from your test script.
 
 ## Service Disruptor
 
@@ -187,7 +200,7 @@ The injection of the fault is controlled by the following options:
 
 `targets`: returns the list of target pods for the disruptor.
 
-Example: [`examples/service_disruptor.js`](examples/service_disruptor.js) shows how to create a disruptor for a service and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
+Example: [`examples/service_disruptor.js`](examples/service_disruptor.js) shows how to create a disruptor for the `nginx` service and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
 
 ```js
 import { ServiceDisruptor } from 'k6/x/disruptor';
@@ -199,16 +212,24 @@ const fault = {
         error_code: 500
 }
 
-export default func() {
-    const disruptor = new ServiceDisruptor("service", "default")
+export default function() {
+    const disruptor = new ServiceDisruptor("nginx", "default")
     const targets = disruptor.targets()
     if (targets.length != 1) {
       throw new Error("expected list to have one target")
     }
 
-    disruptor.injectHTTPFault(fault, 30)
+    disruptor.injectHTTPFaults(fault, 30)
 }
 ```
+
+You can test this script by creating first a pod running nginx and exposing it as a service with the commands below, assuming you have [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) installed in your environment:
+```bash
+> kubectl run nginx --image=nginx
+> kubectl expose pod nginx --port 80
+```
+
+You can also use the [xk6-kubernetes](https://github.com/grafana/xk6-kubernetes) extension for creating these resources from your test script.
 
 # Examples
 
@@ -218,13 +239,13 @@ Also, check your test environment satisfies the requirements described in the [g
 
 ## Introduce disruptions in http request to a pod
 
-The example at [examples/httpbin/disrupt-pod.js](examples/httpbin/disrupt-pod.js) shows how `PodDisruptor` can be used for testing the effect of disruptions in the HTTP quests served by a pod. The example deploys a pod running the [httpbin](https://httpbin.org), a simple request/response application that offers endpoints for testing different HTTP request. The test consists in two load generating scenarios: one for obtaining baseline results and another for checking the effect of the faults introduced by the `PodDisruptor`, and one additional scenario for injecting the faults.
+The example at [examples/httpbin/disrupt-pod.js](examples/httpbin/disrupt-pod.js) shows how `PodDisruptor` can be used for testing the effect of disruptions in the HTTP requests served by a pod. The example deploys a pod running the [httpbin](https://httpbin.org), a simple request/response application that offers endpoints for testing different HTTP request. The test consists in two load generating scenarios: one for obtaining baseline results and another for checking the effect of the faults introduced by the `PodDisruptor`, and one additional scenario for injecting the faults.
 
 Next sections examine the sample code below in detail, describing the different steps in the test life-cycle.
 
 ### Initialization
 
-The initialization code imports the external dependencies required by the test. The `Kubernetes` class imported from the `xk6-kubernetes` extension (line 1) provides functions for handling Kubernetes resources. The `PidDisruptor` class imported from the `xk6-disruptor` extension (line 2) provides functions for injecting faults in pods. The [k6/http](https://k6.io/docs/javascript-api/k6-http/) module (line 3) provides functions for executing HTTP requests. 
+The initialization code imports the external dependencies required by the test. The `Kubernetes` class imported from the `xk6-kubernetes` extension (line 1) provides functions for handling Kubernetes resources. The `PodDisruptor` class imported from the `xk6-disruptor` extension (line 2) provides functions for injecting faults in pods. The [k6/http](https://k6.io/docs/javascript-api/k6-http/) module (line 3) provides functions for executing HTTP requests. 
 
 The built-in [open](https://k6.io/docs/javascript-api/init-context/open) function is used for reading the YAML manifests of the Kubernetes resources needed by test (lines 6-8). 
 
@@ -346,7 +367,7 @@ This test defines three [scenarios](https://k6.io/docs/using-k6/scenarios) to be
  81             executor: 'shared-iterations',
  82             iterations: 1,
  83             vus: 1,
- 84             exec: "",
+ 84             exec: "disrupt",
  85             startTime: "30s",
  86         },
  87         faults: {
@@ -449,11 +470,13 @@ Let's take a closer look at the results for the requests on each scenario. We ca
 
 # Architecture
 
+The xk6-disruptor consists of two main components: a k6 extension and the xk6-disruptor-agent. The xk6-disruptor-agent is a command line tool that can inject disruptions in the target system where it runs. The xk6-disruptor extension provides an API for injecting faults into a target system using the xk6-disruptor as a backend tool. The xk6-disruptor extension will install the agent in the target and send commands in order to inject the desired faults.
+
+ The xk6-disruptor-agent is provided as an Docker image that can be pulled from the [xk6-disruptor repository](https://github.com/grafana/xk6-disruptor/pkgs/container/xk6-disruptor-agent) as or [build locally](#building-the-xk6-disruptor-agent-image).
+
 ## xk6-disruptor-agent
 
-The xk6-disruptor-agent is an agent that can inject disruptions in the target system.
-
-It offers a series of commands that inject different types of disruptions described in the next sections.
+The agent offers a series of commands that inject different types of disruptions described in the next sections.
 
 ### HTTP
 
@@ -483,7 +506,9 @@ Flags:
   -t, --target uint            port the proxy will redirect request to (default 80)
 ```
 
-# Development
+# Contributing to xk6-disruptor
+
+This section is for users that would like to contribute to the xk6-disruptor project.
 
 ## Requirements
 

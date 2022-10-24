@@ -4,7 +4,7 @@ const selector = {
         namespace: "default",
         select: {
                 labels: {
-                        app: "test"
+                        run: "nginx"
                 }
         }
 }
@@ -22,7 +22,5 @@ export default function () {
         	throw new Error("expected list to have one target")
         }
 
-        for (let pod of targets) {
-	        console.log(pod) 
-        }
+       disruptor.injectHTTPFaults(fault, 30)
 }

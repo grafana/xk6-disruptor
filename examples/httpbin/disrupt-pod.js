@@ -63,7 +63,7 @@ export function disrupt(data) {
       error_code: 500,
       error_rate: 0.1
   }
-  podDisruptor.injectHttpFaults(fault, 30)
+  podDisruptor.injectHTTPFaults(fault, 30)
 }
 
 export const options = {
