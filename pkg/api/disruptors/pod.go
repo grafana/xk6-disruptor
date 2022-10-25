@@ -31,7 +31,7 @@ type PodSelector struct {
 // HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod
 type HTTPDisruptionOptions struct {
 	// Port used by the agent for listening
-	ProxyPort uint
+	ProxyPort uint `js:"proxyPort"`
 	// Network interface the agent will be listening traffic from
 	Iface string
 }
@@ -49,7 +49,7 @@ type PodDisruptor interface {
 type PodDisruptorOptions struct {
 	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
 	// A Negative value forces no waiting.
-	InjectTimeout int
+	InjectTimeout int `js:"injectTimeout"`
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods

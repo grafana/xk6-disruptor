@@ -1,9 +1,9 @@
 import { ServiceDisruptor } from 'k6/x/disruptor';
 
 const fault = {
-        average_delay: 100,
-        error_rate: 0.1,
-        error_code: 500
+        averageDelay: 100,
+        errorRate: 0.1,
+        errorCode: 500
 }
 
 export default function() {

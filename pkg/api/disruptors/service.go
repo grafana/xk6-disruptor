@@ -22,7 +22,7 @@ type ServiceDisruptor interface {
 type ServiceDisruptorOptions struct {
 	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
 	// A Negative value forces no waiting.
-	InjectTimeout int
+	InjectTimeout int `js:"injectTimeout"`
 }
 
 // serviceDisruptor is an instance of a ServiceDisruptor

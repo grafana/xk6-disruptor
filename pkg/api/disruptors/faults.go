@@ -5,13 +5,13 @@ type HTTPFault struct {
 	// port the disruptions will be applied to
 	Port uint
 	// Average delay introduced to requests
-	AverageDelay uint
+	AverageDelay uint `js:"averageDelay"`
 	// Variation in the delay (with respect of the average delay)
-	DelayVariation uint
+	DelayVariation uint `js:"delayVariation"`
 	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
-	ErrorRate float32
+	ErrorRate float32 `js:"errorRate"`
 	// Error code to be returned by requests selected in the error rate
-	ErrorCode uint
+	ErrorCode uint `js:"errorCode"`
 	// List of url paths to be excluded from disruptions
 	Excluded []string
 }

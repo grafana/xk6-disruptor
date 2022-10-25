@@ -72,7 +72,7 @@ const selector = {
    }
 } 
 const opts = {
-	inject_timeout: -1
+	injectTimeout: -1
 }
 const disruptor = new PodDisruptor(selector, opts)
 const targets = disruptor.targets()
@@ -106,7 +106,7 @@ func Test_PodDisruptor(t *testing.T) {
 const listServiceTargetsScript = `
 // force no waiting for ephemeral container as the mock will not update its status
 const opts = {
-	inject_timeout: -1
+	injectTimeout: -1
 }
 const disruptor = new ServiceDisruptor("app-service", "default", opts)
 const targets = disruptor.targets()
