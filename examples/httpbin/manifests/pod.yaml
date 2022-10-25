@@ -1,0 +1,14 @@
+kind: "Pod"
+apiVersion: "v1"
+metadata:
+  name: httpbin
+  namespace: httpbin-ns
+  labels:
+    app: httpbin
+spec:
+  containers:
+  - name: httpbin
+    image: kennethreitz/httpbin
+    ports:
+    - name: http
+      containerPort: 80
