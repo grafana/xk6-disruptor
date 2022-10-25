@@ -59,9 +59,9 @@ export function disrupt(data) {
 
   // delay traffic from one random replica of the deployment
   const fault = {
-      average_delay: 50,
-      error_code: 500,
-      error_rate: 0.1
+      averageDelay: 50,
+      errorCode: 500,
+      errorRate: 0.1
   }
   podDisruptor.injectHTTPFaults(fault, 30)
 }
