@@ -11,6 +11,11 @@ The extension offers an [API](./docs/02-api/01-api.md) for creating disruptors t
 
 > ⚠️  xk6-disruptor is in the alpha stage, undergoing active development. We do not guarantee API compatibility between releases - your k6 scripts may need to be updated on each release until this extension reaches v1.0 release.
 
+## Use case for xk6-disruptor
+
+The main use case for xk6-disruptor is to test the resiliency of an application of diverse types disruptions by reproducing their effects, but without having to reproduce their root-causes. For example, inject delays in the HTTP requests an application makes to a service  without having to stress or interfere with the infrastructure (network, nodes) on which the service runs, or affecting other workloads in unexpected ways.
+
+In this way, xk6-disruptor make reliability tests repeatable, predictable and limits their blast-radius. These are important characteristic in order to incorporate this kind of tests in the test suits of applications deployed on shared infrastructures such as staging environments.
 
 ## Learn more
 
