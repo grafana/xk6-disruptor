@@ -19,7 +19,7 @@ The following attributes can be used for selecting or excluding pods:
 - `labels`: map with the labels to be matched for selection/exclusion
 
 The `options` control the creation and behavior of the pod disruptor:
-- inject_timeout: maximum time for waiting the [xk6-disruptor-agent](./development/architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
+- inject_timeout: maximum time for waiting the [xk6-disruptor-agent](../04-development/02-architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 
 
 `injectHTTPFaults`: disrupts http requests served by the target pods.
@@ -44,7 +44,7 @@ The injection of the fault is controlled by the following options:
 
 `targets`: returns the list of target pods for the disruptor.
 
-Example: [pod_disruptor.js](../../examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `run=nginx` label and inject a delay of 100ms and a 10% of requests returning a http response code 500.
+Example: [pod_disruptor.js](/examples/pod_disruptor.js) shows how to create a selector that matches all pods in the `default` namespace with the `run=nginx` label and inject a delay of 100ms and a 10% of requests returning a http response code 500.
 
 
 ```js

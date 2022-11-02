@@ -10,7 +10,7 @@ Parameters:
 - options: options for controlling the behavior of the disruptor
 
 The `options` control the creation and behavior of the service disruptor:
-- inject_timeout: maximum time for waiting the [xk6-disruptor-agent](../development/architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
+- inject_timeout: maximum time for waiting the [xk6-disruptor-agent](../04-development/02-architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 
 
 `injectHTTPFaults`: disrupts http requests served by the target pods.
@@ -34,7 +34,7 @@ The injection of the fault is controlled by the following options:
 
 `targets`: returns the list of target pods for the disruptor.
 
-Example: [service_disruptor.js](examples/service_disruptor.js) shows how to create a disruptor for the `nginx` service and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
+Example: [service_disruptor.js](/examples/service_disruptor.js) shows how to create a disruptor for the `nginx` service and inject a delay of 100ms and a 10% of requests returning a http response code 500. 
 
 ```js
 import { ServiceDisruptor } from 'k6/x/disruptor';

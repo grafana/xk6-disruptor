@@ -1,6 +1,6 @@
 # Introduce faults in http request to a pod
 
-The example at [examples/httpbin/disrupt-pod.js](../../examples/httpbin/disrupt-pod.js) shows how [PodDisruptor](../02-api/02-pod-disruptor.md) can be used for testing the effect of disruptions in the HTTP requests served by a pod. The example deploys a pod running the [httpbin](https://httpbin.org), a simple request/response application that offers endpoints for testing different HTTP request. The test consists in two load generating scenarios: one for obtaining baseline results and another for checking the effect of the faults introduced by the `PodDisruptor`, and one additional scenario for injecting the faults.
+The example at [examples/httpbin/disrupt-pod.js](/examples/httpbin/disrupt-pod.js) shows how [PodDisruptor](../02-api/02-pod-disruptor.md) can be used for testing the effect of disruptions in the HTTP requests served by a pod. The example deploys a pod running the [httpbin](https://httpbin.org), a simple request/response application that offers endpoints for testing different HTTP request. The test consists in two load generating scenarios: one for obtaining baseline results and another for checking the effect of the faults introduced by the `PodDisruptor`, and one additional scenario for injecting the faults.
 
 Next sections examine the sample code below in detail, describing the different steps in the test life-cycle.
 
