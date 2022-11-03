@@ -1,5 +1,15 @@
 # xk6-disruptor
 
+</br>
+</br>
+
+<div align="center">
+
+![logo](assets/logo.png)
+
+
+</div>
+
 The xk6-disruptor is a [k6](https://k6.io) extension providing fault injection capabilities to test system's reliability under turbulent conditions. Think of it as "like unit testing, but for reliability". 
 
 This project aims to aid developers in building reliable systems, implementing the goals of "Chaos Engineering" discipline in a k6 way - with the best developer experience as its primary objective. 
