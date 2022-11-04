@@ -1,6 +1,6 @@
 # Requirements
 
-The `xk6-disruptor` is a `k6` extension. In order to use it in a `k6` test script, it is necessary to use a custom build of `k6` that includes the disruptor. See the [Installation](./02-installation.md) section below for instructions on how to get this custom build.
+The `xk6-disruptor` is a `k6` extension. In order to use it in a `k6` test script, it is necessary to use a custom build of `k6` that includes the disruptor. See the [Installation](./03-installation.md) section  for instructions on how to get this custom build.
 
 The `xk6-disruptor` needs to interact with the Kubernetes cluster on which the application under test is running. In order to do so, you must have the credentials to access the cluster in a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file. Ensure this file is pointed by the `KUBECONFIG` environment variable or it is located at the default location `$HOME/.kube/config`.
 
