@@ -12,6 +12,8 @@ type HTTPFault struct {
 	ErrorRate float32 `js:"errorRate"`
 	// Error code to be returned by requests selected in the error rate
 	ErrorCode uint `js:"errorCode"`
+	// Body to be returned when an error is injected
+	ErrorBody string `js:"errorBody"`
 	// List of url paths to be excluded from disruptions
 	Excluded []string
 }
