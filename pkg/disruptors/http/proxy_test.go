@@ -110,6 +110,28 @@ func Test_Proxy(t *testing.T) {
 			expectedStatus: 500,
 			expectedBody:   []byte(""),
 		},
+		{
+			title: "Error code 500 with body template",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      1.0,
+				ErrorCode:      500,
+				ErrorBody:      "{\"error\": 500, \"message\":\"internal server error\"}",
+				Excluded:       nil,
+			},
+			target: Target{
+				Port: 8084,
+			},
+			config: ProxyConfig{
+				ListeningPort: 9084,
+			},
+			path:           "",
+			statusCode:     200,
+			body:           []byte("content body"),
+			expectedStatus: 500,
+			expectedBody:   []byte("{\"error\": 500, \"message\":\"internal server error\"}"),
+		},
 	}
 
 	for _, tc := range testCases {
