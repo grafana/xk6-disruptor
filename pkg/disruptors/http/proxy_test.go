@@ -1,28 +1,28 @@
 package http
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
 )
 
-func return200Handler(rw http.ResponseWriter, req *http.Request) {
-	rw.WriteHeader(200)
-}
-
 func Test_Proxy(t *testing.T) {
 	t.Parallel()
 
 	type TestCase struct {
-		title      string
-		target     Target
-		disruption Disruption
-		config     ProxyConfig
-		handler    func(http.ResponseWriter, *http.Request)
-		path       string
-		statusCode int
+		title          string
+		target         Target
+		disruption     Disruption
+		config         ProxyConfig
+		path           string
+		statusCode     int
+		body           []byte
+		expectedStatus int
+		expectedBody   []byte
 	}
 
 	testCases := []TestCase{
@@ -41,9 +41,11 @@ func Test_Proxy(t *testing.T) {
 			config: ProxyConfig{
 				ListeningPort: 9080,
 			},
-			handler:    return200Handler,
-			path:       "",
-			statusCode: 200,
+			path:           "",
+			statusCode:     200,
+			body:           []byte("content body"),
+			expectedStatus: 200,
+			expectedBody:   []byte("content body"),
 		},
 		{
 			title: "Error code 500",
@@ -60,9 +62,11 @@ func Test_Proxy(t *testing.T) {
 			config: ProxyConfig{
 				ListeningPort: 9081,
 			},
-			handler:    return200Handler,
-			path:       "",
-			statusCode: 500,
+			path:           "",
+			statusCode:     200,
+			body:           []byte("content body"),
+			expectedStatus: 500,
+			expectedBody:   []byte(""),
 		},
 		{
 			title: "Exclude path",
@@ -79,9 +83,11 @@ func Test_Proxy(t *testing.T) {
 			config: ProxyConfig{
 				ListeningPort: 9082,
 			},
-			handler:    return200Handler,
-			path:       "/excluded/path",
-			statusCode: 200,
+			path:           "/excluded/path",
+			statusCode:     200,
+			body:           []byte("content body"),
+			expectedStatus: 200,
+			expectedBody:   []byte("content body"),
 		},
 		{
 			title: "Not Excluded path",
@@ -98,9 +104,11 @@ func Test_Proxy(t *testing.T) {
 			config: ProxyConfig{
 				ListeningPort: 9083,
 			},
-			handler:    return200Handler,
-			path:       "/non-excluded/path",
-			statusCode: 500,
+			path:           "/non-excluded/path",
+			statusCode:     200,
+			body:           []byte("content body"),
+			expectedStatus: 500,
+			expectedBody:   []byte(""),
 		},
 	}
 
@@ -125,8 +133,11 @@ func Test_Proxy(t *testing.T) {
 
 			// create and start upstream server
 			srv := &http.Server{
-				Addr:    fmt.Sprintf("127.0.0.1:%d", tc.target.Port),
-				Handler: http.HandlerFunc(tc.handler),
+				Addr: fmt.Sprintf("127.0.0.1:%d", tc.target.Port),
+				Handler: http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					rw.WriteHeader(tc.statusCode)
+					_, _ = rw.Write(tc.body)
+				}),
 			}
 			go func(c chan error) {
 				svrErr := srv.ListenAndServe()
@@ -170,8 +181,19 @@ func Test_Proxy(t *testing.T) {
 				_ = resp.Body.Close()
 			}()
 
-			if tc.statusCode != resp.StatusCode {
-				t.Errorf("expected status code '%d' but '%d' received ", tc.statusCode, resp.StatusCode)
+			if tc.expectedStatus != resp.StatusCode {
+				t.Errorf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
+				return
+			}
+
+			body := make([]byte, resp.ContentLength)
+			_, err = resp.Body.Read(body)
+			if err != nil && !errors.Is(err, io.EOF) {
+				t.Errorf("unexpected error reading response body: %v", err)
+				return
+			}
+			if !bytes.Equal(tc.expectedBody, body) {
+				t.Errorf("expected body '%s' but '%s' received ", tc.expectedBody, body)
 				return
 			}
 		})
