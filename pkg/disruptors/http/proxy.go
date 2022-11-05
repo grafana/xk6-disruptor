@@ -96,7 +96,10 @@ func (p *proxy) Start() error {
 
 			statusCode = originServerResponse.StatusCode
 			body = originServerResponse.Body
-			_ = originServerResponse.Body.Close()
+
+			defer func() {
+				_ = originServerResponse.Body.Close()
+			}()
 		}
 
 		if !excluded && p.disruption.AverageDelay > 0 {
