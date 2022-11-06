@@ -121,10 +121,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       nil,
 			},
 			target: Target{
-				Port: 8084,
+				Port: 8085, // port 8084 is used in github's workers
 			},
 			config: ProxyConfig{
-				ListeningPort: 9084,
+				ListeningPort: 9085,
 			},
 			path:           "",
 			statusCode:     200,
