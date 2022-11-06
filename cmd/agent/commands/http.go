@@ -35,6 +35,7 @@ func BuildHTTPCmd() *cobra.Command {
 	cmd.Flags().UintVarP(&disruption.DelayVariation, "delay-variation", "v", 0, "variation in request delay (milliseconds")
 	cmd.Flags().UintVarP(&disruption.ErrorCode, "error", "e", 0, "error code")
 	cmd.Flags().Float32VarP(&disruption.ErrorRate, "rate", "r", 0, "error rate")
+	cmd.Flags().StringVarP(&disruption.ErrorBody, "body", "b", "", "body for injected faults")
 	cmd.Flags().StringVarP(&target.Iface, "interface", "i", "eth0", "interface to disrupt")
 	cmd.Flags().UintVarP(&config.ProxyConfig.ListeningPort, "port", "p", 8080, "port the proxy will listen to")
 	cmd.Flags().UintVarP(&target.TargetPort, "target", "t", 80, "port the proxy will redirect request to")

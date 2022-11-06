@@ -26,6 +26,7 @@ The http faults are described by the following attributes:
 - delay_variation: variation in the injected delay in milliseconds (default `0ms`)
 - error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
 - error_code: error code to return
+- error_body: body to be returned when an error in injected
 - exclude: list of urls to be excluded from disruption (e.g. /health)
 
 The injection of the fault is controlled by the following options:
