@@ -2,15 +2,37 @@ package http
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
-	"time"
 )
 
-func Test_Proxy(t *testing.T) {
+// fakeHTTPClient mocks the execution of a request returning the predefines
+// status and body
+type fakeHTTPClient struct {
+	status int
+	body   []byte
+}
+
+func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	resp := &http.Response{
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		StatusCode:    f.status,
+		Status:        http.StatusText(f.status),
+		Body:          io.NopCloser(strings.NewReader(string(f.body))),
+		ContentLength: int64(len(f.body)),
+	}
+
+	return resp, nil
+}
+
+func Test_ProxyHandler(t *testing.T) {
 	t.Parallel()
 
 	type TestCase struct {
@@ -18,6 +40,7 @@ func Test_Proxy(t *testing.T) {
 		target         Target
 		disruption     Disruption
 		config         ProxyConfig
+		method         string
 		path           string
 		statusCode     int
 		body           []byte
@@ -57,10 +80,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       nil,
 			},
 			target: Target{
-				Port: 8081,
+				Port: 8080,
 			},
 			config: ProxyConfig{
-				ListeningPort: 9081,
+				ListeningPort: 9080,
 			},
 			path:           "",
 			statusCode:     200,
@@ -78,10 +101,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			target: Target{
-				Port: 8082,
+				Port: 8080,
 			},
 			config: ProxyConfig{
-				ListeningPort: 9082,
+				ListeningPort: 9080,
 			},
 			path:           "/excluded/path",
 			statusCode:     200,
@@ -99,10 +122,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			target: Target{
-				Port: 8083,
+				Port: 8080,
 			},
 			config: ProxyConfig{
-				ListeningPort: 9083,
+				ListeningPort: 9080,
 			},
 			path:           "/non-excluded/path",
 			statusCode:     200,
@@ -121,10 +144,10 @@ func Test_Proxy(t *testing.T) {
 				Excluded:       nil,
 			},
 			target: Target{
-				Port: 8085, // port 8084 is used in github's workers
+				Port: 8080,
 			},
 			config: ProxyConfig{
-				ListeningPort: 9085,
+				ListeningPort: 9080,
 			},
 			path:           "",
 			statusCode:     200,
@@ -140,82 +163,33 @@ func Test_Proxy(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			// create the proxy
-			proxy, err := NewProxy(
-				tc.target,
-				tc.disruption,
-				tc.config,
-			)
-			if err != nil {
-				t.Errorf("error creating proxy: %v", err)
-				return
+			client := &fakeHTTPClient{
+				body:   tc.body,
+				status: tc.expectedStatus,
 			}
 
-			errChannel := make(chan error)
-
-			// create and start upstream server
-			srv := &http.Server{
-				Addr: fmt.Sprintf("127.0.0.1:%d", tc.target.Port),
-				Handler: http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-					rw.WriteHeader(tc.statusCode)
-					_, _ = rw.Write(tc.body)
-				}),
-			}
-			go func(c chan error) {
-				svrErr := srv.ListenAndServe()
-				if !errors.Is(svrErr, http.ErrServerClosed) {
-					c <- svrErr
-				}
-			}(errChannel)
-
-			// start proxy
-			go func(c chan error) {
-				proxyErr := proxy.Start()
-				if proxyErr != nil {
-					c <- proxyErr
-				}
-			}(errChannel)
-
-			// ensure upstream server and proxy are stopped
-			defer func() {
-				// ignore errors, nothing to do
-				_ = srv.Close()
-				_ = proxy.Force()
-			}()
-
-			// wait for proxy and upstream server to start
-			time.Sleep(1 * time.Second)
-			select {
-			case err = <-errChannel:
-				t.Errorf("error setting up test %v", err)
-				return
-			default:
+			upstreamURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tc.target.Port))
+			handler := &httpHandler{
+				upstreamURL: *upstreamURL,
+				client:      client,
+				disruption:  tc.disruption,
 			}
 
-			proxyURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
-
-			resp, err := http.Get(proxyURL)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-			defer func() {
-				_ = resp.Body.Close()
-			}()
+			reqURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
+			req := httptest.NewRequest(tc.method, reqURL, strings.NewReader(string(tc.body)))
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+			resp := recorder.Result()
 
 			if tc.expectedStatus != resp.StatusCode {
 				t.Errorf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
 				return
 			}
 
-			body := make([]byte, resp.ContentLength)
-			_, err = resp.Body.Read(body)
-			if err != nil && !errors.Is(err, io.EOF) {
-				t.Errorf("unexpected error reading response body: %v", err)
-				return
-			}
-			if !bytes.Equal(tc.expectedBody, body) {
-				t.Errorf("expected body '%s' but '%s' received ", tc.expectedBody, body)
+			var body bytes.Buffer
+			_, _ = io.Copy(&body, resp.Body)
+			if !bytes.Equal(tc.expectedBody, body.Bytes()) {
+				t.Errorf("expected body '%s' but '%s' received ", tc.expectedBody, body.Bytes())
 				return
 			}
 		})
