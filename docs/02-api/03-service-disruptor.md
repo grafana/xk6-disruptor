@@ -10,7 +10,7 @@ Parameters:
 - options: options for controlling the behavior of the disruptor
 
 The `options` control the creation and behavior of the service disruptor:
-- inject_timeout: maximum time for waiting the [xk6-disruptor-agent](../04-development/02-architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
+- injectTimeout: maximum time for waiting the [xk6-disruptor-agent](../04-development/02-architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
 
 
 `injectHTTPFaults`: disrupts http requests served by the target pods.
@@ -22,15 +22,15 @@ Parameters:
 
 The http faults are described by the following attributes:
 - port: port on which the requests will be intercepted
-- average_delay: average delay added to requests in milliseconds (default `0ms`)
-- delay_variation: variation in the injected delay in milliseconds (default `0ms`)
-- error_rate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
-- error_code: error code to return
-- error_body: body to be returned when an error in injected
+- averageDelay: average delay added to requests in milliseconds (default `0ms`)
+- delayVariation: variation in the injected delay in milliseconds (default `0ms`)
+- errorRate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
+- errorCode: error code to return
+- errorBody: body to be returned when an error in injected
 - exclude: list of urls to be excluded from disruption (e.g. /health)
 
 The injection of the fault is controlled by the following options:
-  - proxy_port: port the agent will use to listen for requests in the target pods ( default `8080`)
+  - proxyPort: port the agent will use to listen for requests in the target pods ( default `8080`)
   - iface: network interface where the agent will capture the traffic ( default `eth0`)
 
 `targets`: returns the list of target pods for the disruptor.
@@ -42,9 +42,9 @@ import { ServiceDisruptor } from 'k6/x/disruptor';
   
 
 const fault = {
-        average_delay: 100,
-        error_rate: 0.1,
-        error_code: 500
+        averageDelay: 100,
+        errorRate: 0.1,
+        errorCode: 500
 }
 
 export default function() {
