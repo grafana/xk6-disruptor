@@ -289,6 +289,10 @@ func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOpt
 		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
+	if len(fault.Exclude) > 0 {
+		cmd = append(cmd, "-x", fault.Exclude)
+	}
+
 	if options.ProxyPort != 0 {
 		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}

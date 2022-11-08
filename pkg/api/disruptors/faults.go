@@ -14,6 +14,6 @@ type HTTPFault struct {
 	ErrorCode uint `js:"errorCode"`
 	// Body to be returned when an error is injected
 	ErrorBody string `js:"errorBody"`
-	// List of url paths to be excluded from disruptions
-	Excluded []string
+	// Comma-separated list of url paths to be excluded from disruptions
+	Exclude string
 }
