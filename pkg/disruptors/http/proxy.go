@@ -66,61 +66,80 @@ func contains(list []string, target string) bool {
 	return false
 }
 
+// httpClient defines the method for executing HTTP requests. It is used to allow mocking
+// the client in tests
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// httpHandler implements a http.Handler for disrupting request to a upstream server
+type httpHandler struct {
+	upstreamURL url.URL
+	disruption  Disruption
+	client      httpClient
+}
+
+func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var statusCode int
+	body := io.NopCloser(strings.NewReader(h.disruption.ErrorBody))
+
+	excluded := contains(h.disruption.Excluded, req.URL.Path)
+
+	if !excluded && h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
+		// force error code
+		statusCode = int(h.disruption.ErrorCode)
+	} else {
+		req.Host = h.upstreamURL.Host
+		req.URL.Host = h.upstreamURL.Host
+		req.URL.Scheme = h.upstreamURL.Scheme
+		req.RequestURI = ""
+		originServerResponse, srvErr := h.client.Do(req)
+		if srvErr != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			_, _ = fmt.Fprint(rw, srvErr)
+			return
+		}
+
+		statusCode = originServerResponse.StatusCode
+		body = originServerResponse.Body
+
+		defer func() {
+			_ = originServerResponse.Body.Close()
+		}()
+	}
+
+	if !excluded && h.disruption.AverageDelay > 0 {
+		delay := int(h.disruption.AverageDelay)
+		if h.disruption.DelayVariation > 0 {
+			delay = delay + int(h.disruption.DelayVariation) - 2*rand.Intn(int(h.disruption.DelayVariation))
+		}
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+	}
+
+	// return response to the client
+	// TODO: return headers
+	rw.WriteHeader(statusCode)
+
+	// ignore errors writing body, nothing to do.
+	_, _ = io.Copy(rw, body)
+}
+
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	originServerURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.target.Port))
+	upstreamURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.target.Port))
 	if err != nil {
 		return err
 	}
 
-	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		var statusCode int
-		body := io.NopCloser(strings.NewReader(p.disruption.ErrorBody))
-
-		excluded := contains(p.disruption.Excluded, req.URL.Path)
-
-		if !excluded && p.disruption.ErrorRate > 0 && rand.Float32() <= p.disruption.ErrorRate {
-			// force error code
-			statusCode = int(p.disruption.ErrorCode)
-		} else {
-			req.Host = originServerURL.Host
-			req.URL.Host = originServerURL.Host
-			req.URL.Scheme = originServerURL.Scheme
-			req.RequestURI = ""
-			originServerResponse, srvErr := http.DefaultClient.Do(req)
-			if srvErr != nil {
-				rw.WriteHeader(http.StatusInternalServerError)
-				_, _ = fmt.Fprint(rw, srvErr)
-				return
-			}
-
-			statusCode = originServerResponse.StatusCode
-			body = originServerResponse.Body
-
-			defer func() {
-				_ = originServerResponse.Body.Close()
-			}()
-		}
-
-		if !excluded && p.disruption.AverageDelay > 0 {
-			delay := int(p.disruption.AverageDelay)
-			if p.disruption.DelayVariation > 0 {
-				delay = delay + int(p.disruption.DelayVariation) - 2*rand.Intn(int(p.disruption.DelayVariation))
-			}
-			time.Sleep(time.Duration(delay) * time.Millisecond)
-		}
-
-		// return response to the client
-		// TODO: return headers
-		rw.WriteHeader(statusCode)
-
-		// ignore errors writing body, nothing to do.
-		_, _ = io.Copy(rw, body)
-	})
+	handler := &httpHandler{
+		upstreamURL: *upstreamURL,
+		disruption:  p.disruption,
+		client:      http.DefaultClient,
+	}
 
 	p.srv = &http.Server{
 		Addr:    fmt.Sprintf(":%d", p.config.ListeningPort),
-		Handler: reverseProxy,
+		Handler: handler,
 	}
 
 	err = p.srv.ListenAndServe()
