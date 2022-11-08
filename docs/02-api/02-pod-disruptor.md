@@ -37,7 +37,7 @@ The http faults are described by the following attributes:
 - errorRate: rate of requests that will return an error, represented as a float in the range `0.0` to `1.0` (default `0.0`)
 - errorCode: error code to return
 - errorBody: body to be returned when an error is injected
-- exclude: list of urls to be excluded from disruption (e.g. /health)
+- exclude: comma-separated list of urls to be excluded from disruption (e.g. /health)
 
 The injection of the fault is controlled by the following options:
   - proxyPort: port the agent will use to listen for requests in the target pods ( default `8080`)

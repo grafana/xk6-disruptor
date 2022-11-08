@@ -39,7 +39,8 @@ func BuildHTTPCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&target.Iface, "interface", "i", "eth0", "interface to disrupt")
 	cmd.Flags().UintVarP(&config.ProxyConfig.ListeningPort, "port", "p", 8080, "port the proxy will listen to")
 	cmd.Flags().UintVarP(&target.TargetPort, "target", "t", 80, "port the proxy will redirect request to")
-	cmd.Flags().StringArrayVarP(&disruption.Excluded, "exclude", "x", []string{}, "path(s) to be excluded from disruption")
+	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of path(s)"+
+		" to be excluded from disruption")
 
 	return cmd
 }
