@@ -1,5 +1,5 @@
 work_dir = $(shell pwd)
-golangci_version = $(shell head -n 1 .golangci.yml | tr -d '# ')
+golangci_version = $(shell head -n 1 .golangci.yml | tr -d '\# ')
 
 all: build
 

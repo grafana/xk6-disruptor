@@ -28,6 +28,11 @@ issues:
     - linters:
         - paralleltest # false positive: https://github.com/kunwardeep/paralleltest/issues/8.
       text: "does not use range value in test Run"
+    # As per https://github.com/golangci/golangci-lint/issues/207#issuecomment-534771981
+    - source: "^// http"
+      linters:
+        - lll
+      
 
 linters-settings:
   cyclop:
