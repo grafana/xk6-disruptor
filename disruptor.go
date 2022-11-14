@@ -130,7 +130,8 @@ func (m *ModuleInstance) newServiceDisruptor(c goja.ConstructorCall) *goja.Objec
 	return rt.ToValue(disruptor).ToObject(rt)
 }
 
-// Copied from ahmetb/kubectx source code: https://github.com/ahmetb/kubectx/blob/29850e1a75cb5cad8d93f74a4114311eb9feba9f/internal/kubeconfig/kubeconfigloader.go#L59
+// Copied from ahmetb/kubectx source code:
+// https://github.com/ahmetb/kubectx/blob/29850e1a75cb5cad8d93f74a4114311eb9feba9f/internal/kubeconfig/kubeconfigloader.go#L59
 func getKubernetesConfigPath() (string, error) {
 	// KUBECONFIG env var
 	if v := os.Getenv("KUBECONFIG"); v != "" {
