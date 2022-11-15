@@ -280,9 +280,10 @@ func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOpt
 			fmt.Sprint(fault.ErrorCode),
 			"-r",
 			fmt.Sprint(fault.ErrorRate),
-			"-b",
-			fault.ErrorBody,
 		)
+		if fault.ErrorBody != "" {
+			cmd = append(cmd, "-b", fault.ErrorBody)
+		}
 	}
 
 	if fault.Port != 0 {
