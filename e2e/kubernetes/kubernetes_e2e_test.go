@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 
@@ -187,4 +188,31 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 	})
+}
+
+func Test_UnsupportedKubernetesVersion(t *testing.T) {
+	config, err := cluster.NewConfig(
+		"e2e-v1-22-0-cluster",
+		cluster.Options{
+			Version: "v1.22.0",
+			Wait:    time.Second * 60,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+	defer cluster.Delete()
+
+	_, err = kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	if err == nil {
+		t.Errorf("should had failed creating kubernetes client")
+		return
+	}
 }
