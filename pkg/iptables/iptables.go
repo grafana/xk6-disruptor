@@ -107,7 +107,7 @@ func (tr *redirector) execRedirectCmd(action string) error {
 
 	out, err := tr.executor.Exec("iptables", strings.Split(cmd, " ")...)
 	if err != nil {
-		return fmt.Errorf("error executing iptables command: %s", string(out))
+		return fmt.Errorf("error executing iptables command: %w %s", err, string(out))
 	}
 
 	return nil
