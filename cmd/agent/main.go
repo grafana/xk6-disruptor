@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
@@ -9,7 +10,6 @@ import (
 )
 
 func main() {
-
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
 		Short: "Inject disruptions in a system",
@@ -21,6 +21,7 @@ func main() {
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }
