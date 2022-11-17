@@ -3,6 +3,7 @@ package disruptors
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -314,6 +315,7 @@ func Test_ExecCommand(t *testing.T) {
 			targets:     []string{"pod1", "pod2"},
 			command:     []string{"echo", "-n", "hello", "world"},
 			err:         fmt.Errorf("fake error"),
+			stderr:      []byte("error output"),
 			expectError: true,
 		},
 	}
@@ -351,6 +353,9 @@ func Test_ExecCommand(t *testing.T) {
 			}
 
 			if tc.expectError && err != nil {
+				if !strings.Contains(err.Error(), string(tc.stderr)) {
+					t.Errorf("invalid error message. Expected to contain %s", string(tc.stderr))
+				}
 				return
 			}
 		})
