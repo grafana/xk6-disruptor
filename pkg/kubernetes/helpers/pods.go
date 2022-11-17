@@ -125,14 +125,10 @@ func (h *helpers) Exec(
 		Stdin:  bytes.NewReader(stdin),
 		Stdout: &stdout,
 		Stderr: &stderr,
-		Tty:    true,
+		Tty:    false,
 	})
 
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return stdout.Bytes(), stderr.Bytes(), nil
+	return stdout.Bytes(), stderr.Bytes(), err
 }
 
 func (h *helpers) AttachEphemeralContainer(
