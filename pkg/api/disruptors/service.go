@@ -23,6 +23,8 @@ type ServiceDisruptorOptions struct {
 	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
 	// A Negative value forces no waiting.
 	InjectTimeout int `js:"injectTimeout"`
+	// Maximum concurrent agent injections
+	ConcurrentInjections int `js:"concurrentInjections"`
 }
 
 // serviceDisruptor is an instance of a ServiceDisruptor
@@ -78,6 +80,7 @@ func NewServiceDisruptor(
 	//nolint:gosimple
 	podOpts := PodDisruptorOptions{
 		InjectTimeout: options.InjectTimeout,
+		ConcurrentInjections: options.ConcurrentInjections,
 	}
 
 	podDisruptor, err := NewPodDisruptor(k8s, podSelector, podOpts)

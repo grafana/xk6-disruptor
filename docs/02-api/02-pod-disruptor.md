@@ -20,6 +20,7 @@ The following attributes can be used for selecting or excluding pods:
 
 The `options` control the creation and behavior of the pod disruptor:
 - injectTimeout: maximum time for waiting the [xk6-disruptor-agent](../04-development/02-architecture.md#xk6-disruptor-agent) to be ready in the target pods, in seconds (default 30s). Zero value forces default. Negative values force no waiting.
+- `concurrentInjections`: maximum number of concurrent agent injections. Used for preventing client-side throttling when injecting the agent to a large number of pods.
 
 
 `injectHTTPFaults`: disrupts http requests served by the target pods.
