@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,12 +19,13 @@ import (
 
 
 func Test_PodDisruptor(t *testing.T) {
+	t.Parallel()
+
 	cluster, err := fixtures.BuildCluster("e2e-pod-disruptor")
 	if err != nil {
 		t.Errorf("failed to create cluster config: %v", err)
 		return
 	}
-	defer cluster.Delete()
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -47,12 +49,26 @@ func Test_PodDisruptor(t *testing.T) {
 			options:  disruptors.HTTPDisruptionOptions{
 				ProxyPort: 8080,
 			},
+			expectError: false,
 		},
 	}
 
+	// WaitGroup for sub-tests. Used to ensure all subtests end before deleting cluster
+	var wg sync.WaitGroup
+
+	go func() {
+		wg.Wait()
+		cluster.Delete()
+	}()
+
 	for _, tc := range testCases {
+		wg.Add(1)
 		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			defer wg.Done()
+
 			ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
 			if err != nil {
 				t.Errorf("error creating test namespace: %v", err)
@@ -104,8 +120,14 @@ func Test_PodDisruptor(t *testing.T) {
 			// apply disruption in a go-routine as it is a blocking function
 			go func() {
 				err := disruptor.InjectHTTPFaults(tc.fault, 10, tc.options)
-				if err != nil {
-					t.Errorf("error injecting fault: %v", err)
+				if tc.expectError && err == nil {
+					t.Errorf("should had failed")
+					return
+				}
+
+				if !tc.expectError && err != nil {
+					t.Errorf("failed: %v", err)
+					return
 				}
 			}()
 
@@ -121,4 +143,3 @@ func Test_PodDisruptor(t *testing.T) {
 		})
 	}
 }
-
