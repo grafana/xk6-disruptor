@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,12 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
 
+
+func execChaosCommand(k8s kubernetes.Kubernetes, args map[string]string) {
+	ns := args["ns"]
+	cmd := strings.Split(args["cmd"], " ")
+	k8s.NamespacedHelpers(ns).Exec("httpbin", "xk6-agent", cmd, []byte{})
+}
 
 func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
@@ -36,8 +43,11 @@ func Test_PodDisruptor(t *testing.T) {
 	testCases := []struct{
 		title       string
 		fault       disruptors.HTTPFault
-		options     disruptors.HTTPDisruptionOptions
+		faultOpts   disruptors.HTTPDisruptionOptions
+		chaosFunc   func(k8s kubernetes.Kubernetes, args map[string]string)
+		chaosArgs   map[string]string
 		expectError bool
+		checkCode   int
 	} {
 		{
 			title:  "Inject Http error 500",
@@ -46,10 +56,32 @@ func Test_PodDisruptor(t *testing.T) {
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			},
-			options:  disruptors.HTTPDisruptionOptions{
+			faultOpts:  disruptors.HTTPDisruptionOptions{
 				ProxyPort: 8080,
 			},
+			chaosFunc: execChaosCommand,
+			chaosArgs: map[string]string{
+				"cmd": "/bin/true",     // do nothing
+			},
 			expectError: false,
+			checkCode: 500,
+		},
+		{
+			title:  "Broken Agent Container",
+			fault: 	disruptors.HTTPFault{
+				Port:      80,
+				ErrorRate: 1.0,
+				ErrorCode: 500,
+			},
+			faultOpts: disruptors.HTTPDisruptionOptions{
+				ProxyPort: 8080,
+			},
+			chaosFunc: execChaosCommand,
+			chaosArgs: map[string]string{
+				"cmd": "rm /usr/bin/xk6-disruptor-agent",
+			},
+			expectError: true,
+			checkCode: 200,
 		},
 	}
 
@@ -117,9 +149,14 @@ func Test_PodDisruptor(t *testing.T) {
 				return
 			}
 
+			// inject chaos in the agent
+			args := tc.chaosArgs
+			args["ns"] = ns
+			tc.chaosFunc(k8s, args)
+
 			// apply disruption in a go-routine as it is a blocking function
 			go func() {
-				err := disruptor.InjectHTTPFaults(tc.fault, 10, tc.options)
+				err := disruptor.InjectHTTPFaults(tc.fault, 10, tc.faultOpts)
 				if tc.expectError && err == nil {
 					t.Errorf("should had failed")
 					return
@@ -134,7 +171,7 @@ func Test_PodDisruptor(t *testing.T) {
 			err = checks.CheckService(checks.ServiceCheck{
 				Port:         nodePort.HostPort,
 				Delay:        2 * time.Second,
-				ExpectedCode: 500,
+				ExpectedCode: tc.checkCode,
 			})
 			if err != nil {
 				t.Errorf("failed to access service: %v", err)
