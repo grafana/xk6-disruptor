@@ -178,3 +178,50 @@ func Test_PortAllocation(t *testing.T) {
 		return
 	}
 }
+
+func Test_KubernetesVersion(t *testing.T) {
+	// create cluster with default configuration
+	config, err := cluster.NewConfig(
+		"e2e-default-cluster",
+		cluster.Options{
+			Version: "v1.24.0",
+			Wait:    time.Second * 60,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+
+	// delete cluster
+	cluster.Delete()
+}
+
+func Test_InvalidKubernetesVersion(t *testing.T) {
+	// create cluster with default configuration
+	config, err := cluster.NewConfig(
+		"e2e-default-cluster",
+		cluster.Options{
+			Version: "v0.0.0",
+			Wait:    time.Second * 60,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err == nil {
+		t.Errorf("Should have failed creating cluster")
+		cluster.Delete()
+		return
+	}
+
+}

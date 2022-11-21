@@ -59,6 +59,8 @@ type Options struct {
 	NodePorts []NodePort
 	// number of worker nodes
 	Workers int
+	// Kubernetes version
+	Version string
 }
 
 // Config contains the configuration for creating a cluster
@@ -186,6 +188,18 @@ func loadImages(images []string, nodes []nodes.Node) error {
 	return nil
 }
 
+// pullImages pulls images to local node
+func pullImages(images []string) error {
+	for _, image := range images {
+		output, err := exec.Command("docker", "pull", image).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error pulling image %s: %s", image, string(output))
+		}
+	}
+
+	return nil
+}
+
 // Create creates a test cluster with the given name
 func (c *Config) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
@@ -207,8 +221,17 @@ func (c *Config) Create() (*Cluster, error) {
 	}
 
 	kindOptions := []kind.CreateOption{
-		kind.CreateWithNodeImage("kindest/node:v1.24.0"),
 		kind.CreateWithRawConfig([]byte(config)),
+	}
+
+	// if Kubernetes version is specified, try to pull image to check it is supported
+	if c.options.Version != "" {
+		nodeImage := fmt.Sprintf("kindest/node:%s", c.options.Version)
+		err = pullImages([]string{nodeImage})
+		if err != nil {
+			return nil, fmt.Errorf("could not pull kind node image for version %s: %w", c.options.Version, err)
+		}
+		kindOptions = append(kindOptions, kind.CreateWithNodeImage(nodeImage))
 	}
 
 	if c.options.Wait > 0 {

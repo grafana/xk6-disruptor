@@ -4,9 +4,11 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -55,6 +57,11 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		return nil, err
 	}
 
+	err = checkK8sVersion(config)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := c.Context
 	if ctx == nil {
 		ctx = context.TODO()
@@ -65,6 +72,25 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		Interface: client,
 		ctx:       ctx,
 	}, nil
+}
+
+func checkK8sVersion(config *rest.Config) error {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	version, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return err
+	}
+
+	semver := fmt.Sprintf("v%s.%s", version.Major, version.Minor)
+	// TODO: implement proper semver check
+	if semver < "v1.23" {
+		return fmt.Errorf("unsupported Kubernetes version. Expected >= v1.23 but actual is %s", semver)
+	}
+	return nil
 }
 
 // Returns the context for executing k8s actions
