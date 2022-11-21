@@ -226,15 +226,24 @@ func Test_InjectAgent(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title       string
-		targets     []string
+		title   string
+		targets []string
+		// Set timeout to 0 to prevent waiting the ephemeral container to be ready,
+		// as the fake client will not update its status
 		timeout     time.Duration
 		expectError bool
 	}{
 		{
 			title:       "Inject ephemeral container",
 			targets:     []string{"pod1", "pod2"},
+			timeout:     0,
 			expectError: false,
+		},
+		{
+			title:       "ephemeral container not ready",
+			targets:     []string{"pod1", "pod2"},
+			timeout:     1,
+			expectError: true, // should fail because fake client will not update status
 		},
 	}
 
@@ -251,12 +260,11 @@ func Test_InjectAgent(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(objs...)
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			// Set timeout to 0 to prevent waiting the ephemeral container to be ready, as the fake client will not update its status
 			controller := AgentController{
 				k8s:       k8s,
 				namespace: testNamespace,
 				targets:   tc.targets,
-				timeout:   0,
+				timeout:   tc.timeout,
 			}
 
 			err := controller.InjectDisruptorAgent()
