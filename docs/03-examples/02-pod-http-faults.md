@@ -8,7 +8,7 @@ Next sections examine the sample code below in detail, describing the different 
 
 The initialization code imports the external dependencies required by the test. The `Kubernetes` class imported from the `xk6-kubernetes` extension (line 1) provides functions for handling Kubernetes resources. The `PodDisruptor` class imported from the `xk6-disruptor` extension (line 2) provides functions for injecting faults in pods. The [k6/http](https://k6.io/docs/javascript-api/k6-http/) module (line 3) provides functions for executing HTTP requests. 
 
-The built-in [open](https://k6.io/docs/javascript-api/init-context/open) function is used for reading the YAML manifests of the Kubernetes resources needed by test (lines 6-8). 
+The built-in [open](https://k6.io/docs/javascript-api/init-context/open) function is used for reading the YAML manifests of the Kubernetes resources needed by test (lines 7-9). 
 
 
 Finally some constants are defined: the name of the pod and service running the `httpbin` application (line 10), the namespace on which the application is running (line 11) and the timeout used for waiting the resources to be ready (line 12).
@@ -17,20 +17,20 @@ Finally some constants are defined: the name of the pod and service running the 
   1 import { Kubernetes } from 'k6/x/kubernetes';
   2 import { PodDisruptor } from 'k6/x/disruptor';
   3 import  http from 'k6/http';
-  4
-  5 // read manifests for resources used in the test
-  6 const podManifest = open("./manifests/pod.yaml")
-  7 const svcManifest = open("./manifests/service.yaml")
-  8 const nsManifest  = open("./manifests/namespace.yaml")
-  9
+  4 import exec from 'k6/execution';
+  5
+  6 // read manifests for resources used in the test
+  7 const podManifest = open("./manifests/pod.yaml")
+  8 const svcManifest = open("./manifests/service.yaml")
+  9 const nsManifest  = open("./manifests/namespace.yaml")
  10 const app = "httpbin"
  11 const namespace = "httpbin-ns"
- 12 const timeout = 10
+ 12 const timeout = 30
  ```
 
 ## Setup and teardown
 
-The `setup` function creates the Kubernetes resources needed by the test using the `apply` function provided by the `Kubernetes` class. The resources are defined as `yaml` manifests imported in the init code. It creates a namespace (line 18) for isolating the test from other tests running in the same cluster, then deploys the application as a pod (line 21) and waits until the pod is ready using the helper function `waitPodRunning` (line 22). The pod is exposed as a service (line 28) and the `getExternalIP` function is used for waiting until the service is assigned an IP for being accessed from outside the cluster (line 29). This IP address is then returned as part of the setup data to be used by the test code (line 35-37).
+The `setup` function creates the Kubernetes resources needed by the test using the `apply` function provided by the `Kubernetes` class. The resources are defined as `yaml` manifests imported in the init code. It creates a namespace (line 18) for isolating the test from other tests running in the same cluster, then deploys the application as a pod (line 21) and waits until the pod is ready using the helper function `waitPodRunning` (line 22). The pod is exposed as a service (line 29) and the `getExternalIP` function is used for waiting until the service is assigned an IP for being accessed from outside the cluster (line 30). This IP address is then returned as part of the setup data to be used by the test code (line 37-39).
 
 ```javascript
  14 export function setup() {
@@ -43,117 +43,125 @@ The `setup` function creates the Kubernetes resources needed by the test using t
  21    k8s.apply(podManifest)
  22    const ready = k8s.helpers(namespace).waitPodRunning(app, timeout)
  23    if (!ready) {
- 24        throw "aborting test. Pod "+ app + " not ready after " + timeout + " seconds"
- 25    }
- 26
- 27    // expose deployment as a service
- 28    k8s.apply(svcManifest)
- 29    const ip = k8s.helpers(namespace).getExternalIP(app, timeout)
- 30    if (ip == "") {
- 31        throw "aborting test. Service " + app + " have no external IP after " + timeout + " seconds"
- 32    }
- 33
- 34    // pass service ip to scenarios
- 35    return {
- 36        srv_ip: ip,
- 37    }
- 38 }
+ 24          k8s.delete("Namespace", namespace)
+ 25          exec.test.abort("pod "+ app + " not ready after " + timeout + " seconds")
+ 26    }
+ 27
+ 28    // expose deployment as a service
+ 29    k8s.apply(svcManifest)
+ 30    const ip = k8s.helpers(namespace).getExternalIP(app, timeout)
+ 31    if (ip == "") {
+ 32        k8s.delete("Namespace", namespace)
+ 33        exec.test.abort("service " + app + " have no external IP after " + timeout + " seconds")
+ 34    }
+ 35
+ 36    // pass service ip to scenarios
+ 37    return {
+ 38        srv_ip: ip,
+ 39    }
+ 40 }
  ```
 
-The `teardown` function is invoked when the test ends to cleanup all resources. As all the resources created by the tests are defined in a namespace, the teardown logic only has to delete this namespace and all associated resources will be deleted (line 42).
+> The time required for creating the httpbin pod and exposing it as a service varies significantly between environments. Times of 1 minute or more are not uncommon.
+
+> ⚠️ If you get the message `test aborted: service httpbin have no external IP after 30 seconds` verify your cluster is properly configured for exposing `LoadBalancer` services. Check the [exposing your application](/docs/01-get-started/04-exposing-apps.md) section in the get started guide for more details.
+
+The `teardown` function is invoked when the test ends to cleanup all resources. As all the resources created by the tests are defined in a namespace, the teardown logic only has to delete this namespace and all associated resources will be deleted (line 44).
 
 ```javascript
- 40 export function teardown(data) {
- 41    const k8s = new Kubernetes()
- 42    k8s.delete("Namespace", namespace)
- 43 }
+ 42 export function teardown(data) {
+ 43    const k8s = new Kubernetes()
+ 44    k8s.delete("Namespace", namespace)
+ 45 }
  ```
+
+> ⚠️ Deleting the namespace may take several seconds. If you retry the test shortly after a previous execution you may find the error `object is being deleted: namespaces "httpbin-ns" already exists`. Allow some time for the deletion to complete and retry the execution.
 
 ## Test Load
 
 The test load is generated by the `default` function, which executes a request to the `httpbin` service using the IP address obtained int the `setup` function. The test makes requests to the endpoint `delay/0.1` which will return after `0.1` seconds (`100ms`).
 
 ```javascript
- 45 export default function(data) {
- 46     http.get(`http://${data.srv_ip}/delay/0.1`);
- 47 }
+ 47 export default function(data) {
+ 48     http.get(`http://${data.srv_ip}/delay/0.1`);
+ 49 }
  ```
 
  > The test uses the `delay` endpoint which return after the requested delay. It requests a `0.1s` (`100ms`) delay to ensure the baseline scenario (see scenarios below) has meaningful statistics for the request duration. If we were simply calling a locally deployed http server (for example `nginx`), the response time would exhibit a large variation between a few microseconds to a few milliseconds. Having `100ms` as baseline response time has proved to offer more consistent results.
 
 ## Fault injection
 
-The `disrupt` function creates a PodDisruptor](pod-disruptor) using a selector that matches pods in the namespace `httpbin-ns` with the label `app: httpbin` (lines 50-58). 
+The `disrupt` function creates a PodDisruptor](pod-disruptor) using a selector that matches pods in the namespace `httpbin-ns` with the label `app: httpbin` (lines 52-60). 
 
-The http faults are then injected by calling the `PodDisruptor`'s `injectHTTPFaults` method using a fault definition that introduces a delay of `50ms` on each request and an error code `500` in a `10%` of the requests (lines 61-65).
+The http faults are then injected by calling the `PodDisruptor`'s `injectHTTPFaults` method using a fault definition that introduces a delay of `50ms` on each request and an error code `500` in a `10%` of the requests (lines 63-68).
 
 ```javascript
- 49 export function disrupt(data) {
- 50     const selector = {
- 51         namespace: namespace,
- 52             select: {
- 53                 labels: {
- 54                     app: app
- 55                 }
- 56         }
- 57     }
- 58     const podDisruptor = new PodDisruptor(selector)
- 59  
- 60     // delay traffic from one random replica of the deployment
- 61     const fault = {
- 62         average_delay: 50,
- 63         error_code: 500,
- 64         error_rate: 0.1
- 65     }
- 66     podDisruptor.injectHTTPFaults(fault, 30)
- 67 }
+ 51 export function disrupt(data) {
+ 52     const selector = {
+ 53         namespace: namespace,
+ 54             select: {
+ 55                 labels: {
+ 56                     app: app
+ 57                 }
+ 58         }
+ 59     }
+ 60     const podDisruptor = new PodDisruptor(selector)
+ 61
+ 62     // delay traffic from one random replica of the deployment
+ 63     const fault = {
+ 64         average_delay: 50,
+ 65         error_code: 500,
+ 66         error_rate: 0.1
+ 67     }
+ 68     podDisruptor.injectHTTPFaults(fault, 30)
+ 69 }
 ```
 
 ## Scenarios 
 
-This test defines three [scenarios](https://k6.io/docs/using-k6/scenarios) to be executed. The `base` scenario (lines 71-79) applies the test load to the target application for `30s` invoking the `default` function and it is used to set a baseline for the application's performance. The `disrupt` scenario (lines 80-86) is executed starting at the `30` seconds of the test run. It invokes once the `disrupt` function to inject a fault in the HTTP requests of the target application. The `faults` scenario (lines 87-95) is also executed starting at the `30` seconds of the test run, reproducing the same workload than the `base` scenario but now under the effect of the faults introduced by the `disrupt` scenario.
+This test defines three [scenarios](https://k6.io/docs/using-k6/scenarios) to be executed. The `base` scenario (lines 74-82) applies the test load to the target application for `30s` invoking the `default` function and it is used to set a baseline for the application's performance. The `disrupt` scenario (lines 83-89) is executed starting at the `30` seconds of the test run. It invokes once the `disrupt` function to inject a fault in the HTTP requests of the target application. The `faults` scenario (lines 90-98) is also executed starting at the `30` seconds of the test run, reproducing the same workload than the `base` scenario but now under the effect of the faults introduced by the `disrupt` scenario.
 
 ```javascript
- 70     scenarios: {
- 71         base: {
- 72             executor: 'constant-arrival-rate',
- 73             rate: 100,
- 74             preAllocatedVUs: 10,
- 75             maxVUs: 100,
- 76             exec: "default",
- 77             startTime: '0s',
- 78             duration: "30s",
- 79         },
- 80         disrupt: {
- 81             executor: 'shared-iterations',
- 82             iterations: 1,
- 83             vus: 1,
- 84             exec: "disrupt",
- 85             startTime: "30s",
- 86         },
- 87         faults: {
- 88             executor: 'constant-arrival-rate',
- 89             rate: 100,
- 90             preAllocatedVUs: 10,
- 91             maxVUs: 100,
- 92             exec: "default",
- 93             startTime: '30s',
- 94             duration: "30s",
- 95         }
- 96      },
+ 73     scenarios: {
+ 74         base: {
+ 75             executor: 'constant-arrival-rate',
+ 76             rate: 100,
+ 77             preAllocatedVUs: 10,
+ 78             maxVUs: 100,
+ 79             exec: "default",
+ 80             startTime: '0s',
+ 81             duration: "30s",
+ 82         },
+ 83         disrupt: {
+ 84             executor: 'shared-iterations',
+ 85             iterations: 1,
+ 86             vus: 1,
+ 87             exec: "disrupt",
+ 88             startTime: "30s",
+ 89         },
+ 90         faults: {
+ 91             executor: 'constant-arrival-rate',
+ 92             rate: 100,
+ 93             preAllocatedVUs: 10,
+ 94             maxVUs: 100,
+ 95             exec: "default",
+ 96             startTime: '30s',
+ 97             duration: "30s",
+ 98         }
+ 99      },
  ```
 
  > Notice that the `disrupt` scenario uses a `shared-iterations` executor with one iteration and one `VU`. This setting ensures the `disrupt` function is executed only once. Executing this function multiples times concurrently may have unpredictable results.
 
-In order to facilitate the comparison of the results of each scenario, thresholds are defined (lines 97-102) for the `http_req_duration` and the `http_req_failed` metrics for each scenario. 
+In order to facilitate the comparison of the results of each scenario, thresholds are defined (lines 100-105) for the `http_req_duration` and the `http_req_failed` metrics for each scenario. 
 
 ```javascript
- 97      thresholds: {
- 98         'http_req_duration{scenario:base}': [],
- 99         'http_req_duration{scenario:faults}': [],
-100         'http_req_failed{scenario:base}': [],
-101         'http_req_failed{scenario:faults}': [],
-102      },
+100     thresholds: {
+101         'http_req_duration{scenario:base}': [],
+102         'http_req_duration{scenario:faults}': [],
+103         'http_req_failed{scenario:base}': [],
+104         'http_req_failed{scenario:faults}': [],
+105      },
 ```
 
 ## Results
