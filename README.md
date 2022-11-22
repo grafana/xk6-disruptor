@@ -31,5 +31,7 @@ In this way, xk6-disruptor make reliability tests repeatable, predictable and li
 
 Check the [get started guide](/docs/01-get-started/01-get-started.md) for instructions on how to install and use `xk6-disruptor`.
 
+The [Roadmap](/ROADMAP.md) presents the goals of the project for the month to come in terms of new functionalities and enhancements.
+
 If you are interested in contributing with the development of this project, check the [contributing guide](/docs/04-development/01-contributing.md)
 
