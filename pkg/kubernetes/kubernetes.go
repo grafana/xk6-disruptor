@@ -52,6 +52,12 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		return nil, err
 	}
 
+	// As per the discussion in [1] client side rate limiting is no longer required.
+	// Setting a large limit
+	// [1] https://github.com/kubernetes/kubernetes/issues/111880
+	config.QPS = 100
+	config.Burst = 150
+
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
