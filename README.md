@@ -13,7 +13,8 @@
 </div>
 
 <blockquote align="center">
-⚠️ <strong>Important:</strong> This project is still in its early stages and under active development. The API is subject to change, and there may be bugs. Use at your own risk. Thanks!
+⚠️ <strong>Important</strong> ⚠️ 
+<br>This project is still in its early stages and under active development. The API is subject to change, and there may be bugs. Use at your own risk. Thanks!
 </blockquote>
 
 This extension adds fault injection capabilities to [Grafana k6](https://github.com/grafana/k6). It implements the ideas of the Chaos Engineering discipline and enables Grafana k6 users to test their system's reliability under turbulent conditions.
