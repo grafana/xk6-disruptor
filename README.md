@@ -44,19 +44,19 @@ import { PodDisruptor } from "k6/x/disruptor";
 
 export default function () {
     // Create a new pod disruptor with a selector 
-    // that matches pods from the "default" namespace with the label "app=my-app".
+    // that matches pods from the "default" namespace with the label "app=my-app"
     const disruptor = new PodDisruptor({
         namespace: "default",
         select: { labels: { app: "my-app" } },
     });
 
-    // Check that there is at least one target.
+    // Check that there is at least one target
     const targets = disruptor.targets();
     if (targets.length != 1) {
         throw new Error("expected list to have one target");
     }
 
-    // Disrupt the targets by injecting HTTP faults into them for 30 seconds.
+    // Disrupt the targets by injecting HTTP faults into them for 30 seconds
     disruptor.injectHTTPFaults(
         {
             averageDelay: 500,
