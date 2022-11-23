@@ -34,10 +34,10 @@ Compared to other tools in the space, this one is purposely designed and built t
 
 All that plus great docs and sane APIs. Also, this project has been built to be a good citizen in the Grafana k6 ecosystem by:
 
-- Working well with other extensions (like [xk6-browser](https://github.com/grafana/xk6-browser))
+- Working well with other extensions.
 - Working well with k6's core concepts and features.
 
-Don't believe us? Check out the following example!
+You can check this out in the following example:
 
 ```js
 import { PodDisruptor } from "k6/x/disruptor";
@@ -70,9 +70,15 @@ export default function () {
 
 ## Features
 
-The project at this time is highly focused on providing an excellent experience to test systems running in Kubernetes. Other platforms are not supported at this time.
+The project, at this time, is intended to test systems running in Kubernetes. Other platforms are not supported at this time.
 
 Right now, it offers an [API](./docs/02-api/01-api.md) for creating disruptors that target one specific type of the component (e.g., Pods) and is capable of injecting different kinds of faults, such as errors in HTTP requests served by that component. Currently, disruptors exist for [Pods](/docs/02-api/02-pod-disruptor.md) and [Services](/docs/02-api/03-service-disruptor.md), but others will be introduced in the future as well as additional types of faults for the existing disruptors.
+
+## Use cases
+
+The main use case for xk6-disruptor is to test the resiliency of an application of diverse types of disruptions by reproducing their effects without reproducing their root causes. For example, inject delays in the HTTP requests an application makes to a service without having to stress or interfere with the infrastructure (network, nodes) on which the service runs or affect other workloads in unexpected ways.
+
+In this way, xk6-disruptor make reliability tests repeatable and predictable while limiting their blast radius. These are essential characteristics to incorporate these tests in the test suits of applications deployed on shared infrastructures such as staging environments.
 
 ## Learn more
 
