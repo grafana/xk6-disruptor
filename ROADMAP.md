@@ -42,7 +42,7 @@ These are goals we expect to achieve in the next 3-6 months (Q4/2022-Q1/2023).
 
    3.3. Improve validations in the API
 
-        Presently the API in golang code does not validate the parameter passed from the test script. This introduces several issues including the difficulty for users to detect when they are misspelling arguments. We plan to address this issue by creating an API layer between the test code (Javascript) and the extension implementation (golang) that will validate the parameters passed to any function.
+        Presently the API in Go code does not validate the parameter passed from the test script. This introduces several issues, including the difficulty for users to detect when they misspell arguments. We plan to address this issue by creating an API layer between the test code (JavaScript) and the extension implementation (Go) that will validate the parameters passed to any function.
 
         Follow-up issues:
         - https://github.com/grafana/xk6-disruptor/issues/45
@@ -53,7 +53,7 @@ These are goals we expect to achieve in 6-12 months (Q2/2023-Q3/2023).
 
 1. Add fault injection capabilities for other protocols
 
-   Presently the disruptor only supports fault injection for HTTP protocol. However, many microservice applications are moving to using gRPC. Additionally, for many use cases, the ability of injecting faults in database connections (e.g. Redis, MySQL) is relevant.
+   Presently the disruptor only supports fault injection for HTTP protocol. However, many microservice applications use gRPC. Additionally, the ability to inject faults in database connections (e.g., Redis, MySQL) is relevant for many use cases.
    Therefore, we plan to research available multi-protocol proxies and study how they could be incorporated in the architecture of the disruptor agent.
 
 2. Implement disruption for outgoing requests
@@ -66,7 +66,7 @@ These are goals we expect to achieve in 6-12 months (Q2/2023-Q3/2023).
 
 3. Implement interface between xk6-disruptor extension and the disruptor agent using grpc
 
-   Presently, this interface is implemented by executing commands in the agent's container.This is a handy option because it does not require the agent to be accessible outside the Kubernetes cluster (exec command uses Kubernetes API server as a gateway) and will probably stay as a default communication mechanism. However, it has some important limitations in terms of error handling and execution of asynchronous tasks. Grpc would offer a more robust foundation for the extension/agent communication. It could still be used by tests running inside the Kubernetes cluster, for example using the [k6-operator](https://github.com/grafana/k6-operator).
+   Presently, this interface is implemented by executing commands in the agent's container. This is a handy option because it does not require the agent to be accessible outside the Kubernetes cluster (exec command uses Kubernetes API server as a gateway) and will probably stay as a default communication mechanism. However, it has some important limitations in terms of error handling and execution of asynchronous tasks. gRPC would offer a more robust foundation for extension/agent communication. It could still be used by tests running inside the Kubernetes cluster, for example, using the [k6-operator](https://github.com/grafana/k6-operator).
 
    Follow-up issues:
    - https://github.com/grafana/xk6-disruptor/issues/52
