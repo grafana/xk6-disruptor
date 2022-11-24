@@ -1,0 +1,21 @@
+name: "xk6-disruptor"
+arch: "${GOARCH}"
+platform: "linux"
+version: "${VERSION}"
+version_schema: semver
+section: "default"
+maintainer: "Raintank Inc. d.b.a. Grafana Labs"
+description: |
+  Fault injection for k6 tests.
+depends:
+- ca-certificates
+homepage: "https://github.com/grafana/xk6-disruptor"
+license: "AGPL-3.0"
+contents:
+- src: build/xk6-disruptor
+  dst: /usr/bin/xk6-disruptor
+
+deb:
+  compression: xz
+  fields:
+    Bugs: https://github.com/grafana/xk6-disruptor/issues
