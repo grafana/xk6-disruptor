@@ -99,9 +99,9 @@ jobs:
           mkdir dist
           GOARCH=$(go env GOARCH)
           for FMT in "deb" "rpm"; do
-              nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target dist/
+              nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target dist/xk6-disruptor-${VERSION}-linux-${GOARCH}.${FMT}
           done
-          tar -zcf dist/xk6-disruptor-${VERSION}.tar.gz -C build xk6-disruptor
+          tar -zcf dist/xk6-disruptor-${VERSION}-linux-${GOARCH}.tar.gz -C build xk6-disruptor
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
