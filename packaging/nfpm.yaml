@@ -1,7 +1,7 @@
 name: "xk6-disruptor"
 arch: "${GOARCH}"
 platform: "linux"
-version: "${VERSION}"
+version: "${PKG_VERSION}"
 version_schema: semver
 section: "default"
 maintainer: "Raintank Inc. d.b.a. Grafana Labs"

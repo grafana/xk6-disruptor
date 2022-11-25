@@ -30,7 +30,9 @@ jobs:
           fetch-depth: 0
       - name: Get image version
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
              IMAGE_VERSION=$GITHUB_REF_NAME
           else
              IMAGE_VERSION="latest"
@@ -86,7 +88,7 @@ jobs:
           elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
               VERSION=$GITHUB_REF_NAME
           else
-              VERSION="$(git describe --tags --always --long --dirty)"
+              VERSION=""
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: build
@@ -99,10 +101,12 @@ jobs:
         run: |
           mkdir dist
           GOARCH=$(go env GOARCH)
+          COMMIT="$(git rev-parse --short HEAD)"
+          PKG_VERSION=${VERSION:-dev-$COMMIT}
           for FMT in "deb" "rpm"; do
-              nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target dist/xk6-disruptor-${VERSION}-linux-${GOARCH}.${FMT}
+              nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.${FMT}
           done
-          tar -zcf dist/xk6-disruptor-${VERSION}-linux-${GOARCH}.tar.gz -C build xk6-disruptor
+          tar -zcf dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.tar.gz -C build xk6-disruptor
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
