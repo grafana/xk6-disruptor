@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/internal/consts"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -127,7 +128,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 	agentContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "xk6-agent",
-			Image:           "ghcr.io/grafana/xk6-disruptor-agent",
+			Image:           consts.AgentImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities: &corev1.Capabilities{
