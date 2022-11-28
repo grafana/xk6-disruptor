@@ -26,7 +26,7 @@ This extension adds fault injection capabilities to [Grafana k6](https://github.
 Compared to other tools in the space, this one is purposely designed and built to provide the best experience for developers trying to make their systems more reliable:
 
 - Everything as code.
-  - No need to mess with YAML or learn a new DSL.
+  - No need to learn a new DSL.
 - Fast to adopt with no day-two surprises.
   - No need to deploy and maintain a fleet of agents or operators.
 - Easy to extend and integrate with other types of tests.
