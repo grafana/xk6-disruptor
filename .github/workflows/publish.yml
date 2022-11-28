@@ -104,7 +104,8 @@ jobs:
           COMMIT="$(git rev-parse --short HEAD)"
           PKG_VERSION=${VERSION:-dev-$COMMIT}
           for FMT in "deb" "rpm"; do
-              nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.${FMT}
+              TARGET="dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.${FMT}"
+              PKG_VERSION=$PKG_VERSION GOARCH=$GOARCH nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target $TARGET
           done
           tar -zcf dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.tar.gz -C build xk6-disruptor
       - name: Upload artifacts
