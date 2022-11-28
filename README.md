@@ -30,7 +30,7 @@ Compared to other tools in the space, this one is purposely designed and built t
 - Fast to adopt with no day-two surprises.
   - No need to deploy and maintain a fleet of agents or operators.
 - Easy to extend and integrate with other types of tests.
-  - No need to try to glue five tools together to get the job done.
+  - No need to try to glue multiple tools together to get the job done.
 
 All that plus great docs and sane APIs. Also, this project has been built to be a good citizen in the Grafana k6 ecosystem by:
 
