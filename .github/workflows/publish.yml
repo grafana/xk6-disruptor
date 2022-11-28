@@ -94,7 +94,7 @@ jobs:
       - name: build
         run: |
           XK6_BUILD_FLAGS='-ldflags "-X github.com/grafana/xk6-disruptor/pkg/internal/consts/Version='${VERSION}'"'
-          XK6_BUILD_FLAGS=$XK6_BUILD_FLAGS= xk6 build --with $(go list -m)=. --with github.com/grafana/xk6-kubernetes --output build/xk6-disruptor
+          XK6_BUILD_FLAGS=$XK6_BUILD_FLAGS xk6 build --with $(go list -m)=. --with github.com/grafana/xk6-kubernetes --output build/xk6-disruptor
       - name: package
         env:
           VERSION: ${{ env.VERSION }}
