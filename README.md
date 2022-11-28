@@ -69,7 +69,6 @@ export default function () {
 ```
 
 ## Features
-=======
 
 The project, at this time, is intended to test systems running in Kubernetes. Other platforms are not supported at this time.
 
