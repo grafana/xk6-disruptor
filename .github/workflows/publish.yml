@@ -91,23 +91,13 @@ jobs:
               VERSION=""
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: build
-        run: |
-          XK6_BUILD_FLAGS='-ldflags "-X github.com/grafana/xk6-disruptor/pkg/internal/consts.Version='${VERSION}'"'
-          XK6_BUILD_FLAGS=$XK6_BUILD_FLAGS xk6 build --with $(go list -m)=. --with github.com/grafana/xk6-kubernetes --output build/xk6-disruptor
-      - name: package
+      - name: build and package
         env:
           VERSION: ${{ env.VERSION }}
         run: |
-          mkdir dist
-          GOARCH=$(go env GOARCH)
           COMMIT="$(git rev-parse --short HEAD)"
           PKG_VERSION=${VERSION:-dev-$COMMIT}
-          for FMT in "deb" "rpm"; do
-              TARGET="dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.${FMT}"
-              PKG_VERSION=$PKG_VERSION GOARCH=$GOARCH nfpm package --config packaging/nfpm.yaml --packager "${FMT}" --target $TARGET
-          done
-          tar -zcf dist/xk6-disruptor-${PKG_VERSION}-linux-${GOARCH}.tar.gz -C build xk6-disruptor
+          ./build-package.sh -v $PKG_VERSION all
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:

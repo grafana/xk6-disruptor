@@ -1,5 +1,5 @@
 name: "xk6-disruptor"
-arch: "${GOARCH}"
+arch: amd64
 platform: "linux"
 version: "${PKG_VERSION}"
 version_schema: semver
@@ -12,7 +12,7 @@ depends:
 homepage: "https://github.com/grafana/xk6-disruptor"
 license: "AGPL-3.0"
 contents:
-- src: build/xk6-disruptor
+- src: "xk6-disruptor-linux-amd64"
   dst: /usr/bin/xk6-disruptor
 
 deb:
