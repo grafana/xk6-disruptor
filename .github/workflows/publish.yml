@@ -140,7 +140,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ env.VERSION }}
         run: |
-          MESSAGE="-m $(cat ./releases/${VERSION}.md)"
+          MESSAGE="$(cat ./releases/${VERSION}.md)"
           assets=()
           for asset in ./dist/*; do
             assets+=("-a" "$asset")
