@@ -23,6 +23,22 @@ Most of the development tasks can be executed using `make` targets:
 * `e2e`: executes the end-to-end tests. These tests can take several minutes.
 * `test`: executes unit tests
 
+## Extension/agent image versions dependencies
+
+The xk6-disruptor extension requires an agent image to inject it in its targets.
+
+It is important that the versions of the extension and the agent image are in sync to guarantee compatibility.
+
+When a new release of the disruptor is created by the CI the extension's binary and the agent image are created with matching versions. For example, extension version `v.0.x.0` will use agent image tagged as `v0.x.0`.
+
+Also, an agent image is generated automatically by the CI on each commit to the `main` branch and it is labeled as `latest`.
+
+If you checkout the extension source code and build it locally, it will by default reference the agent image labeled as `latest`.
+
+In this way, an extension built locally from the `main` branch will match the version of the `latest` agent image.
+
+Notice that if you build the agent image locally it will be by default also labeled as `latest`.
+
 ## Building the xk6-disruptor-agent image
 
 If you modify the [xk6-disruptor-agent](./02-architecture.md#xk6-disruptor-agent) you have to build the image and made it available in the test environment.
