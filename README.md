@@ -32,7 +32,7 @@ Compared to other tools in the space, this one is purposely designed and built t
 - Easy to extend and integrate with other [types of tests](https://k6.io/docs/test-types/introduction/).
   - No need to try to glue multiple tools together to get the job done.
 
-All that plus great docs and sane APIs. Also, this project has been built to be a good citizen in the Grafana k6 ecosystem by:
+Also, this project has been built to be a good citizen in the Grafana k6 ecosystem by:
 
 - Working well with other extensions.
 - Working well with k6's core concepts and features.
