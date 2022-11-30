@@ -174,11 +174,11 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-if [[ -e $BUILD ]]; then
+if [[ ! -e $BUILD ]]; then
    mkdir -p $BUILD
 fi
 
-if [[ -e $DIST ]]; then
+if [[ ! -e $DIST ]]; then
    mkdir -p $DIST
 fi
 
