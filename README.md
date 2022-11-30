@@ -21,7 +21,7 @@
 
 This extension adds fault injection capabilities to [Grafana k6](https://github.com/grafana/k6). It implements the ideas of the Chaos Engineering discipline and enables Grafana k6 users to test their system's reliability under turbulent conditions.
 
-## Why another Chaos Engineering tool?
+## Why xk6-disruptor?
 
 Compared to other tools in the space, this one is purposely designed and built to provide the best experience for developers trying to make their systems more reliable:
 
