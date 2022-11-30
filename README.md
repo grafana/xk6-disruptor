@@ -23,7 +23,7 @@ This extension adds fault injection capabilities to [Grafana k6](https://github.
 
 ## Why xk6-disruptor?
 
-Compared to other tools in the space, this one is purposely designed and built to provide the best experience for developers trying to make their systems more reliable:
+xk6-disruptor is purposely designed and built to provide the best experience for developers trying to make their systems more reliable:
 
 - Everything as code.
   - No need to learn a new DSL.
