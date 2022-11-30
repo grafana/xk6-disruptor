@@ -72,7 +72,7 @@ export default function () {
 
 The project, at this time, is intended to test systems running in Kubernetes. Other platforms are not supported at this time.
 
-Right now, it offers an [API](https://k6.io/docs/javascript-api/xk6-disruptor/api) for creating disruptors that target one specific type of the component (e.g., Pods) and is capable of injecting different kinds of [faults]([Services](https://k6.io/docs/javascript-api/xk6-disruptor/api/faults), such as errors in HTTP requests served by that component. 
+It offers an [API](https://k6.io/docs/javascript-api/xk6-disruptor/api) for creating disruptors that target one specific type of the component (e.g., Pods) and is capable of injecting different kinds of [faults]([Services](https://k6.io/docs/javascript-api/xk6-disruptor/api/faults), such as errors in HTTP requests served by that component. 
 Currently, disruptors exist for [Pods](https://k6.io/docs/javascript-api/xk6-disruptor/api/poddisruptor) and [[Services](https://k6.io/docs/javascript-api/xk6-disruptor/api/servicedisruptor), but others will be introduced in the future as well as additional types of faults for the existing disruptors.
 
 ## Use cases
