@@ -27,6 +27,9 @@ Compared to other tools in the space, this one is purposely designed and built t
 
 - Everything as code.
   - No need to learn a new DSL.
+  - Developers can use their usual development IDE
+  - Facilitate test reuse and sharing
+
 - Fast to adopt with no day-two surprises.
   - No need to deploy and maintain a fleet of agents or operators.
 - Easy to extend and integrate with other [types of tests](https://k6.io/docs/test-types/introduction/).
