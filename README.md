@@ -17,9 +17,7 @@ xk6-disruptor is an extension adds fault injection capabilities to [Grafana k6](
 
 <blockquote>
 ⚠️ <strong>Important</strong> ⚠️ 
-<br>This project is still in its early stages and under active development.
-<br>The API is subject to change, and there may be bugs.
-<br>Use at your own risk. Thanks!
+> ⚠️  xk6-disruptor is in the alpha stage, undergoing active development. We do not guarantee API compatibility between releases - your k6 scripts may need to be updated on each release until this extension reaches v1.0 release.
 </blockquote>
 
 ## Why xk6-disruptor?
