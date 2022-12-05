@@ -57,6 +57,9 @@ These are goals we expect to achieve in 6-12 months (Q2/2023-Q3/2023).
    Presently the disruptor only supports fault injection for HTTP protocol. However, many microservice applications use gRPC. Additionally, the ability to inject faults in database connections (e.g., Redis, MySQL) is relevant for many use cases.
    Therefore, we plan to research available multi-protocol proxies and study how they could be incorporated in the architecture of the disruptor agent.
 
+   Follow-up issues:
+   - https://github.com/grafana/xk6-disruptor/issues/61
+
 2. Implement disruption for outgoing requests
 
    It is a common use case to test the effect of known patterns of behavior in external dependencies (services that are not under the control of the organization). Using the xk6-disruptor, this could be accomplished by implementing a Dependency Disruptor, which instead of disrupting a service (or a group of pods), disrupts the requests these pods make to other services. This could be implemented using a similar approach used by the disruptor: inject a transparent proxy but in this case for outgoing requests.
