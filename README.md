@@ -42,8 +42,6 @@ Also, this project has been built to be a good citizen in the Grafana k6 ecosyst
 You can check this out in the following example:
 
 ```js
-import { PodDisruptor } from "k6/x/disruptor";
-
 export default function () {
     // Create a new pod disruptor with a selector 
     // that matches pods from the "default" namespace with the label "app=my-app"
@@ -59,12 +57,13 @@ export default function () {
     }
 
     // Disrupt the targets by injecting HTTP faults into them for 30 seconds
-const fault = {
+    const fault = {
         averageDelay: 500,
         errorRate: 0.1,
         errorCode: 500
- }
- disruptor.injectHTTPFaults(fault, 30)
+    }
+    disruptor.injectHTTPFaults(fault, 30)
+}
 ```
 
 ## Features
