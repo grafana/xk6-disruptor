@@ -11,7 +11,7 @@ build: test
 	xk6 build --with $(shell go list -m)=. --with github.com/grafana/xk6-kubernetes  --output build/k6
 
 build-agent:
-	CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
+	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
 
 clean:
 	rm -rf image/agent/build build/
