@@ -1,17 +1,18 @@
 work_dir = $(shell pwd)
 golangci_version = $(shell head -n 1 .golangci.yml | tr -d '\# ')
+arch = $(shell go env GOARCH)
 
 all: build
 
 agent-image: build-agent test
-	docker build -t ghcr.io/grafana/xk6-disruptor-agent:latest images/agent
+	docker build --build-arg TARGETARCH=${arch} -t ghcr.io/grafana/xk6-disruptor-agent:latest images/agent
 
 build: test
 	go install go.k6.io/xk6/cmd/xk6@latest
 	xk6 build --with $(shell go list -m)=. --with github.com/grafana/xk6-kubernetes  --output build/k6
 
 build-agent:
-	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent ./cmd/agent
+	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent
 
 clean:
 	rm -rf image/agent/build build/
