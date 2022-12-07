@@ -24,9 +24,9 @@ func Test_Exec(t *testing.T) {
 		{
 			title:        "return stderr",
 			cmd:          "sh",
-			args:         []string{"-c", "echo -n 'hello world' 2>&1"},
+			args:         []string{"-c", "echo hello world 2>&1"},
 			expectError:  false,
-			expectOutput: "hello world",
+			expectOutput: "hello world\n",
 		},
 		{
 			title:        "do not return output",
@@ -43,9 +43,9 @@ func Test_Exec(t *testing.T) {
 		{
 			title:        "return error code and stderr",
 			cmd:          "sh",
-			args:         []string{"-c", "echo -n 'hello world' 2>&1; kill -KILL $$"},
+			args:         []string{"-c", "echo hello world 2>&1; kill -KILL $$"},
 			expectError:  true,
-			expectOutput: "hello world",
+			expectOutput: "hello world\n",
 		},
 	}
 
