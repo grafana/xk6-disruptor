@@ -24,13 +24,13 @@ func Test_FakeExecutor(t *testing.T) {
 		},
 		{
 			title:   "command without arguments",
-			cmdLine: "/bin/true",
+			cmdLine: "true",
 			out:     []byte{},
 			err:     nil,
 		},
 		{
 			title:   "command returning error",
-			cmdLine: "/bin/false",
+			cmdLine: "false",
 			out:     []byte{},
 			err:     fmt.Errorf("command exited with rc 1"),
 		},
@@ -157,13 +157,13 @@ func Test_Callbacks(t *testing.T) {
 		},
 		{
 			title:   "command without arguments",
-			cmdLine: "/bin/true",
+			cmdLine: "true",
 			out:     []byte{},
 			err:     nil,
 		},
 		{
 			title:   "command returning error",
-			cmdLine: "/bin/false",
+			cmdLine: "false",
 			out:     []byte{},
 			err:     fmt.Errorf("command exited with rc 1"),
 		},
