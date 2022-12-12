@@ -1,6 +1,4 @@
 // Package process offers abstractions for the execution of processes
-// It facilitates the testing of components that execute processes by providing
-// mock implementations.
 package process
 
 import (
@@ -8,6 +6,8 @@ import (
 )
 
 // Executor offers methods for running processes
+// It facilitates the testing of components that execute processes by providing
+// mock implementations.
 type Executor interface {
 	// Exec executes a process and waits for its completion, returning
 	// the combined stdout and stdout
