@@ -36,7 +36,6 @@ func Test_PodDisruptor(t *testing.T) {
 		title       string
 		fault       disruptors.HTTPFault
 		options     disruptors.HTTPDisruptionOptions
-		expectError bool
 		checkCode   int
 	} {
 		{
@@ -49,7 +48,6 @@ func Test_PodDisruptor(t *testing.T) {
 			options:  disruptors.HTTPDisruptionOptions{
 				ProxyPort: 8080,
 			},
-			expectError: false,
 			checkCode: 500,
 		},
 	}
@@ -114,13 +112,8 @@ func Test_PodDisruptor(t *testing.T) {
 			// apply disruption in a go-routine as it is a blocking function
 			go func() {
 				err := disruptor.InjectHTTPFaults(tc.fault, 10, tc.options)
-				if tc.expectError && err == nil {
-					t.Errorf("should had failed")
-					return
-				}
-
-				if !tc.expectError && err != nil {
-					t.Errorf("failed: %v", err)
+				if err != nil {
+					t.Errorf("failed to setup disruptor: %v", err)
 					return
 				}
 			}()
