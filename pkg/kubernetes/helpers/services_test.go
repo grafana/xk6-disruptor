@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -190,6 +192,90 @@ func Test_WaitServiceReady(t *testing.T) {
 			}
 			// error expected and returned, it is ok
 			if tc.expectError && err != nil {
+				return
+			}
+		})
+	}
+}
+
+func Test_ServiceClient(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		host        string
+		service     string
+		port        int
+		namespace   string
+		method      string
+		path        string
+		reqBody     []byte
+		headers     map[string]string
+		respBody    []byte
+		respStatus  int
+		expectError bool
+		expectURL   string
+	}{
+		{
+			name:        "simple get request",
+			host:        "http://localhost:8001",
+			service:     "my-service",
+			port:        80,
+			namespace:   "default",
+			method:      "GET",
+			path:        "/path/to/request",
+			reqBody:     []byte{},
+			headers:     map[string]string{},
+			respBody:    []byte{},
+			respStatus:  200,
+			expectError: false,
+			expectURL:   "http://localhost:8001/api/v1/namespaces/default/services/my-service:80/proxy/path/to/request",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			testRequest, err := http.NewRequest(tc.method, tc.path, bytes.NewReader(tc.reqBody))
+			if err != nil {
+				t.Errorf("failed creating test request %v", err)
+				return
+			}
+
+			fakeClient := newFakeHTTPClient(tc.respStatus, tc.respBody)
+			serviceClient := newServiceProxy(
+				fakeClient,
+				tc.host,
+				tc.namespace,
+				tc.service,
+				tc.port,
+			)
+
+			_, err = serviceClient.Do(testRequest)
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should have failed")
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if fakeClient.Request.URL.String() != tc.expectURL {
+				t.Errorf("invalid request url. Expected: %s received: %s", tc.expectURL, fakeClient.Request.URL.String())
+				return
+			}
+
+			if fakeClient.Request.Method != tc.method {
+				t.Errorf("invalid request method. Expected: %s received: %s", tc.method, fakeClient.Request.Method)
 				return
 			}
 		})
