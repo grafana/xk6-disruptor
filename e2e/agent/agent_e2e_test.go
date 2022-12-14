@@ -67,7 +67,7 @@ func buildHttpbinPodWithDisruptorAgent(args []string) *corev1.Pod {
 }
 
 
-func Test_Xk6Agent(t *testing.T) {
+func Test_Agent(t *testing.T) {
 	t.Parallel()
 
 	cluster, err := fixtures.BuildCluster("e2e-xk6-agent")
