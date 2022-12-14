@@ -2,6 +2,9 @@ package helpers
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
 	"sync"
 
 	"k8s.io/client-go/kubernetes"
@@ -86,4 +89,36 @@ func NewFakeHelper(client kubernetes.Interface, namespace string, executor *Fake
 // Fakes the execution of a command in a pod
 func (f *fakeHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
 	return f.executor.Exec(pod, container, command, stdin)
+}
+
+// FakeHTTPClient implement a fake HTTPClient that returns a fixed response.
+// When invoked, it records the request it received
+type FakeHTTPClient struct {
+	Request  *http.Request
+	Response *http.Response
+	Err      error
+}
+
+// newFakeHTTPClient creates a FakeHTTPClient that returns a fixed response from a status and an content body
+func newFakeHTTPClient(status int, body []byte) *FakeHTTPClient {
+	response := &http.Response{
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		StatusCode:    status,
+		Status:        http.StatusText(status),
+		Body:          io.NopCloser(strings.NewReader(string(body))),
+		ContentLength: int64(len(body)),
+	}
+
+	return &FakeHTTPClient{
+		Response: response,
+		Err:      nil,
+	}
+}
+
+// Do implements HTTPClient's Do method
+func (f *FakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	f.Request = req
+	return f.Response, f.Err
 }

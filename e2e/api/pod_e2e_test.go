@@ -16,7 +16,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
 
-
 func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
 
@@ -32,27 +31,33 @@ func Test_PodDisruptor(t *testing.T) {
 		return
 	}
 
-	testCases := []struct{
-		title       string
-		fault       disruptors.HTTPFault
-		options     disruptors.HTTPDisruptionOptions
-		checkCode   int
-	} {
+	testCases := []struct {
+		title     string
+		fault     disruptors.HTTPFault
+		options   disruptors.HTTPDisruptionOptions
+		path      string
+		method    string
+		body      []byte
+		checkCode int
+	}{
 		{
-			title:  "Inject Http error 500",
-			fault: 	disruptors.HTTPFault{
+			title: "Inject Http error 500",
+			fault: disruptors.HTTPFault{
 				Port:      80,
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			},
-			options:  disruptors.HTTPDisruptionOptions{
+			options: disruptors.HTTPDisruptionOptions{
 				ProxyPort: 8080,
 			},
+			method:    "GET",
+			path:      "/status/200",
+			body:      []byte{},
 			checkCode: 500,
 		},
 	}
 
-	t.Cleanup(func(){
+	t.Cleanup(func() {
 		cluster.Delete()
 	})
 
@@ -61,25 +66,18 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+			namespace, err := k8s.Helpers().CreateRandomNamespace("test-pods")
 			if err != nil {
 				t.Errorf("error creating test namespace: %v", err)
 				return
 			}
-			defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
-
-			nodePort := cluster.AllocatePort()
-			if nodePort.HostPort == 0 {
-				t.Errorf("no nodeport available for test")
-				return
-			}
-			defer cluster.ReleasePort(nodePort)
+			defer k8s.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 			err = fixtures.DeployApp(
 				k8s,
-				ns,
+				namespace,
 				fixtures.BuildHttpbinPod(),
-				fixtures.BuildHttpbinService(nodePort.NodePort),
+				fixtures.BuildHttpbinService(),
 				30*time.Second,
 			)
 			if err != nil {
@@ -89,7 +87,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 			// create pod disruptor
 			selector := disruptors.PodSelector{
-				Namespace: ns,
+				Namespace: namespace,
 				Select: disruptors.PodAttributes{
 					Labels: map[string]string{
 						"app": "httpbin",
@@ -111,18 +109,26 @@ func Test_PodDisruptor(t *testing.T) {
 
 			// apply disruption in a go-routine as it is a blocking function
 			go func() {
-				err := disruptor.InjectHTTPFaults(tc.fault, 10, tc.options)
+				err := disruptor.InjectHTTPFaults(tc.fault, 60, tc.options)
 				if err != nil {
 					t.Errorf("failed to setup disruptor: %v", err)
 					return
 				}
 			}()
 
-			err = checks.CheckService(checks.ServiceCheck{
-				Port:         nodePort.HostPort,
-				Delay:        2 * time.Second,
-				ExpectedCode: tc.checkCode,
-			})
+			err = checks.CheckService(
+				k8s,
+				checks.ServiceCheck{
+					Namespace:    namespace,
+					Service:      "httpbin",
+					Port:         80,
+					Method:       tc.method,
+					Path:         tc.path,
+					Body:         tc.body,
+					Delay:        2 * time.Second,
+					ExpectedCode: tc.checkCode,
+				},
+			)
 			if err != nil {
 				t.Errorf("failed to access service: %v", err)
 				return

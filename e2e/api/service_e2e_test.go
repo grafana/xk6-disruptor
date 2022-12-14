@@ -38,14 +38,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}
 		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
-		nodePort := cluster.AllocatePort()
-		if nodePort.HostPort == 0 {
-			t.Errorf("no nodeport available for test")
-			return
-		}
-		defer cluster.ReleasePort(nodePort)
-
-		svc := fixtures.BuildHttpbinService(nodePort.NodePort)
+		svc := fixtures.BuildHttpbinService()
 		err = fixtures.DeployApp(
 			k8s,
 			ns,
@@ -84,11 +77,19 @@ func Test_ServiceDisruptor(t *testing.T) {
 			}
 		}()
 
-		err = checks.CheckService(checks.ServiceCheck{
-			Port:         nodePort.HostPort,
-			Delay:        2 * time.Second,
-			ExpectedCode: 500,
-		})
+		err = checks.CheckService(
+			k8s,
+			checks.ServiceCheck{
+				Namespace:    ns,
+				Service:      "httpbin",
+				Port:         80,
+				Method:       "GET",
+				Path:         "/status/200",
+				Body:         []byte{},
+				Delay:        2 * time.Second,
+				ExpectedCode: 500,
+			},
+		)
 		if err != nil {
 			t.Errorf("failed to access service: %v", err)
 			return
