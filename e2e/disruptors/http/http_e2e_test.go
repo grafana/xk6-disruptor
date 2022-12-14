@@ -97,23 +97,22 @@ func Test_InjectHttp500(t *testing.T) {
 		return
 	}
 
-	nodePort := cluster.AllocatePort()
-	if nodePort.HostPort == 0 {
-		t.Errorf("no nodeport available for test")
-		return
-	}
-	defer cluster.ReleasePort(nodePort)
-
-	err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(nodePort.NodePort), 20*time.Second)
+	err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(), 20*time.Second)
 	if err != nil {
 		t.Errorf("failed to create service: %v", err)
 		return
 	}
 
-	err = checks.CheckService(checks.ServiceCheck{
-		Port:         nodePort.HostPort,
-		ExpectedCode: 500,
-	})
+	err = checks.CheckService(
+		k8s,
+		checks.ServiceCheck{
+			Namespace:    ns,
+			Service:      "httpbin",
+			Port:         80,
+			Path:         "/status/200",
+			ExpectedCode: 500,
+		},
+	)
 
 	if err != nil {
 		t.Errorf("failed : %v", err)

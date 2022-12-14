@@ -35,7 +35,7 @@ func BuildHttpbinPod() *corev1.Pod {
 }
 
 // BuildHttpbinService returns a Service definition that exposes httpbin pods at the node port 32080
-func BuildHttpbinService(nodeport int32) *corev1.Service {
+func BuildHttpbinService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "httpbin",
@@ -50,9 +50,8 @@ func BuildHttpbinService(nodeport int32) *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name:     "http",
-					Port:     80,
-					NodePort: nodeport,
+					Name: "http",
+					Port: 80,
 				},
 			},
 		},
@@ -122,7 +121,7 @@ func BuildNginxPod() *corev1.Pod {
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
-func BuildNginxService(nodeport int32) *corev1.Service {
+func BuildNginxService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "nginx",
@@ -137,9 +136,8 @@ func BuildNginxService(nodeport int32) *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name:     "http",
-					Port:     80,
-					NodePort: nodeport,
+					Name: "http",
+					Port: 80,
 				},
 			},
 		},
