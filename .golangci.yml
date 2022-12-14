@@ -57,6 +57,7 @@ linters-settings:
       - G204 # exec with variable command
       - G404 # use of weak random number (not used for cryptographic purposes)
       - G112 # Potential Slowloris Attack
+      - G304 # Potential file inclusion via variable
   staticcheck:
     checks: ["all", "-SA1019"]
 

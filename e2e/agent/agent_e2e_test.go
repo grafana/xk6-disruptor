@@ -6,6 +6,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,6 +113,39 @@ func Test_Agent(t *testing.T) {
 						ExpectedCode: 500,
 					},
 				)
+			},
+		},
+		{
+			title: "Prevent execution of multiple commands",
+			cmd:   injectHTTP500,
+			check: func(k8s kubernetes.Kubernetes, ns string) error {
+				_, stderr, err := k8s.NamespacedHelpers(ns).Exec(
+					"httpbin",
+					"xk6-disruptor-agent",
+					[]string{
+						"xk6-disruptor-agent",
+						"http",
+						"--duration",
+						"300s",
+						"--rate",
+						"1.0",
+						"--error",
+						"500",
+						"--port",
+						"8080",
+						"--target",
+						"80",
+					},
+					[]byte{},
+				)
+				if err == nil {
+					return fmt.Errorf("command should had failed")
+				}
+
+				if !strings.Contains(string(stderr), "command is already in execution") {
+					return fmt.Errorf("unexpected error: %s: ", string(stderr))
+				}
+				return nil
 			},
 		},
 	}
