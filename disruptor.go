@@ -13,7 +13,7 @@ import (
 
 	"github.com/dop251/goja"
 
-	"github.com/grafana/xk6-disruptor/pkg/api/disruptors"
+	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 )
 
