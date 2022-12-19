@@ -3,7 +3,7 @@ package commands
 import (
 	"time"
 
-	"github.com/grafana/xk6-disruptor/pkg/disruptors/http"
+	"github.com/grafana/xk6-disruptor/pkg/agent/disruptors/http"
 	"github.com/spf13/cobra"
 )
 

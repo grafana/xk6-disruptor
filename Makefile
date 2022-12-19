@@ -17,8 +17,8 @@ build-agent:
 clean:
 	rm -rf image/agent/build build/
 	
-e2e-api: agent-image
-	go test -tags e2e ./e2e/api/...
+e2e-disruptors: agent-image
+	go test -tags e2e ./e2e/disruptors/...
 
 e2e-cluster:
 	go test -tags e2e ./e2e/cluster/...
@@ -29,7 +29,7 @@ e2e-agent: agent-image
 e2e-kubernetes:
 	go test -tags e2e ./e2e/kubernetes/...
 
-e2e: e2e-cluster e2e-kubernetes e2e-agent e2e-api
+e2e: e2e-cluster e2e-kubernetes e2e-agent e2e-disruptors
 
 format:
 	go fmt ./...
@@ -40,4 +40,4 @@ lint:
 test:
 	go test -race  ./...
 
-.PHONY: agent-image build build-agent clean e2e e2e-api e2e-cluster e2e-agent e2e-kubernetes format lint test
+.PHONY: agent-image build build-agent clean e2e e2e-disruptors e2e-cluster e2e-agent e2e-kubernetes format lint test

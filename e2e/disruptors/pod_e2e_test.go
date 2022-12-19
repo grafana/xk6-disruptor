@@ -10,7 +10,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/grafana/xk6-disruptor/pkg/api/disruptors"
+	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
