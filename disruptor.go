@@ -13,7 +13,7 @@ import (
 
 	"github.com/dop251/goja"
 
-	"github.com/grafana/xk6-disruptor/pkg/disruptors"
+	"github.com/grafana/xk6-disruptor/pkg/api"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 )
 
@@ -73,61 +73,23 @@ func (m *ModuleInstance) Exports() modules.Exports {
 func (m *ModuleInstance) newPodDisruptor(c goja.ConstructorCall) *goja.Object {
 	rt := m.vu.Runtime()
 
-	selector := disruptors.PodSelector{}
-	err := rt.ExportTo(c.Argument(0), &selector)
-	if err != nil {
-		common.Throw(rt,
-			fmt.Errorf("PodDisruptor constructor expects PodSelector as argument: %w", err))
-	}
-
-	options := disruptors.PodDisruptorOptions{}
-	err = rt.ExportTo(c.Argument(1), &options)
-	if err != nil {
-		common.Throw(rt,
-			fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as second argument: %w", err))
-	}
-	disruptor, err := disruptors.NewPodDisruptor(m.k8s, selector, options)
+	disruptor, err := api.NewPodDisruptor(rt, c, m.k8s)
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("error creating PodDisruptor: %w", err))
 	}
-
-	return rt.ToValue(disruptor).ToObject(rt)
+	return disruptor
 }
 
 // creates an instance of a ServiceDisruptor
 func (m *ModuleInstance) newServiceDisruptor(c goja.ConstructorCall) *goja.Object {
 	rt := m.vu.Runtime()
 
-	var service string
-	err := rt.ExportTo(c.Argument(0), &service)
-	if err != nil {
-		common.Throw(rt,
-			fmt.Errorf("ServiceDisruptor constructor expects service name (string) as first argument: %w", err))
-	}
-
-	var namespace string
-	err = rt.ExportTo(c.Argument(1), &namespace)
-	if err != nil {
-		common.Throw(rt,
-			fmt.Errorf("ServiceDisruptor constructor expects namespace (string) as second argument: %w", err))
-	}
-
-	options := disruptors.ServiceDisruptorOptions{}
-	// options argument is optional
-	if len(c.Arguments) > 2 {
-		err = rt.ExportTo(c.Argument(2), &options)
-		if err != nil {
-			common.Throw(rt,
-				fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as third argument: %w", err))
-		}
-	}
-
-	disruptor, err := disruptors.NewServiceDisruptor(m.k8s, service, namespace, options)
+	disruptor, err := api.NewServiceDisruptor(rt, c, m.k8s)
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("error creating ServiceDisruptor: %w", err))
 	}
 
-	return rt.ToValue(disruptor).ToObject(rt)
+	return disruptor
 }
 
 // Copied from ahmetb/kubectx source code:
