@@ -12,6 +12,10 @@ import (
 
 // NewPodDisruptor creates an instance of a PodDisruptor
 func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+	if c.Argument(0).Equals(goja.Null()) {
+		return nil, fmt.Errorf("PodDisruptor constructor expects a non null PodSelector argument")
+	}
+
 	selector := disruptors.PodSelector{}
 	err := rt.ExportTo(c.Argument(0), &selector)
 	if err != nil {
