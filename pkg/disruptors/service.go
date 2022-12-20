@@ -61,6 +61,9 @@ func NewServiceDisruptor(
 	namespace string,
 	options ServiceDisruptorOptions,
 ) (ServiceDisruptor, error) {
+	if service == "" {
+		return nil, fmt.Errorf("must specify a service name")
+	}
 	svc, err := k8s.CoreV1().
 		Services(namespace).
 		Get(k8s.Context(), service, metav1.GetOptions{})

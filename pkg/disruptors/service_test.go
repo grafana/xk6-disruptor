@@ -25,6 +25,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 
 	testCases := []struct {
 		title        string
+		serviceName  string
+		namespace    string
 		service      serviceDesc
 		options      ServiceDisruptorOptions
 		pods         []podDesc
@@ -32,10 +34,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 		expectedPods []string
 	}{
 		{
-			title: "one matching pod",
+			title:       "one matching pod",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
 			service: serviceDesc{
 				name:      "test-svc",
-				namespace: testNamespace,
+				namespace: "test-ns",
 				ports: []corev1.ServicePort{
 					{
 						Port:       80,
@@ -60,10 +64,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			expectedPods: []string{"pod-1"},
 		},
 		{
-			title: "no matching pod",
+			title:       "no matching pod",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
 			service: serviceDesc{
 				name:      "test-svc",
-				namespace: testNamespace,
+				namespace: "test-ns",
 				ports: []corev1.ServicePort{
 					{
 						Port:       80,
@@ -88,10 +94,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			expectedPods: []string{},
 		},
 		{
-			title: "no pods",
+			title:       "no pods",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
 			service: serviceDesc{
 				name:      "test-svc",
-				namespace: testNamespace,
+				namespace: "test-ns",
 				ports: []corev1.ServicePort{
 					{
 						Port:       80,
@@ -108,10 +116,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			expectedPods: []string{},
 		},
 		{
-			title: "pods in another namespace",
+			title:       "pods in another namespace",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
 			service: serviceDesc{
 				name:      "test-svc",
-				namespace: testNamespace,
+				namespace: "test-ns",
 				ports: []corev1.ServicePort{
 					{
 						Port:       80,
@@ -133,6 +143,66 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				},
 			},
 			expectError:  false,
+			expectedPods: []string{},
+		},
+		{
+			title:       "service does not exist",
+			serviceName: "other-svc",
+			namespace:   "test-ns",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: "test-ns",
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{},
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: "another-ns",
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError:  true,
+			expectedPods: []string{},
+		},
+		{
+			title:       "empty service name",
+			serviceName: "",
+			namespace:   "test-ns",
+			service: serviceDesc{
+				name:      "test-svc",
+				namespace: "test-ns",
+				ports: []corev1.ServicePort{
+					{
+						Port:       80,
+						TargetPort: intstr.FromInt(80),
+					},
+				},
+				selector: map[string]string{
+					"app": "test",
+				},
+			},
+			options: ServiceDisruptorOptions{},
+			pods: []podDesc{
+				{
+					name:      "pod-1",
+					namespace: "another-ns",
+					labels: map[string]string{
+						"app": "test",
+					},
+				},
+			},
+			expectError:  true,
 			expectedPods: []string{},
 		},
 	}
@@ -164,8 +234,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			tc.options.InjectTimeout = -1
 			d, err := NewServiceDisruptor(
 				k,
-				tc.service.name,
-				tc.service.namespace,
+				tc.serviceName,
+				tc.namespace,
 				tc.options,
 			)
 
