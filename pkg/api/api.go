@@ -58,7 +58,7 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 	if len(c.Arguments) > 2 {
 		err = rt.ExportTo(c.Argument(2), &options)
 		if err != nil {
-			return nil, fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as third argument: %w", err)
+			return nil, fmt.Errorf("ServiceDisruptor constructor expects ServiceDisruptorOptions as third argument: %w", err)
 		}
 	}
 
