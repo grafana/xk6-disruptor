@@ -180,6 +180,20 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			expectError: true,
 		},
 		{
+			description: "invalid constructor service name is not string",
+			script: `
+			new ServiceDisruptor(1, "default")
+			`,
+			expectError: true,
+		},
+		{
+			description: "invalid constructor namespace is not string",
+			script: `
+			new ServiceDisruptor("service", {})
+			`,
+			expectError: true,
+		},
+		{
 			description: "invalid constructor without arguments",
 			script: `
 			new ServiceDisruptor()

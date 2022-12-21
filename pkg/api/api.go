@@ -4,6 +4,7 @@ package api
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/dop251/goja"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
@@ -41,16 +42,23 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 	if len(c.Arguments) < 2 {
 		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
 	}
+
+	if c.Argument(0).ExportType().Kind() != reflect.String {
+		return nil, fmt.Errorf("ServiceDisruptor constructor expects service name to be a string")
+	}
 	var service string
 	err := rt.ExportTo(c.Argument(0), &service)
 	if err != nil {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects service name (string) as first argument: %w", err)
+		return nil, fmt.Errorf("invalid service name argument for ServiceDisruptor constructor: %w", err)
 	}
 
+	if c.Argument(1).ExportType().Kind() != reflect.String {
+		return nil, fmt.Errorf("ServiceDisruptor constructor expects namespace to be a string")
+	}
 	var namespace string
 	err = rt.ExportTo(c.Argument(1), &namespace)
 	if err != nil {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects namespace (string) as second argument: %w", err)
+		return nil, fmt.Errorf("invalid namespace argument for ServiceDisruptor constructor: %w", err)
 	}
 
 	options := disruptors.ServiceDisruptorOptions{}
