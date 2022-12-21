@@ -1,14 +1,16 @@
 package api
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/dop251/goja"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	"go.k6.io/k6/js/common"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -139,6 +141,96 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 			err = env.rt.ExportTo(value, &pd)
 			if err != nil {
 				t.Errorf("returned valued cannot be converted to PodDisruptor: %v", err)
+				return
+			}
+		})
+	}
+}
+
+func Test_ServiceDisruptorConstructor(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		description string
+		script      string
+		expectError bool
+	}{
+		{
+			description: "valid constructor",
+			script: `
+			const opts = {
+				injectTimeout: 0
+			}
+			new ServiceDisruptor("service", "default", opts)
+			`,
+			expectError: false,
+		},
+		{
+			description: "valid constructor without options",
+			script: `
+			new ServiceDisruptor("service", "default")
+			`,
+			expectError: false,
+		},
+		{
+			description: "invalid constructor without namespace",
+			script: `
+			new ServiceDisruptor("service")
+			`,
+			expectError: true,
+		},
+		{
+			description: "invalid constructor without arguments",
+			script: `
+			new ServiceDisruptor()
+			`,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+			env, err := testSetup()
+			if err != nil {
+				t.Errorf("error in test setup %v", err)
+				return
+			}
+
+			err = env.registerConstructor("ServiceDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
+				return NewServiceDisruptor(e.rt, c, e.k8s)
+			})
+			if err != nil {
+				t.Errorf("error in test setup %v", err)
+				return
+			}
+
+			// create a service because the ServiceDisruptor's constructor expects it to exist
+			svc := builders.NewServiceBuilder("service").Build()
+			_, _ = env.k8s.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
+
+			value, err := env.rt.RunString(tc.script)
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			// failed and it was expected, it is ok
+			if tc.expectError && err != nil {
+				return
+			}
+
+			var sd disruptors.ServiceDisruptor
+			err = env.rt.ExportTo(value, &sd)
+			if err != nil {
+				t.Errorf("returned valued cannot be converted to ServiceDisruptor: %v", err)
 				return
 			}
 		})
