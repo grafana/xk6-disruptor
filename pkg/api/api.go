@@ -38,6 +38,9 @@ func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Ku
 
 // NewServiceDisruptor creates an instance of a ServiceDisruptor
 func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+	if len(c.Arguments) < 2 {
+		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
+	}
 	var service string
 	err := rt.ExportTo(c.Argument(0), &service)
 	if err != nil {
