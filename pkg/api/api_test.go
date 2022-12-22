@@ -231,6 +231,16 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			`,
 			expectError: true,
 		},
+		{
+			description: "valid constructor malformed options",
+			script: `
+			const opts = {
+				timeout: 0
+			}
+			new ServiceDisruptor("service", "default", opts)
+			`,
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -75,6 +75,10 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 	options := disruptors.ServiceDisruptorOptions{}
 	// options argument is optional
 	if len(c.Arguments) > 2 {
+		err = IsCompatible(c.Argument(2).Export(), options)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
+		}
 		err = rt.ExportTo(c.Argument(2), &options)
 		if err != nil {
 			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
