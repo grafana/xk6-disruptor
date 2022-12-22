@@ -18,15 +18,26 @@ func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Ku
 	}
 
 	selector := disruptors.PodSelector{}
-	err := rt.ExportTo(c.Argument(0), &selector)
+	err := IsCompatible(c.Argument(0).Export(), selector)
 	if err != nil {
-		return nil, fmt.Errorf("PodDisruptor constructor expects PodSelector as argument: %w", err)
+		return nil, fmt.Errorf("invalid PodSelector: %w", err)
+	}
+	err = rt.ExportTo(c.Argument(0), &selector)
+	if err != nil {
+		return nil, fmt.Errorf("invalid PodSelector: %w", err)
 	}
 
 	options := disruptors.PodDisruptorOptions{}
-	err = rt.ExportTo(c.Argument(1), &options)
-	if err != nil {
-		return nil, fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as second argument: %w", err)
+	// options argument is optional
+	if len(c.Arguments) > 1 {
+		err = IsCompatible(c.Argument(1).Export(), options)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PodDisruptorOptions: %w", err)
+		}
+		err = rt.ExportTo(c.Argument(1), &options)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PodDisruptorOptions: %w", err)
+		}
 	}
 
 	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
@@ -66,7 +77,7 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 	if len(c.Arguments) > 2 {
 		err = rt.ExportTo(c.Argument(2), &options)
 		if err != nil {
-			return nil, fmt.Errorf("ServiceDisruptor constructor expects ServiceDisruptorOptions as third argument: %w", err)
+			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
 		}
 	}
 

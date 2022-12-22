@@ -99,6 +99,37 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 			`,
 			expectError: true,
 		},
+		{
+			description: "invalid constructor with malformed selector",
+			script: `
+			const selector = {
+				namespace: "namespace",
+				labels: {
+					app: "app"
+				}
+			}
+			new PodDisruptor(selector)
+			`,
+			expectError: true,
+		},
+		{
+			description: "invalid constructor with malformed options",
+			script: `
+			const selector = {
+				namespace: "namespace",
+				select: {
+					labels: {
+						app: "app"
+					}
+				}
+			}
+			const opts = {
+				timeout: 0
+			}
+			new PodDisruptor(selector, opts)
+			`,
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {
