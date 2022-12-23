@@ -4,24 +4,112 @@ package api
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/dop251/goja"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"go.k6.io/k6/js/common"
 )
+
+// converts a goja.Value into a object. target is expected to be a pointer
+func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error {
+	// get the value pointed to by the target and check for compatibility
+	err := IsCompatible(value.Export(), reflect.ValueOf(target).Elem().Interface())
+	if err != nil {
+		return err
+	}
+
+	err = rt.ExportTo(value, target)
+	return err
+}
+
+// JsPodDisruptor implements the JS interface for PodDisruptor
+type JsPodDisruptor struct {
+	rt        *goja.Runtime
+	disruptor disruptors.PodDisruptor
+}
+
+// Targets is a proxy method. Validates parameters and delegates to the PodDisruptor method
+func (p *JsPodDisruptor) Targets() goja.Value {
+	targets, err := p.disruptor.Targets()
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("error getting kubernetes config path: %w", err))
+	}
+
+	return p.rt.ToValue(targets)
+}
+
+// InjectHTTPFaults is a proxy method. Validates parameters and delegates to the PodDisruptor method
+func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
+	if len(args) < 2 {
+		common.Throw(p.rt, fmt.Errorf("HTTPFault and duration are required"))
+	}
+
+	fault := disruptors.HTTPFault{}
+	err := convertValue(p.rt, args[0], &fault)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
+	}
+
+	duration := args[1].ToInteger()
+	if duration < 0 {
+		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	}
+
+	opts := disruptors.HTTPDisruptionOptions{}
+	if len(args) > 2 {
+		err = convertValue(p.rt, args[2], &opts)
+		if err != nil {
+			common.Throw(p.rt, fmt.Errorf("invalid options argument: %w", err))
+		}
+	}
+
+	err = p.disruptor.InjectHTTPFaults(fault, uint(duration), opts)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
+	}
+}
+
+func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*goja.Object, error) {
+	jsDisruptor := JsPodDisruptor{
+		rt:        rt,
+		disruptor: disruptor,
+	}
+
+	obj := rt.NewObject()
+	err := obj.Set("targets", jsDisruptor.Targets)
+	if err != nil {
+		return nil, err
+	}
+
+	err = obj.Set("injectHTTPFaults", jsDisruptor.InjectHTTPFaults)
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, nil
+}
 
 // NewPodDisruptor creates an instance of a PodDisruptor
 func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+	if c.Argument(0).Equals(goja.Null()) {
+		return nil, fmt.Errorf("PodDisruptor constructor expects a non null PodSelector argument")
+	}
+
 	selector := disruptors.PodSelector{}
-	err := rt.ExportTo(c.Argument(0), &selector)
+	err := convertValue(rt, c.Argument(0), &selector)
 	if err != nil {
-		return nil, fmt.Errorf("PodDisruptor constructor expects PodSelector as argument: %w", err)
+		return nil, fmt.Errorf("invalid PodSelector: %w", err)
 	}
 
 	options := disruptors.PodDisruptorOptions{}
-	err = rt.ExportTo(c.Argument(1), &options)
-	if err != nil {
-		return nil, fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as second argument: %w", err)
+	// options argument is optional
+	if len(c.Arguments) > 1 {
+		err = convertValue(rt, c.Argument(1), &options)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PodDisruptorOptions: %w", err)
+		}
 	}
 
 	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
@@ -29,29 +117,38 @@ func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Ku
 		return nil, fmt.Errorf("error creating PodDisruptor: %w", err)
 	}
 
-	return rt.ToValue(disruptor).ToObject(rt), nil
+	obj, err := buildJsPodDisruptor(rt, disruptor)
+	if err != nil {
+		return nil, fmt.Errorf("error creating PodDisruptor: %w", err)
+	}
+
+	return obj, nil
 }
 
 // NewServiceDisruptor creates an instance of a ServiceDisruptor
 func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+	if len(c.Arguments) < 2 {
+		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
+	}
+
 	var service string
-	err := rt.ExportTo(c.Argument(0), &service)
+	err := convertValue(rt, c.Argument(0), &service)
 	if err != nil {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects service name (string) as first argument: %w", err)
+		return nil, fmt.Errorf("invalid service name argument for ServiceDisruptor constructor: %w", err)
 	}
 
 	var namespace string
-	err = rt.ExportTo(c.Argument(1), &namespace)
+	err = convertValue(rt, c.Argument(1), &namespace)
 	if err != nil {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects namespace (string) as second argument: %w", err)
+		return nil, fmt.Errorf("invalid namespace argument for ServiceDisruptor constructor: %w", err)
 	}
 
 	options := disruptors.ServiceDisruptorOptions{}
 	// options argument is optional
 	if len(c.Arguments) > 2 {
-		err = rt.ExportTo(c.Argument(2), &options)
+		err = convertValue(rt, c.Argument(2), &options)
 		if err != nil {
-			return nil, fmt.Errorf("PodDisruptor constructor expects PodDisruptorOptions as third argument: %w", err)
+			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
 		}
 	}
 
@@ -60,5 +157,14 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}
 
-	return rt.ToValue(disruptor).ToObject(rt), nil
+	// ServiceDisruptor is a wrapper to PodDisruptor, so we can use it for building a JsPodDisruptor.
+	// Notice that when [1] is implemented, this will make even more sense because there will be only
+	// a Disruptor interface.
+	// [1] https://github.com/grafana/xk6-disruptor/issues/60
+	obj, err := buildJsPodDisruptor(rt, disruptor)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
+	}
+
+	return obj, nil
 }

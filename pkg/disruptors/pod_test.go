@@ -15,14 +15,13 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-func Test_PodSelectorWithLabels(t *testing.T) {
+func Test_PodSelector(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title        string
 		pods         []podDesc
-		labels       map[string]string
-		exclude      map[string]string
+		selector     PodSelector
 		expectError  bool
 		expectedPods []string
 	}{
@@ -35,8 +34,13 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 					labels:    map[string]string{},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			expectError:  false,
 			expectedPods: []string{},
@@ -52,8 +56,13 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 					},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			expectError:  false,
 			expectedPods: []string{},
@@ -63,14 +72,19 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			pods: []podDesc{
 				{
 					name:      "pod-with-app-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 					},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			expectError: false,
 			expectedPods: []string{
@@ -82,21 +96,26 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			pods: []podDesc{
 				{
 					name:      "pod-with-app-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 					},
 				},
 				{
 					name:      "another-pod-with-app-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 					},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
 			},
 			expectError: false,
 			expectedPods: []string{
@@ -109,14 +128,14 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			pods: []podDesc{
 				{
 					name:      "pod-with-app-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 					},
 				},
 				{
 					name:      "pod-with-dev-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 						"env": "dev",
@@ -124,16 +143,21 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 				},
 				{
 					name:      "pod-with-prod-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 						"env": "prod",
 					},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
-				"env": "dev",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+						"env": "dev",
+					},
+				},
 			},
 			expectError: false,
 			expectedPods: []string{
@@ -141,11 +165,11 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			},
 		},
 		{
-			title: "exclude environment",
+			title: "exclude labels",
 			pods: []podDesc{
 				{
 					name:      "pod-with-dev-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 						"env": "dev",
@@ -153,23 +177,65 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 				},
 				{
 					name:      "pod-with-prod-label",
-					namespace: testNamespace,
+					namespace: "test-ns",
 					labels: map[string]string{
 						"app": "test",
 						"env": "prod",
 					},
 				},
 			},
-			labels: map[string]string{
-				"app": "test",
-			},
-			exclude: map[string]string{
-				"env": "prod",
+			selector: PodSelector{
+				Namespace: "test-ns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				Exclude: PodAttributes{
+					Labels: map[string]string{
+						"env": "prod",
+					},
+				},
 			},
 			expectError: false,
 			expectedPods: []string{
 				"pod-with-dev-label",
 			},
+		},
+		{
+			title: "Namespace selector",
+			pods: []podDesc{
+				{
+					name:      "pod-in-test-ns",
+					namespace: "test-ns",
+					labels:    map[string]string{},
+				},
+				{
+					name:      "another-pod-in-test-ns",
+					namespace: "test-ns",
+					labels:    map[string]string{},
+				},
+				{
+					name:      "pod-in-another-namespace",
+					namespace: "other-ns",
+					labels:    map[string]string{},
+				},
+			},
+			selector: PodSelector{
+				Namespace: "test-ns",
+			},
+			expectError: false,
+			expectedPods: []string{
+				"pod-in-test-ns",
+				"another-pod-in-test-ns",
+			},
+		},
+		{
+			title:        "Empty selector",
+			pods:         []podDesc{},
+			selector:     PodSelector{},
+			expectError:  true,
+			expectedPods: []string{},
 		},
 	}
 
@@ -189,17 +255,7 @@ func Test_PodSelectorWithLabels(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(pods...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
-			selector := PodSelector{
-				Namespace: testNamespace,
-				Select: PodAttributes{
-					Labels: tc.labels,
-				},
-				Exclude: PodAttributes{
-					Labels: tc.exclude,
-				},
-			}
-
-			targets, err := selector.GetTargets(k)
+			targets, err := tc.selector.GetTargets(k)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return

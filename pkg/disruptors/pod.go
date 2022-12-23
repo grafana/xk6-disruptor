@@ -3,6 +3,7 @@ package disruptors
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -85,6 +86,13 @@ func (s *PodSelector) buildLabelSelector() (labels.Selector, error) {
 
 // GetTargets retrieves the names of the targets of the disruptor
 func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
+	// validate selector
+	emptySelect := reflect.DeepEqual(s.Select, PodAttributes{})
+	emptyExclude := reflect.DeepEqual(s.Exclude, PodAttributes{})
+	if s.Namespace == "" && emptySelect && emptyExclude {
+		return nil, fmt.Errorf("namespace, select and exclude attributes in pod selector cannot all be empty")
+	}
+
 	namespace := s.Namespace
 	if namespace == "" {
 		namespace = metav1.NamespaceDefault
