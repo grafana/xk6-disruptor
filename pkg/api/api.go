@@ -131,20 +131,14 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
 	}
 
-	if c.Argument(0).ExportType().Kind() != reflect.String {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects service name to be a string")
-	}
 	var service string
-	err := rt.ExportTo(c.Argument(0), &service)
+	err := convertValue(rt, c.Argument(0), &service)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service name argument for ServiceDisruptor constructor: %w", err)
 	}
 
-	if c.Argument(1).ExportType().Kind() != reflect.String {
-		return nil, fmt.Errorf("ServiceDisruptor constructor expects namespace to be a string")
-	}
 	var namespace string
-	err = rt.ExportTo(c.Argument(1), &namespace)
+	err = convertValue(rt, c.Argument(1), &namespace)
 	if err != nil {
 		return nil, fmt.Errorf("invalid namespace argument for ServiceDisruptor constructor: %w", err)
 	}
@@ -152,11 +146,7 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 	options := disruptors.ServiceDisruptorOptions{}
 	// options argument is optional
 	if len(c.Arguments) > 2 {
-		err = IsCompatible(c.Argument(2).Export(), options)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
-		}
-		err = rt.ExportTo(c.Argument(2), &options)
+		err = convertValue(rt, c.Argument(2), &options)
 		if err != nil {
 			return nil, fmt.Errorf("invalid ServiceDisruptorOptions: %w", err)
 		}
@@ -167,5 +157,14 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}
 
-	return rt.ToValue(disruptor).ToObject(rt), nil
+	// ServiceDisruptor is a wrapper to PodDisruptor, so we can use it for building a JsPodDisruptor.
+	// Notice that when [1] is implemented, this will make even more sense because there will be only
+	// a Disruptor interface.
+	// [1] https://github.com/grafana/xk6-disruptor/issues/60
+	obj, err := buildJsPodDisruptor(rt, disruptor)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
+	}
+
+	return obj, nil
 }

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	"go.k6.io/k6/js/common"
@@ -181,6 +180,8 @@ const opts = {
 const d = new PodDisruptor(selector, opts)
 `
 
+// This function tests covers both PodDisruptor and ServiceDisruptor because
+// they are wrapped by the same methods in the API.
 func Test_JsPodDisruptor(t *testing.T) {
 	t.Parallel()
 
@@ -259,7 +260,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				error: 500,       // this is should be 'errorCode'
 			}
-			
+
 			d.injectHTTPFaults(fault, 1)
 			`,
 			expectError: true,
@@ -393,7 +394,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			svc := builders.NewServiceBuilder("service").Build()
 			_, _ = env.k8s.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
 
-			value, err := env.rt.RunString(tc.script)
+			_, err = env.rt.RunString(tc.script)
 
 			if !tc.expectError && err != nil {
 				t.Errorf("failed %v", err)
@@ -402,18 +403,6 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
-				return
-			}
-
-			// failed and it was expected, it is ok
-			if tc.expectError && err != nil {
-				return
-			}
-
-			var sd disruptors.ServiceDisruptor
-			err = env.rt.ExportTo(value, &sd)
-			if err != nil {
-				t.Errorf("returned valued cannot be converted to ServiceDisruptor: %v", err)
 				return
 			}
 		})
