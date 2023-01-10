@@ -56,10 +56,6 @@ func newWithContext(ctx context.Context, config *rest.Config) (Kubernetes, error
 		return nil, err
 	}
 
-	if ctx == nil {
-		ctx = context.TODO()
-	}
-
 	return &k8s{
 		config:    config,
 		Interface: client,
@@ -71,6 +67,7 @@ func newWithContext(ctx context.Context, config *rest.Config) (Kubernetes, error
 func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 	return NewFromConfig(Config{
 		Kubeconfig: kubeconfig,
+		Context:    context.TODO(),
 	})
 }
 
