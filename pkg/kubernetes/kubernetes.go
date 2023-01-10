@@ -4,6 +4,7 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
@@ -23,14 +24,6 @@ type Kubernetes interface {
 	NamespacedHelpers(namespace string) helpers.Helpers
 }
 
-// Config defines the configuration for creating a Kubernetes instance
-type Config struct {
-	// Context for executing kubernetes operations
-	Context context.Context
-	// Path to Kubernetes access configuration
-	Kubeconfig string
-}
-
 // k8s Holds the reference to the helpers for interacting with kubernetes
 type k8s struct {
 	config *rest.Config
@@ -38,8 +31,8 @@ type k8s struct {
 	ctx context.Context
 }
 
-// newWithContext returns a Kubernetes instance configured with the provided kubeconfig.
-func newWithContext(ctx context.Context, config *rest.Config) (Kubernetes, error) {
+// newFromConfig returns a Kubernetes instance configured with the provided kubeconfig.
+func newFromConfig(ctx context.Context, config *rest.Config) (Kubernetes, error) {
 	// As per the discussion in [1] client side rate limiting is no longer required.
 	// Setting a large limit
 	// [1] https://github.com/kubernetes/kubernetes/issues/111880
@@ -64,21 +57,13 @@ func newWithContext(ctx context.Context, config *rest.Config) (Kubernetes, error
 }
 
 // NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
-func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
-	return NewFromConfig(Config{
-		Kubeconfig: kubeconfig,
-		Context:    context.TODO(),
-	})
-}
-
-// NewFromConfig returns a Kubernetes instance configured with the given options
-func NewFromConfig(c Config) (Kubernetes, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", c.Kubeconfig)
+func NewFromKubeconfig(ctx context.Context, kubeconfig string) (Kubernetes, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return newWithContext(c.Context, config)
+	return newFromConfig(ctx, config)
 }
 
 // New returns a Kubernetes instance or an error when no config is eligible to be used.
@@ -88,17 +73,20 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 // 3. $HOME/.kube/config file.
 func New(ctx context.Context) (Kubernetes, error) {
 	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		kubeConfigPath, getConfigErr := getConfigPath()
-		if getConfigErr != nil {
-			return nil, fmt.Errorf("error getting kubernetes config path: %w", getConfigErr)
-		}
-		return NewFromConfig(Config{
-			Context:    ctx,
-			Kubeconfig: kubeConfigPath,
-		})
+	if err == nil {
+		return newFromConfig(ctx, k8sConfig)
 	}
-	return newWithContext(ctx, k8sConfig)
+
+	if !errors.Is(err, rest.ErrNotInCluster) {
+		return nil, err
+	}
+
+	kubeConfigPath, getConfigErr := getConfigPath()
+	if getConfigErr != nil {
+		return nil, fmt.Errorf("error getting kubernetes config path: %w", getConfigErr)
+	}
+
+	return NewFromKubeconfig(ctx, kubeConfigPath)
 }
 
 func checkK8sVersion(config *rest.Config) error {
