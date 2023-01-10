@@ -38,8 +38,8 @@ type k8s struct {
 	ctx context.Context
 }
 
-// New returns a Kubernetes instance configured with the provided kubeconfig.
-func New(ctx context.Context, config *rest.Config) (Kubernetes, error) {
+// newWithContext returns a Kubernetes instance configured with the provided kubeconfig.
+func newWithContext(ctx context.Context, config *rest.Config) (Kubernetes, error) {
 	// As per the discussion in [1] client side rate limiting is no longer required.
 	// Setting a large limit
 	// [1] https://github.com/kubernetes/kubernetes/issues/111880
@@ -81,7 +81,27 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		return nil, err
 	}
 
-	return New(c.Context, config)
+	return newWithContext(c.Context, config)
+}
+
+// New returns a Kubernetes instance or an error when no config is eligible to be used.
+// there are three ways of loading the kubernetes config, using the order as they are described below
+// 1. in-cluster config, from serviceAccount token.
+// 2. KUBECONFIG environment variable.
+// 3. $HOME/.kube/config file.
+func New(ctx context.Context) (Kubernetes, error) {
+	k8sConfig, err := rest.InClusterConfig()
+	if err != nil {
+		kubeConfigPath, getConfigErr := getConfigPath()
+		if getConfigErr != nil {
+			return nil, fmt.Errorf("error getting kubernetes config path: %w", getConfigErr)
+		}
+		return NewFromConfig(Config{
+			Context:    ctx,
+			Kubeconfig: kubeConfigPath,
+		})
+	}
+	return newWithContext(ctx, k8sConfig)
 }
 
 func checkK8sVersion(config *rest.Config) error {
