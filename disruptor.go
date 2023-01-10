@@ -3,10 +3,7 @@
 package disruptor
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
@@ -40,18 +37,11 @@ var (
 
 // NewModuleInstance returns a new instance of the disruptor module for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
-	kubeConfigPath, err := getKubernetesConfigPath()
-	if err != nil {
-		common.Throw(vu.Runtime(), fmt.Errorf("error getting kubernetes config path: %w", err))
-	}
-	cfg := kubernetes.Config{
-		Context:    vu.Context(),
-		Kubeconfig: kubeConfigPath,
-	}
-	k8s, err := kubernetes.NewFromConfig(cfg)
+	k8s, err := kubernetes.New(vu.Context())
 	if err != nil {
 		common.Throw(vu.Runtime(), fmt.Errorf("error creating Kubernetes helper: %w", err))
 	}
+
 	return &ModuleInstance{
 		vu:  vu,
 		k8s: k8s,
@@ -90,28 +80,4 @@ func (m *ModuleInstance) newServiceDisruptor(c goja.ConstructorCall) *goja.Objec
 	}
 
 	return disruptor
-}
-
-// Copied from ahmetb/kubectx source code:
-// https://github.com/ahmetb/kubectx/blob/29850e1a75cb5cad8d93f74a4114311eb9feba9f/internal/kubeconfig/kubeconfigloader.go#L59
-func getKubernetesConfigPath() (string, error) {
-	// KUBECONFIG env var
-	if v := os.Getenv("KUBECONFIG"); v != "" {
-		list := filepath.SplitList(v)
-		if len(list) > 1 {
-			// TODO KUBECONFIG=file1:file2 currently not supported
-			return "", errors.New("multiple files in KUBECONFIG are currently not supported")
-		}
-		return v, nil
-	}
-
-	// default path
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = os.Getenv("USERPROFILE") // windows
-	}
-	if home == "" {
-		return "", errors.New("HOME or USERPROFILE environment variable not set")
-	}
-	return filepath.Join(home, ".kube", "config"), nil
 }

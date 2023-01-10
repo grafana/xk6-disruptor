@@ -26,7 +26,7 @@ func Test_Kubernetes(t *testing.T) {
 	}
 	defer cluster.Delete()
 
-	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -36,7 +36,7 @@ func Test_Kubernetes(t *testing.T) {
 
 	// Test Creating a random namespace
 	t.Run("Create Random Namespace", func(t *testing.T) {
-		k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+		k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), kubeconfig)
 		if err != nil {
 			t.Errorf("error creating kubernetes client: %v", err)
 			return
@@ -209,7 +209,7 @@ func Test_UnsupportedKubernetesVersion(t *testing.T) {
 	}
 	defer cluster.Delete()
 
-	_, err = kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	_, err = kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
 	if err == nil {
 		t.Errorf("should had failed creating kubernetes client")
 		return

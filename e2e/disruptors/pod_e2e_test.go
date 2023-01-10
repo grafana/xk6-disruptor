@@ -25,7 +25,7 @@ func Test_PodDisruptor(t *testing.T) {
 		return
 	}
 
-	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
