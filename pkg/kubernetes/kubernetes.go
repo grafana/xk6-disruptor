@@ -38,20 +38,8 @@ type k8s struct {
 	ctx context.Context
 }
 
-// NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
-func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
-	return NewFromConfig(Config{
-		Kubeconfig: kubeconfig,
-	})
-}
-
-// NewFromConfig returns a Kubernetes instance configured with the given options
-func NewFromConfig(c Config) (Kubernetes, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", c.Kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
+// New returns a Kubernetes instance configured with the provided kubeconfig.
+func New(ctx context.Context, config *rest.Config) (Kubernetes, error) {
 	// As per the discussion in [1] client side rate limiting is no longer required.
 	// Setting a large limit
 	// [1] https://github.com/kubernetes/kubernetes/issues/111880
@@ -68,7 +56,6 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		return nil, err
 	}
 
-	ctx := c.Context
 	if ctx == nil {
 		ctx = context.TODO()
 	}
@@ -78,6 +65,23 @@ func NewFromConfig(c Config) (Kubernetes, error) {
 		Interface: client,
 		ctx:       ctx,
 	}, nil
+}
+
+// NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
+func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
+	return NewFromConfig(Config{
+		Kubeconfig: kubeconfig,
+	})
+}
+
+// NewFromConfig returns a Kubernetes instance configured with the given options
+func NewFromConfig(c Config) (Kubernetes, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", c.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(c.Context, config)
 }
 
 func checkK8sVersion(config *rest.Config) error {

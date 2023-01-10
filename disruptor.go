@@ -15,6 +15,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/api"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 func init() {
@@ -40,18 +41,28 @@ var (
 
 // NewModuleInstance returns a new instance of the disruptor module for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
-	kubeConfigPath, err := getKubernetesConfigPath()
+	var (
+		k8s       kubernetes.Kubernetes
+		createErr error
+	)
+	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
-		common.Throw(vu.Runtime(), fmt.Errorf("error getting kubernetes config path: %w", err))
+		kubeConfigPath, err := getKubernetesConfigPath()
+		if err != nil {
+			common.Throw(vu.Runtime(), fmt.Errorf("error getting kubernetes config path: %w", err))
+		}
+		k8s, createErr = kubernetes.NewFromConfig(kubernetes.Config{
+			Context:    vu.Context(),
+			Kubeconfig: kubeConfigPath,
+		})
+	} else {
+		k8s, createErr = kubernetes.New(vu.Context(), k8sConfig)
 	}
-	cfg := kubernetes.Config{
-		Context:    vu.Context(),
-		Kubeconfig: kubeConfigPath,
-	}
-	k8s, err := kubernetes.NewFromConfig(cfg)
-	if err != nil {
+
+	if createErr != nil {
 		common.Throw(vu.Runtime(), fmt.Errorf("error creating Kubernetes helper: %w", err))
 	}
+
 	return &ModuleInstance{
 		vu:  vu,
 		k8s: k8s,
