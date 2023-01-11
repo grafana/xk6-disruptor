@@ -7,6 +7,7 @@ DIST="dist"
 PKG=""
 NAME="xk6-disruptor"
 OS=$(go env GOOS)
+VERSION="latest"
 
 function usage() {
 cat << EOF
@@ -30,6 +31,8 @@ options:
   -o, --os: target operating systems (valid options linux, darwing. Defaults to GOOS)
   -p, --pkg: package format (valid options: deb, rpm, tgz)
   -v, --version: package version in semver formatf
+  -y, --binary: name of the binary (default is name-os-arch)
+
 
 EOF
 }
@@ -53,7 +56,7 @@ function build() {
   local version=$3
   local binary=$4
   if [[ -z $binary ]]; then
-    binary="$name-$os-$arch"
+    binary="$NAME-$os-$arch"
   fi
 
   #start sub shell to create its own environment
@@ -163,6 +166,10 @@ while [[ $# -gt 0 ]]; do
       VERSION="$2"
       shift
       ;;
+    -y|--binary)
+      BINARY="$2"
+      shift
+      ;;
     -*|--*)
       error "Unknown option $1"
       ;;
@@ -212,10 +219,10 @@ fi
 
 case $CMD in
    "build")
-      build $OS $ARCH $VERSION
+      build $OS $ARCH $VERSION $BINARY
       ;;
     "pack")
-      package $OS $ARCH $PKG $VERSION
+      package $OS $ARCH $PKG $VERSION $BINARY
       ;;
     "all")
       package linux amd64 deb $VERSION
