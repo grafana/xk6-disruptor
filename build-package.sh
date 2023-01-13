@@ -28,7 +28,7 @@ options:
   -c, --config: nfpm config file (defaults to packaging/nfpm.yaml) 
   -d, --dist: directory to place packages (defaults to 'dist'. Created if it does not exist)
   -n, --name: package base name. Defaults to 'xk6-disruptor'
-  -o, --os: target operating systems (valid options linux, darwing. Defaults to GOOS)
+  -o, --os: target operating systems (valid options linux, darwing, windows. Defaults to GOOS)
   -p, --pkg: package format (valid options: deb, rpm, tgz)
   -v, --version: package version in semver formatf
   -y, --binary: name of the binary (default is name-os-arch)
@@ -122,6 +122,9 @@ function package() {
     tgz)
       tar -zcf "$DIST/$NAME-${version}-${os}-${arch}.tar.gz" -C $BUILD $binary
       ;;
+    zip)
+      zip -rq9j "$DIST/$NAME-${version}-${os}-${arch}.zip" "$BUILD/$binary"
+    ;;
     *)
       error "invalid package format only 'deb', 'rpm' and 'tgz' are accepted"
   esac
@@ -150,15 +153,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     -o|--os)
       OS="$2"
-      if [[ ! $OS =~ linux|darwin ]]; then
-        error "supported operating systems are 'linux' and 'darwin'"
+      if [[ ! $OS =~ linux|darwini|windows ]]; then
+        error "supported operating systems are 'linux', 'darwin' and 'windows'"
       fi
       shift
       ;;
     -p|--pkg)
       PKG="$2"
-      if [[ ! $PKG =~ deb|rpm|tgz ]]; then
-        error "supported package formats are  'deb', 'rpm' and 'tgz'"
+      if [[ ! $PKG =~ deb|rpm|tgz|zip ]]; then
+        error "supported package formats are  'deb', 'rpm', 'tgz' and 'zip'"
       fi
       shift
       ;;
@@ -231,6 +234,7 @@ case $CMD in
       package linux arm64 tgz $VERSION
       package darwin amd64 tgz $VERSION
       package darwin arm64 tgz $VERSION
+      package windows amd64 zip $VERSION $NAME-windows-amd64.exe
       ;;
     *)
       error "supported commands are 'build', 'pack' and 'all'"
