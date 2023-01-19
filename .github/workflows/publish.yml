@@ -24,6 +24,9 @@ jobs:
       permissions:
         contents: read
         packages: write
+      outputs:
+        version: ${{ steps.export-version.outputs.version}}
+        pkg_version: ${{ steps.export-version.outputs.pkg_version }}
       steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -43,7 +46,7 @@ jobs:
       - name: Install nfpm (dep and rpm package builder)
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.16.0
-      - name: get package version
+      - name: get-version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
               VERSION="${{ github.event.inputs.version }}"
@@ -52,22 +55,23 @@ jobs:
           else
               VERSION=""
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: build and package disruptor
-        env:
-          VERSION: ${{ env.VERSION }}
-        run: |
           COMMIT="$(git rev-parse --short HEAD)"
           PKG_VERSION=${VERSION:-dev-$COMMIT}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
+      - name: build and package disruptor
+        env:
+          PKG_VERSION: ${{ env.PKG_VERSION }}
+        run: |
           ./build-package.sh -v $PKG_VERSION all
       - name: Build and package agent
         env:
-          VERSION: ${{ env.VERSION }}
+          PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
           for ARCH in "amd64" "arm64"; do
             AGENT="xk6-disruptor-agent"
             GOARCH=$ARCH CGO_ENABLED=0 go build -o build/$AGENT-linux-$ARCH ./cmd/agent
-            tar -zcf dist/$AGENT-${VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
+            tar -zcf dist/$AGENT-${PKG_VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
           done
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
@@ -75,6 +79,15 @@ jobs:
           name: binaries
           path: dist/
           retention-days: 7
+      - name: Export version
+        id: export-version
+        env:
+          VERSION: ${{ env.VERSION }}
+          PKG_VERSION: ${{ env.PKG_VERSION }}
+        run: |
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
 
   build-windows-installer:
     runs-on: windows-2019
@@ -123,7 +136,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -131,14 +143,8 @@ jobs:
           fetch-depth: 0
       - name: Get image version
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-              VERSION="${{ github.event.inputs.version }}"
-          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-             VERSION=$GITHUB_REF_NAME
-          else
-             VERSION="latest"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=${{needs.build-binaries.outputs.version}}" >> $GITHUB_ENV
+          echo "PKG_VERSION=${{needs.build-binaries.outputs.pkg_version}}" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker buildx
@@ -152,16 +158,18 @@ jobs:
       - name: Build and push disruptor image
         env:
           VERSION: ${{ env.VERSION }}
+          PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
           IMAGE_TAG="$REGISTRY/$DISRUPTOR_IMAGE_NAME:$VERSION"
-          cat dist/xk6-disruptor-${VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/disruptor/build/
+          cat dist/xk6-disruptor-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/disruptor/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/disruptor --push
       - name: Build and push agent image
         env:
           VERSION: ${{ env.VERSION }}
+          PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
           IMAGE_TAG="$REGISTRY/$AGENT_IMAGE_NAME:$VERSION"
-          cat dist/xk6-disruptor-agent-${VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/agent/build/
+          cat dist/xk6-disruptor-agent-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/agent/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/agent --push
 
   release-packages:
