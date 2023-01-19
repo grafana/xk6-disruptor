@@ -7,10 +7,6 @@ all: build
 agent-image: build-agent test
 	docker build --build-arg TARGETARCH=${arch} -t ghcr.io/grafana/xk6-disruptor-agent:latest images/agent
 
-disruptor-image:
-	./build-package.sh -o linux -a ${arch} -v latest -b image/dist/build build
-	docker build --build-arg TARGETARCH=${arch} -t ghcr.io/grafana/xk6-disruptor:latest images/disruptor
-
 build: test
 	go install go.k6.io/xk6/cmd/xk6@latest
 	xk6 build --with $(shell go list -m)=. --with github.com/grafana/xk6-kubernetes  --output build/k6
