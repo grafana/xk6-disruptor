@@ -132,13 +132,13 @@ jobs:
       - name: Get image version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-              IMAGE_VERSION="${{ github.event.inputs.version }}"
+              VERSION="${{ github.event.inputs.version }}"
           elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-             IMAGE_VERSION=$GITHUB_REF_NAME
+             VERSION=$GITHUB_REF_NAME
           else
-             IMAGE_VERSION="latest"
+             VERSION="latest"
           fi
-          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker buildx
