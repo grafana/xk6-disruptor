@@ -166,6 +166,7 @@ jobs:
           PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
           IMAGE_TAG="$REGISTRY/$DISRUPTOR_IMAGE_NAME:$VERSION"
+          mkdir images/disruptor/build/
           cat dist/xk6-disruptor-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/disruptor/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/disruptor --push
       - name: Build and push agent image
@@ -174,6 +175,7 @@ jobs:
           PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
           IMAGE_TAG="$REGISTRY/$AGENT_IMAGE_NAME:$VERSION"
+          mkdir images/agent/build/
           cat dist/xk6-disruptor-agent-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/agent/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/agent --push
 
