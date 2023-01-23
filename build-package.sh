@@ -67,7 +67,7 @@ function build() {
 
    export GOARCH=$arch
    export GOOS=$os
-   export XK6_BUILD_FLAGS='-ldflags "-X github.com/grafana/xk6-disruptor/pkg/internal/consts.Version='${version}'"'
+   export XK6_BUILD_FLAGS='-ldflags "-w -s -X github.com/grafana/xk6-disruptor/pkg/internal/consts.Version='${version}'"'
    xk6 build --with $(go list -m)=. --with github.com/grafana/xk6-kubernetes --output $BUILD/$binary
   )
 }
