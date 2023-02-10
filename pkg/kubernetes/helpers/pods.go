@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,12 +22,17 @@ import (
 type PodHelper interface {
 	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating
 	// if the status was reached. If the pod is Failed returns error.
-	WaitPodRunning(name string, timeout time.Duration) (bool, error)
+	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
 	// a given timeout until the container is running
-	AttachEphemeralContainer(podName string, container corev1.EphemeralContainer, timeout time.Duration) error
+	AttachEphemeralContainer(
+		ctx context.Context,
+		podName string,
+		container corev1.EphemeralContainer,
+		timeout time.Duration,
+	) error
 }
 
 // podConditionChecker defines a function that checks if a pod satisfies a condition
@@ -34,6 +40,7 @@ type podConditionChecker func(*corev1.Pod) (bool, error)
 
 // waitForCondition watches a Pod in a namespace until a podConditionChecker is satisfied or a timeout expires
 func (h *helpers) waitForCondition(
+	ctx context.Context,
 	namespace string,
 	name string,
 	timeout time.Duration,
@@ -44,7 +51,7 @@ func (h *helpers) waitForCondition(
 	}.AsSelector()
 
 	watcher, err := h.client.CoreV1().Pods(namespace).Watch(
-		h.ctx,
+		ctx,
 		metav1.ListOptions{
 			FieldSelector: selector.String(),
 		},
@@ -77,8 +84,9 @@ func (h *helpers) waitForCondition(
 	}
 }
 
-func (h *helpers) WaitPodRunning(name string, timeout time.Duration) (bool, error) {
+func (h *helpers) WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error) {
 	return h.waitForCondition(
+		ctx,
 		h.namespace,
 		name,
 		timeout,
@@ -132,12 +140,13 @@ func (h *helpers) Exec(
 }
 
 func (h *helpers) AttachEphemeralContainer(
+	ctx context.Context,
 	podName string,
 	container corev1.EphemeralContainer,
 	timeout time.Duration,
 ) error {
 	pod, err := h.client.CoreV1().Pods(h.namespace).Get(
-		h.ctx,
+		ctx,
 		podName,
 		metav1.GetOptions{},
 	)
@@ -162,7 +171,7 @@ func (h *helpers) AttachEphemeralContainer(
 	}
 
 	_, err = h.client.CoreV1().Pods(h.namespace).Patch(
-		h.ctx,
+		ctx,
 		pod.Name,
 		types.StrategicMergePatchType,
 		patch,
@@ -177,6 +186,7 @@ func (h *helpers) AttachEphemeralContainer(
 		return nil
 	}
 	running, err := h.waitForCondition(
+		ctx,
 		h.namespace,
 		podName,
 		timeout,

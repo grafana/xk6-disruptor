@@ -143,7 +143,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
-				return NewPodDisruptor(e.rt, c, e.k8s)
+				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)
@@ -279,7 +279,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
-				return NewPodDisruptor(e.rt, c, e.k8s)
+				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)
@@ -383,7 +383,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("ServiceDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
-				return NewServiceDisruptor(e.rt, c, e.k8s)
+				return NewServiceDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)

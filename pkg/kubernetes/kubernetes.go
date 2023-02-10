@@ -3,7 +3,6 @@
 package kubernetes
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -19,7 +18,6 @@ import (
 // Adding helper functions for common tasks
 type Kubernetes interface {
 	kubernetes.Interface
-	Context() context.Context
 	Helpers() helpers.Helpers
 	NamespacedHelpers(namespace string) helpers.Helpers
 }
@@ -28,11 +26,10 @@ type Kubernetes interface {
 type k8s struct {
 	config *rest.Config
 	kubernetes.Interface
-	ctx context.Context
 }
 
 // newFromConfig returns a Kubernetes instance configured with the provided kubeconfig.
-func newFromConfig(ctx context.Context, config *rest.Config) (Kubernetes, error) {
+func newFromConfig(config *rest.Config) (Kubernetes, error) {
 	// As per the discussion in [1] client side rate limiting is no longer required.
 	// Setting a large limit
 	// [1] https://github.com/kubernetes/kubernetes/issues/111880
@@ -52,18 +49,17 @@ func newFromConfig(ctx context.Context, config *rest.Config) (Kubernetes, error)
 	return &k8s{
 		config:    config,
 		Interface: client,
-		ctx:       ctx,
 	}, nil
 }
 
 // NewFromKubeconfig returns a Kubernetes instance configured with the kubeconfig pointed by the given path
-func NewFromKubeconfig(ctx context.Context, kubeconfig string) (Kubernetes, error) {
+func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return newFromConfig(ctx, config)
+	return newFromConfig(config)
 }
 
 // New returns a Kubernetes instance or an error when no config is eligible to be used.
@@ -71,10 +67,10 @@ func NewFromKubeconfig(ctx context.Context, kubeconfig string) (Kubernetes, erro
 // 1. in-cluster config, from serviceAccount token.
 // 2. KUBECONFIG environment variable.
 // 3. $HOME/.kube/config file.
-func New(ctx context.Context) (Kubernetes, error) {
+func New() (Kubernetes, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err == nil {
-		return newFromConfig(ctx, k8sConfig)
+		return newFromConfig(k8sConfig)
 	}
 
 	if !errors.Is(err, rest.ErrNotInCluster) {
@@ -86,7 +82,7 @@ func New(ctx context.Context) (Kubernetes, error) {
 		return nil, fmt.Errorf("error getting kubernetes config path: %w", getConfigErr)
 	}
 
-	return NewFromKubeconfig(ctx, kubeConfigPath)
+	return NewFromKubeconfig(kubeConfigPath)
 }
 
 func checkK8sVersion(config *rest.Config) error {
@@ -108,15 +104,9 @@ func checkK8sVersion(config *rest.Config) error {
 	return nil
 }
 
-// Returns the context for executing k8s actions
-func (k *k8s) Context() context.Context {
-	return k.ctx
-}
-
 // Helpers returns Helpers for the default namespace
 func (k *k8s) Helpers() helpers.Helpers {
 	return helpers.NewHelper(
-		k.ctx,
 		k.Interface,
 		k.config,
 		"default",
@@ -126,7 +116,6 @@ func (k *k8s) Helpers() helpers.Helpers {
 // NamespacedHelpers returns helpers for the given namespace
 func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
 	return helpers.NewHelper(
-		k.ctx,
 		k.Interface,
 		k.config,
 		namespace,

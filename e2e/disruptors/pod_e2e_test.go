@@ -25,7 +25,7 @@ func Test_PodDisruptor(t *testing.T) {
 		return
 	}
 
-	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -66,7 +66,7 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			namespace, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+			namespace, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-pods")
 			if err != nil {
 				t.Errorf("error creating test namespace: %v", err)
 				return
@@ -95,7 +95,7 @@ func Test_PodDisruptor(t *testing.T) {
 				},
 			}
 			options := disruptors.PodDisruptorOptions{}
-			disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
+			disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
 			if err != nil {
 				t.Errorf("error creating selector: %v", err)
 				return

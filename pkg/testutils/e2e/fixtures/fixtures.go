@@ -156,7 +156,7 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 	}
 
 	// wait for the service to be ready for accepting requests
-	err = k8s.NamespacedHelpers(ns).WaitServiceReady(svc.Name, timeout)
+	err = k8s.NamespacedHelpers(ns).WaitServiceReady(context.TODO(), svc.Name, timeout)
 	if err != nil {
 		return fmt.Errorf("error waiting for service %s: %w", svc.Name, err)
 	}
@@ -176,6 +176,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 	}
 
 	running, err := k8s.NamespacedHelpers(ns).WaitPodRunning(
+		context.TODO(),
 		pod.Name,
 		timeout,
 	)

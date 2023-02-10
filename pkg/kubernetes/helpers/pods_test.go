@@ -68,7 +68,7 @@ func TestPods_Wait(t *testing.T) {
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(context.TODO(), client, nil, testNamespace)
+			h := NewHelper(client, nil, testNamespace)
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
@@ -79,6 +79,7 @@ func TestPods_Wait(t *testing.T) {
 			}(tc)
 
 			result, err := h.WaitPodRunning(
+				context.TODO(),
 				tc.name,
 				tc.timeout,
 			)
@@ -159,7 +160,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			client := fake.NewSimpleClientset(pod)
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(context.TODO(), client, nil, testNamespace)
+			h := NewHelper(client, nil, testNamespace)
 
 			// add watcher to update ephemeral container's status
 			go func(tc TestCase) {
@@ -174,6 +175,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			}(tc)
 
 			err := h.AttachEphemeralContainer(
+				context.TODO(),
 				tc.podName,
 				corev1.EphemeralContainer{},
 				tc.timeout,

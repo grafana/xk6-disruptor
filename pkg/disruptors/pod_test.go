@@ -255,7 +255,7 @@ func Test_PodSelector(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(pods...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
-			targets, err := tc.selector.GetTargets(k)
+			targets, err := tc.selector.GetTargets(context.TODO(), k)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return

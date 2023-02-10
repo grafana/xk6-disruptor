@@ -26,7 +26,7 @@ func Test_Kubernetes(t *testing.T) {
 	}
 	defer cluster.Delete()
 
-	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -36,13 +36,13 @@ func Test_Kubernetes(t *testing.T) {
 
 	// Test Creating a random namespace
 	t.Run("Create Random Namespace", func(t *testing.T) {
-		k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), kubeconfig)
+		k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
 		if err != nil {
 			t.Errorf("error creating kubernetes client: %v", err)
 			return
 		}
 		prefix := "test"
-		ns, err := k8s.Helpers().CreateRandomNamespace(prefix)
+		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), prefix)
 		if err != nil {
 			t.Errorf("unexpected error creating namespace: %v", err)
 			return
@@ -54,7 +54,7 @@ func Test_Kubernetes(t *testing.T) {
 
 	// Test Wait Service Ready helper
 	t.Run("Wait Service Ready", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace("test-")
+		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
@@ -85,7 +85,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// wait for the service to be ready for accepting requests
-		err = k8s.NamespacedHelpers(ns).WaitServiceReady("nginx", time.Second*20)
+		err = k8s.NamespacedHelpers(ns).WaitServiceReady(context.TODO(), "nginx", time.Second*20)
 		if err != nil {
 			t.Errorf("error waiting for service nginx: %v", err)
 			return
@@ -109,7 +109,7 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Exec Command", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace("test-")
+		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
@@ -141,7 +141,7 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Attach Ephemeral Container", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace("test-")
+		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
@@ -164,7 +164,7 @@ func Test_Kubernetes(t *testing.T) {
 			},
 		}
 
-		err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer("paused", ephemeral, 15*time.Second)
+		err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer(context.TODO(), "paused", ephemeral, 15*time.Second)
 		if err != nil {
 			t.Errorf("error attaching ephemeral container to pod: %v", err)
 			return
@@ -209,7 +209,7 @@ func Test_UnsupportedKubernetesVersion(t *testing.T) {
 	}
 	defer cluster.Delete()
 
-	_, err = kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+	_, err = kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err == nil {
 		t.Errorf("should had failed creating kubernetes client")
 		return
