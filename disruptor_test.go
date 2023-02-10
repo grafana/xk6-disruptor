@@ -36,7 +36,6 @@ func testVU() modules.VU {
 			SystemTags: metrics.NewSystemTagSet(metrics.TagVU),
 		},
 		Logger: testLog,
-		Tags:   lib.NewTagMap(nil),
 	}
 
 	return &modulestest.VU{
