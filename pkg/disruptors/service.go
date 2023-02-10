@@ -1,6 +1,7 @@
 package disruptors
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -23,6 +24,7 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
+	ctx          context.Context
 	service      string
 	namespace    string
 	k8s          kubernetes.Kubernetes
@@ -52,6 +54,7 @@ func getTargetPort(ports []corev1.ServicePort, port uint) (uint, error) {
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
 func NewServiceDisruptor(
+	ctx context.Context,
 	k8s kubernetes.Kubernetes,
 	service string,
 	namespace string,
@@ -62,7 +65,7 @@ func NewServiceDisruptor(
 	}
 	svc, err := k8s.CoreV1().
 		Services(namespace).
-		Get(k8s.Context(), service, metav1.GetOptions{})
+		Get(ctx, service, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +82,13 @@ func NewServiceDisruptor(
 		InjectTimeout: options.InjectTimeout,
 	}
 
-	podDisruptor, err := NewPodDisruptor(k8s, podSelector, podOpts)
+	podDisruptor, err := NewPodDisruptor(ctx, k8s, podSelector, podOpts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pod disruptor %w", err)
 	}
 
 	return &serviceDisruptor{
+		ctx:          ctx,
 		service:      service,
 		namespace:    namespace,
 		k8s:          k8s,
@@ -96,7 +100,7 @@ func NewServiceDisruptor(
 func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	svc, err := d.k8s.CoreV1().
 		Services(d.namespace).
-		Get(d.k8s.Context(), d.service, metav1.GetOptions{})
+		Get(d.ctx, d.service, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

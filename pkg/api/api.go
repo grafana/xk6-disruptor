@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -92,7 +93,12 @@ func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*
 }
 
 // NewPodDisruptor creates an instance of a PodDisruptor
-func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+func NewPodDisruptor(
+	ctx context.Context,
+	rt *goja.Runtime,
+	c goja.ConstructorCall,
+	k8s kubernetes.Kubernetes,
+) (*goja.Object, error) {
 	if c.Argument(0).Equals(goja.Null()) {
 		return nil, fmt.Errorf("PodDisruptor constructor expects a non null PodSelector argument")
 	}
@@ -112,7 +118,7 @@ func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Ku
 		}
 	}
 
-	disruptor, err := disruptors.NewPodDisruptor(k8s, selector, options)
+	disruptor, err := disruptors.NewPodDisruptor(ctx, k8s, selector, options)
 	if err != nil {
 		return nil, fmt.Errorf("error creating PodDisruptor: %w", err)
 	}
@@ -126,7 +132,12 @@ func NewPodDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Ku
 }
 
 // NewServiceDisruptor creates an instance of a ServiceDisruptor
-func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernetes.Kubernetes) (*goja.Object, error) {
+func NewServiceDisruptor(
+	ctx context.Context,
+	rt *goja.Runtime,
+	c goja.ConstructorCall,
+	k8s kubernetes.Kubernetes,
+) (*goja.Object, error) {
 	if len(c.Arguments) < 2 {
 		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
 	}
@@ -152,7 +163,7 @@ func NewServiceDisruptor(rt *goja.Runtime, c goja.ConstructorCall, k8s kubernete
 		}
 	}
 
-	disruptor, err := disruptors.NewServiceDisruptor(k8s, service, namespace, options)
+	disruptor, err := disruptors.NewServiceDisruptor(ctx, k8s, service, namespace, options)
 	if err != nil {
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}

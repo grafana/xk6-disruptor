@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -77,7 +76,6 @@ func NewFakeHelper(client kubernetes.Interface, namespace string, executor *Fake
 	helpers := &helpers{
 		client:    client,
 		namespace: namespace,
-		ctx:       context.TODO(),
 	}
 
 	return &fakeHelper{

@@ -2,8 +2,6 @@
 package helpers
 
 import (
-	"context"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -20,15 +18,13 @@ type helpers struct {
 	config    *rest.Config
 	client    kubernetes.Interface
 	namespace string
-	ctx       context.Context
 }
 
 // NewHelper creates a set of helpers on the default namespace
-func NewHelper(ctx context.Context, client kubernetes.Interface, config *rest.Config, namespace string) Helpers {
+func NewHelper(client kubernetes.Interface, config *rest.Config, namespace string) Helpers {
 	return &helpers{
 		client:    client,
 		config:    config,
 		namespace: namespace,
-		ctx:       ctx,
 	}
 }

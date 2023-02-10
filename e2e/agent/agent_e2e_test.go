@@ -81,7 +81,7 @@ func Test_Agent(t *testing.T) {
 		_ = cluster.Delete()
 	})
 
-	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
@@ -154,7 +154,7 @@ func Test_Agent(t *testing.T) {
 		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
-			ns, err := k8s.Helpers().CreateRandomNamespace("test-")
+			ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
 			if err != nil {
 				t.Errorf("error creating test namespace: %v", err)
 				return

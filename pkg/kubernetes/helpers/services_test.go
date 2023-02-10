@@ -179,9 +179,9 @@ func Test_WaitServiceReady(t *testing.T) {
 				}
 			}(tc)
 
-			h := NewHelper(context.TODO(), client, nil, "default")
+			h := NewHelper(client, nil, "default")
 
-			err := h.WaitServiceReady("service", tc.timeout)
+			err := h.WaitServiceReady(context.TODO(), "service", tc.timeout)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

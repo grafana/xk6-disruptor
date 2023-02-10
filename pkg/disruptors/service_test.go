@@ -1,6 +1,7 @@
 package disruptors
 
 import (
+	"context"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -233,6 +234,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			// Force no wait for agent injection as the mock client will not update its status
 			tc.options.InjectTimeout = -1
 			d, err := NewServiceDisruptor(
+				context.TODO(),
 				k,
 				tc.serviceName,
 				tc.namespace,
@@ -420,6 +422,7 @@ func Test_HTTPFaultInjection(t *testing.T) {
 			// Force no wait for agent injection as the mock client will not update its status
 			tc.options.InjectTimeout = -1
 			d, err := NewServiceDisruptor(
+				context.TODO(),
 				k,
 				tc.service.name,
 				tc.service.namespace,

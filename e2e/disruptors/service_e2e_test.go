@@ -24,14 +24,14 @@ func Test_ServiceDisruptor(t *testing.T) {
 	}
 	defer cluster.Delete()
 
-	k8s, err := kubernetes.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
 	}
 
 	t.Run("Inject HTTP error 500", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace("test-pods")
+		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-pods")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
@@ -52,7 +52,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}
 
 		options := disruptors.ServiceDisruptorOptions{}
-		disruptor, err := disruptors.NewServiceDisruptor(k8s, svc.Name, ns, options)
+		disruptor, err := disruptors.NewServiceDisruptor(context.TODO(), k8s, svc.Name, ns, options)
 		if err != nil {
 			t.Errorf("error creating service disruptor: %v", err)
 			return

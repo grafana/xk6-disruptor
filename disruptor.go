@@ -37,7 +37,7 @@ var (
 
 // NewModuleInstance returns a new instance of the disruptor module for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
-	k8s, err := kubernetes.New(vu.Context())
+	k8s, err := kubernetes.New()
 	if err != nil {
 		common.Throw(vu.Runtime(), fmt.Errorf("error creating Kubernetes helper: %w", err))
 	}
@@ -62,8 +62,9 @@ func (m *ModuleInstance) Exports() modules.Exports {
 // creates an instance of a PodDisruptor
 func (m *ModuleInstance) newPodDisruptor(c goja.ConstructorCall) *goja.Object {
 	rt := m.vu.Runtime()
+	ctx := m.vu.Context()
 
-	disruptor, err := api.NewPodDisruptor(rt, c, m.k8s)
+	disruptor, err := api.NewPodDisruptor(ctx, rt, c, m.k8s)
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("error creating PodDisruptor: %w", err))
 	}
@@ -73,8 +74,9 @@ func (m *ModuleInstance) newPodDisruptor(c goja.ConstructorCall) *goja.Object {
 // creates an instance of a ServiceDisruptor
 func (m *ModuleInstance) newServiceDisruptor(c goja.ConstructorCall) *goja.Object {
 	rt := m.vu.Runtime()
+	ctx := m.vu.Context()
 
-	disruptor, err := api.NewServiceDisruptor(rt, c, m.k8s)
+	disruptor, err := api.NewServiceDisruptor(ctx, rt, c, m.k8s)
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("error creating ServiceDisruptor: %w", err))
 	}

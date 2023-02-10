@@ -2,6 +2,7 @@
 package disruptors
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -56,6 +57,7 @@ type PodDisruptorOptions struct {
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
 type podDisruptor struct {
+	ctx        context.Context
 	selector   PodSelector
 	controller AgentController
 	k8s        kubernetes.Kubernetes
@@ -85,7 +87,7 @@ func (s *PodSelector) buildLabelSelector() (labels.Selector, error) {
 }
 
 // GetTargets retrieves the names of the targets of the disruptor
-func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
+func (s *PodSelector) GetTargets(ctx context.Context, k8s kubernetes.Kubernetes) ([]string, error) {
 	// validate selector
 	emptySelect := reflect.DeepEqual(s.Select, PodAttributes{})
 	emptyExclude := reflect.DeepEqual(s.Exclude, PodAttributes{})
@@ -107,7 +109,7 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 		LabelSelector: labelSelector.String(),
 	}
 	pods, err := k8s.CoreV1().Pods(namespace).List(
-		k8s.Context(),
+		ctx,
 		listOptions,
 	)
 	if err != nil {
@@ -124,6 +126,7 @@ func (s *PodSelector) GetTargets(k8s kubernetes.Kubernetes) ([]string, error) {
 
 // AgentController controls de agents in a set of target pods
 type AgentController struct {
+	ctx       context.Context
 	k8s       kubernetes.Kubernetes
 	namespace string
 	targets   []string
@@ -158,7 +161,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 			defer wg.Done()
 
 			// check if the container has already been injected
-			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(c.k8s.Context(), podName, metav1.GetOptions{})
+			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(c.ctx, podName, metav1.GetOptions{})
 			if err != nil {
 				errors <- err
 				return
@@ -172,6 +175,7 @@ func (c *AgentController) InjectDisruptorAgent() error {
 			}
 
 			err = c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
+				c.ctx,
 				podName,
 				agentContainer,
 				c.timeout,
@@ -225,11 +229,12 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
 // that match the given PodSelector
 func NewPodDisruptor(
+	ctx context.Context,
 	k8s kubernetes.Kubernetes,
 	selector PodSelector,
 	options PodDisruptorOptions,
 ) (PodDisruptor, error) {
-	targets, err := selector.GetTargets(k8s)
+	targets, err := selector.GetTargets(ctx, k8s)
 	if err != nil {
 		return nil, err
 	}
@@ -248,6 +253,7 @@ func NewPodDisruptor(
 		timeout = 0
 	}
 	controller := AgentController{
+		ctx:       ctx,
 		k8s:       k8s,
 		namespace: namespace,
 		targets:   targets,
@@ -259,6 +265,7 @@ func NewPodDisruptor(
 	}
 
 	return &podDisruptor{
+		ctx:        ctx,
 		selector:   selector,
 		controller: controller,
 		k8s:        k8s,

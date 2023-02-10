@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,14 +15,14 @@ import (
 // ServiceHelper implements functions for dealing with services
 type ServiceHelper interface {
 	// WaitServiceReady waits for the given service to have at least one endpoint available
-	WaitServiceReady(service string, timeout time.Duration) error
+	WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error
 	// GetServiceProxy returns a client for making HTTP requests to the service using api server's proxy
 	GetServiceProxy(service string, port int) (ServiceClient, error)
 }
 
-func (h *helpers) WaitServiceReady(service string, timeout time.Duration) error {
+func (h *helpers) WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error {
 	return utils.Retry(timeout, time.Second, func() (bool, error) {
-		ep, err := h.client.CoreV1().Endpoints(h.namespace).Get(h.ctx, service, metav1.GetOptions{})
+		ep, err := h.client.CoreV1().Endpoints(h.namespace).Get(ctx, service, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return false, nil
