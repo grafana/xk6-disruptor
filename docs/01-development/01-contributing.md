@@ -1,12 +1,18 @@
 # Contributing to xk6-disruptor
 
-This section is for users that would like to contribute to the xk6-disruptor project.
+This document describes how you can contribute to the xk6-disruptor project.
 
-## Requirements
+For proposing significant changes (breaking changes in the API, significant refactoring, implementation of complex features) we suggest creating a [design proposal document](./design-docs/README.md) before starting the implementation, to ensure consensus and avoid reworking on aspects on which there is not agreement.
+
+## Build locally
+
+As contributor, you will need to build locally the disruptor extension with your changes.
+
+### Requirements
 
 Before starting to develop you have [Go](https://golang.org/doc/install), [Git](https://git-scm.com/) and [Docker](https://docs.docker.com/get-docker/) installed. In order to execute use the targets available in the [Makefile](#makefile) you will also need the `make` tool installed. 
 
-## Clone repository
+### Clone repository
 
 If you you have not already done so, clone this repository to your local machine:
 ```bash
@@ -14,7 +20,7 @@ $ git clone https://github.com/grafana/xk6-disruptor.git
 $ cd xk6-disruptor
 ```
 
-## Makefile
+### Makefile
 
 Most of the development tasks can be executed using `make` targets:
 * `agent-image`: builds the `xk6-disruptor-agent` image locally
@@ -22,8 +28,9 @@ Most of the development tasks can be executed using `make` targets:
 * `clean`: removes local build and other work directories
 * `e2e`: executes the end-to-end tests. These tests can take several minutes.
 * `test`: executes unit tests
+* `lint`: runs the linter
 
-## Extension/agent image versions dependencies
+### Extension/agent image versions dependencies
 
 The xk6-disruptor extension requires an agent image to inject it in its targets.
 
@@ -39,7 +46,7 @@ In this way, an extension built locally from the `main` branch will match the ve
 
 Notice that if you build the agent image locally it will be by default also labeled as `latest`.
 
-## Building the xk6-disruptor-agent image
+### Building the xk6-disruptor-agent image
 
 If you modify the [xk6-disruptor-agent](./02-architecture.md#xk6-disruptor-agent) you have to build the image and made it available in the test environment.
 
@@ -65,7 +72,7 @@ If using `minikube` the following command loads the image into the cluster:
 minikube image load ghcr.io/grafana/xk6-disruptor-agent:latest
 ```
 
-## e2e tests
+### e2e tests
 
 End to end tests are meant to test the components of the project in a test environment without mocks.
 These tests are slow and resource consuming. To prevent them to be executed as part of the `test` target
