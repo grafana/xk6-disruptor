@@ -210,18 +210,11 @@ func DeployApp(
 
 // BuildCluster builds a cluster exposing port 32080 and with the required images preloaded
 func BuildCluster(name string) (*cluster.Cluster, error) {
-	// map node ports in the range 32080-32089 to host ports
-	nodePorts := []cluster.NodePort{}
-	for port := 32080; port < 32090; port++ {
-		nodePorts = append(nodePorts, cluster.NodePort{HostPort: int32(port), NodePort: int32(port)})
-	}
-
 	config, err := cluster.NewConfig(
 		name,
 		cluster.Options{
-			NodePorts: nodePorts,
-			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
-			Wait:      time.Second * 60,
+			Images: []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
+			Wait:   time.Second * 60,
 		},
 	)
 	if err != nil {
