@@ -6,6 +6,7 @@
 |**Author(s)**:         | List of authors |
 |**Created**:           | When was this document created |
 |**Status**:            | Draft/In Discussion/Accepted/Rejected/Withdrawn/Superseded |
+|**Last status change**:| Date of change to current status |
 |**Approver(s)**:       | Individuals who decide to approve/reject this proposal |
 |**Related**| Link to one or more design documents that relates to this proposal |
 |**Replaces**| List of design documents that this proposal replaces. Those documents should list this proposal in their superseded-by when approved |
