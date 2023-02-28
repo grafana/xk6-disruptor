@@ -6,7 +6,7 @@ require (
 	github.com/dop251/goja v0.0.0-20230128084908-78b980256d04
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
-	go.k6.io/k6 v0.42.1-0.20230130080633-582ec4d3940c
+	go.k6.io/k6 v0.43.1
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
