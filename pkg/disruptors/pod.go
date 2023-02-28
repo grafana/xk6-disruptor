@@ -207,7 +207,7 @@ func (c *AgentController) ExecCommand(cmd ...string) error {
 		// attach each container asynchronously
 		go func(pod string) {
 			_, stderr, err := c.k8s.NamespacedHelpers(c.namespace).
-				Exec(pod, "xk6-agent", cmd, []byte{})
+				Exec(c.ctx, pod, "xk6-agent", cmd, []byte{})
 			if err != nil {
 				errors <- fmt.Errorf("error invoking agent: %w \n%s", err, string(stderr))
 			}

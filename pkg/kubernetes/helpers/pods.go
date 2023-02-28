@@ -24,7 +24,7 @@ type PodHelper interface {
 	// if the status was reached. If the pod is Failed returns error.
 	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
-	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
+	Exec(ctx context.Context, pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
 	// a given timeout until the container is running
 	AttachEphemeralContainer(
@@ -103,6 +103,7 @@ func (h *helpers) WaitPodRunning(ctx context.Context, name string, timeout time.
 }
 
 func (h *helpers) Exec(
+	ctx context.Context,
 	pod string,
 	container string,
 	command []string,
@@ -129,12 +130,15 @@ func (h *helpers) Exec(
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  bytes.NewReader(stdin),
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	})
+	err = exec.StreamWithContext(
+		ctx,
+		remotecommand.StreamOptions{
+			Stdin:  bytes.NewReader(stdin),
+			Stdout: &stdout,
+			Stderr: &stderr,
+			Tty:    false,
+		},
+	)
 
 	return stdout.Bytes(), stderr.Bytes(), err
 }

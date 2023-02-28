@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -29,6 +30,7 @@ type FakePodCommandExecutor struct {
 
 // Exec records the execution of a command and returns the pre-defined
 func (f *FakePodCommandExecutor) Exec(
+	ctx context.Context,
 	pod string,
 	container string,
 	cmd []string,
@@ -85,8 +87,14 @@ func NewFakeHelper(client kubernetes.Interface, namespace string, executor *Fake
 }
 
 // Fakes the execution of a command in a pod
-func (f *fakeHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
-	return f.executor.Exec(pod, container, command, stdin)
+func (f *fakeHelper) Exec(
+	ctx context.Context,
+	pod string,
+	container string,
+	command []string,
+	stdin []byte,
+) ([]byte, []byte, error) {
+	return f.executor.Exec(ctx, pod, container, command, stdin)
 }
 
 // FakeHTTPClient implement a fake HTTPClient that returns a fixed response.

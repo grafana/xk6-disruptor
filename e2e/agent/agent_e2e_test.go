@@ -120,6 +120,7 @@ func Test_Agent(t *testing.T) {
 			cmd:   injectHTTP500,
 			check: func(k8s kubernetes.Kubernetes, ns string) error {
 				_, stderr, err := k8s.NamespacedHelpers(ns).Exec(
+					context.TODO(),
 					"httpbin",
 					"xk6-disruptor-agent",
 					[]string{

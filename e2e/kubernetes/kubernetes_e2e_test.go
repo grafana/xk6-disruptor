@@ -123,6 +123,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		stdout, _, err := k8s.NamespacedHelpers(ns).Exec(
+			context.TODO(),
 			"busybox",
 			"busybox",
 			[]string{"echo", "-n", "hello", "world"},
@@ -171,6 +172,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		stdout, _, err := k8s.NamespacedHelpers(ns).Exec(
+			context.TODO(),
 			"paused",
 			"ephemeral",
 			[]string{"echo", "-n", "hello", "world"},
