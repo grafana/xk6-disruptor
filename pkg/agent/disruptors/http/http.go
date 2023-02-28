@@ -8,6 +8,9 @@ package http
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
@@ -176,9 +179,15 @@ func (d *disruptor) Apply(duration time.Duration) error {
 		_ = d.proxy.Stop()
 	}()
 
-	// Wait for request duration or proxy server error
+	// listen to signals
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT)
+
+	// Wait for request duration, proxy server error or interruption
 	for {
 		select {
+		case <-signals:
+			return fmt.Errorf(" disruptor execution interrupted")
 		case err := <-wc:
 			if err != nil {
 				return fmt.Errorf(" proxy ended with error: %w", err)
