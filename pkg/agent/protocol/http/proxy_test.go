@@ -32,12 +32,178 @@ func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+func Test_Validations(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		disruption  Disruption
+		config      ProxyConfig
+		expectError bool
+	}{
+		{
+			title: "valid defaults",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: false,
+		},
+		{
+			title: "invalid listening port",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 0,
+				Port:          80,
+			},
+			expectError: true,
+		},
+		{
+			title: "invalid target port",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          0,
+			},
+			expectError: true,
+		},
+		{
+			title: "target port equals listening port",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 80,
+				Port:          80,
+			},
+			expectError: true,
+		},
+		{
+			title: "variation larger than average delay",
+			disruption: Disruption{
+				AverageDelay:   100,
+				DelayVariation: 200,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: true,
+		},
+		{
+			title: "valid error rate",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.1,
+				ErrorCode:      500,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: false,
+		},
+		{
+			title: "valid delay and variation",
+			disruption: Disruption{
+				AverageDelay:   100,
+				DelayVariation: 10,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: false,
+		},
+		{
+			title: "invalid error code",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: true,
+		},
+		{
+			title: "negative error rate",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      -1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListeningPort: 8080,
+				Port:          80,
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewProxy(
+				tc.config,
+				tc.disruption,
+			)
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+			}
+		})
+	}
+}
+
 func Test_ProxyHandler(t *testing.T) {
 	t.Parallel()
 
 	type TestCase struct {
 		title          string
-		target         Target
 		disruption     Disruption
 		config         ProxyConfig
 		method         string
@@ -58,10 +224,8 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
+				Port:          8080,
 				ListeningPort: 9080,
 			},
 			path:           "",
@@ -79,10 +243,8 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
+				Port:          8080,
 				ListeningPort: 9080,
 			},
 			path:           "",
@@ -100,10 +262,8 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
+				Port:          8080,
 				ListeningPort: 9080,
 			},
 			path:           "/excluded/path",
@@ -121,10 +281,8 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
+				Port:          8080,
 				ListeningPort: 9080,
 			},
 			path:           "/non-excluded/path",
@@ -143,10 +301,8 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorBody:      "{\"error\": 500, \"message\":\"internal server error\"}",
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
+				Port:          8080,
 				ListeningPort: 9080,
 			},
 			path:           "",
@@ -168,7 +324,7 @@ func Test_ProxyHandler(t *testing.T) {
 				status: tc.expectedStatus,
 			}
 
-			upstreamURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tc.target.Port))
+			upstreamURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tc.config.Port))
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				client:      client,
