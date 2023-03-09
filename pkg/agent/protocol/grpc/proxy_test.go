@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc/test"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -32,13 +35,14 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: false,
 		},
 		{
-			title: "invalid listening port",
+			title: "invalid listening address",
 			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
@@ -47,13 +51,14 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 0,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   "",
+				UpstreamAddress: ":8080",
 			},
 			expectError: true,
 		},
 		{
-			title: "invalid target port",
+			title: "invalid upstream address",
 			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
@@ -62,23 +67,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          0,
-			},
-			expectError: true,
-		},
-		{
-			title: "target port equals listening port",
-			disruption: Disruption{
-				AverageDelay:   0,
-				DelayVariation: 0,
-				ErrorRate:      0.0,
-				StatusCode:     0,
-				StatusMessage:  "",
-			},
-			config: ProxyConfig{
-				ListeningPort: 80,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: "",
 			},
 			expectError: true,
 		},
@@ -92,8 +83,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: true,
 		},
@@ -107,8 +99,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: false,
 		},
@@ -122,8 +115,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: false,
 		},
@@ -137,8 +131,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: true,
 		},
@@ -152,8 +147,9 @@ func Test_Validations(t *testing.T) {
 				StatusMessage:  "",
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				Network:         "",
+				ListenAddress:   ":9080",
+				UpstreamAddress: ":8080",
 			},
 			expectError: true,
 		},
@@ -186,7 +182,6 @@ func Test_ProxyHandler(t *testing.T) {
 	type TestCase struct {
 		title        string
 		disruption   Disruption
-		config       ProxyConfig
 		request      *test.PingRequest
 		response     *test.PingResponse
 		expectStatus codes.Code
@@ -201,10 +196,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorRate:      0.0,
 				StatusCode:     0,
 				StatusMessage:  "",
-			},
-			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
 			},
 			request: &test.PingRequest{
 				Error:   0,
@@ -224,10 +215,6 @@ func Test_ProxyHandler(t *testing.T) {
 				StatusCode:     int32(codes.Internal),
 				StatusMessage:  "Internal server error",
 			},
-			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
-			},
 			request: &test.PingRequest{
 				Error:   0,
 				Message: "ping",
@@ -243,10 +230,11 @@ func Test_ProxyHandler(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			// start test server
-			l, err := net.Listen("tcp", fmt.Sprintf(":%d", tc.config.Port))
+			// start test server in a random unix socket
+			serverSocket := filepath.Join(os.TempDir(), uuid.New().String())
+			l, err := net.Listen("unix", serverSocket)
 			if err != nil {
-				t.Errorf("error starting test server in port %d: %v", tc.config.Port, err)
+				t.Errorf("error starting test server in unix:%s: %v", serverSocket, err)
 				return
 			}
 			srv := grpc.NewServer()
@@ -257,8 +245,14 @@ func Test_ProxyHandler(t *testing.T) {
 				}
 			}()
 
-			// start proxy
-			proxy, err := NewProxy(tc.config, tc.disruption)
+			// start proxy in a random unix socket
+			proxySocket := filepath.Join(os.TempDir(), uuid.New().String())
+			config := ProxyConfig{
+				Network:         "unix",
+				ListenAddress:   proxySocket,
+				UpstreamAddress: fmt.Sprintf("unix:%s", serverSocket),
+			}
+			proxy, err := NewProxy(config, tc.disruption)
 			if err != nil {
 				t.Errorf("error creating proxy: %v", err)
 				return
@@ -267,16 +261,16 @@ func Test_ProxyHandler(t *testing.T) {
 				_ = proxy.Stop()
 			}()
 
-			// TODO: check for proxy start error
 			go func() {
-				perr := proxy.Start()
-				t.Errorf("error starting proxy: %v", perr)
+				if perr := proxy.Start(); perr != nil {
+					t.Logf("error starting proxy: %v", perr)
+				}
 			}()
 
 			// connect client to proxy
 			conn, err := grpc.DialContext(
 				context.TODO(),
-				fmt.Sprintf(":%d", tc.config.ListeningPort),
+				fmt.Sprintf("unix:%s", proxySocket),
 				grpc.WithInsecure(),
 			)
 			if err != nil {
@@ -289,7 +283,12 @@ func Test_ProxyHandler(t *testing.T) {
 			client := test.NewPingServiceClient(conn)
 
 			var headers metadata.MD
-			response, err := client.Ping(context.TODO(), tc.request, grpc.Header(&headers))
+			response, err := client.Ping(
+				context.TODO(),
+				tc.request,
+				grpc.Header(&headers),
+				grpc.WaitForReady(true),
+			)
 			if err != nil && tc.expectStatus == codes.OK {
 				t.Errorf("unexpected error %v", err)
 				return

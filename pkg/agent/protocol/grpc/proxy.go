@@ -14,10 +14,12 @@ import (
 
 // ProxyConfig configures the Proxy options
 type ProxyConfig struct {
-	// port the proxy will listen to
-	ListeningPort uint
-	// port the proxy will redirect to
-	Port uint
+	// network used for communication (valid values are "unix" and "tcp")
+	Network string
+	// Address to listen for incoming requests
+	ListenAddress string
+	// Address where to redirect requests
+	UpstreamAddress string
 }
 
 // Disruption specifies disruptions in grpc requests
@@ -43,16 +45,20 @@ type proxy struct {
 
 // NewProxy return a new Proxy
 func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
-	if c.ListeningPort == 0 {
-		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")
+	if c.Network == "" {
+		c.Network = "tcp"
 	}
 
-	if c.Port == 0 {
-		return nil, fmt.Errorf("proxy's target port must be valid tcp port")
+	if c.Network != "tcp" && c.Network != "unix" {
+		return nil, fmt.Errorf("only 'tcp' and 'unix' (for sockets) networks are supported")
 	}
 
-	if c.Port == c.ListeningPort {
-		return nil, fmt.Errorf("target port and listening port cannot be the same")
+	if c.ListenAddress == "" {
+		return nil, fmt.Errorf("proxy's listening address must be provided")
+	}
+
+	if c.UpstreamAddress == "" {
+		return nil, fmt.Errorf("proxy's forwarding address must be provided")
 	}
 
 	if d.DelayVariation > d.AverageDelay {
@@ -75,16 +81,14 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	upstreamURL := fmt.Sprintf(":%d", p.config.Port)
-
 	// should receive the context as a parameter of the Start function
 	conn, err := grpc.DialContext(
 		context.Background(),
-		upstreamURL,
+		p.config.UpstreamAddress,
 		grpc.WithInsecure(),
 	)
 	if err != nil {
-		return fmt.Errorf("error dialing %s: %w", upstreamURL, err)
+		return fmt.Errorf("error dialing %s: %w", p.config.UpstreamAddress, err)
 	}
 	handler := NewHandler(p.disruption, conn)
 
@@ -92,9 +96,9 @@ func (p *proxy) Start() error {
 		grpc.UnknownServiceHandler(handler),
 	)
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", p.config.ListeningPort))
+	listener, err := net.Listen(p.config.Network, p.config.ListenAddress)
 	if err != nil {
-		return fmt.Errorf("error binding to listening port %d: %w", p.config.ListeningPort, err)
+		return fmt.Errorf("error listening to %s: %w", p.config.ListenAddress, err)
 	}
 
 	err = p.srv.Serve(listener)
