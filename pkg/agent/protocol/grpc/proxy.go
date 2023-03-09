@@ -86,7 +86,7 @@ func (p *proxy) Start() error {
 	if err != nil {
 		return fmt.Errorf("error dialing %s: %w", upstreamURL, err)
 	}
-	handler := NewHandler(conn)
+	handler := NewHandler(p.disruption, conn)
 
 	p.srv = grpc.NewServer(
 		grpc.UnknownServiceHandler(handler),

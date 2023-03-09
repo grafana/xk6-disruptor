@@ -215,6 +215,26 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			expectStatus: codes.OK,
 		},
+		{
+			title: "error injection ",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      1.0,
+				StatusCode:     int32(codes.Internal),
+				StatusMessage:  "Internal server error",
+			},
+			config: ProxyConfig{
+				Port:          8080,
+				ListeningPort: 9080,
+			},
+			request: &test.PingRequest{
+				Error:   0,
+				Message: "ping",
+			},
+			response:     nil,
+			expectStatus: codes.Internal,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -240,7 +260,7 @@ func Test_ProxyHandler(t *testing.T) {
 			// start proxy
 			proxy, err := NewProxy(tc.config, tc.disruption)
 			if err != nil {
-				t.Errorf("error starting proxy: %v", err)
+				t.Errorf("error creating proxy: %v", err)
 				return
 			}
 			defer func() {

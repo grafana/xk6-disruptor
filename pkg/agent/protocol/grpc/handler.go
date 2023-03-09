@@ -3,7 +3,9 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"math/rand"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -20,8 +22,9 @@ func clientStreamDescForProxy() *grpc.StreamDesc {
 }
 
 // NewHandler returns a StreamHandler that attempts to proxy all requests that are not registered in the server.
-func NewHandler(forwardConn *grpc.ClientConn) grpc.StreamHandler {
+func NewHandler(disruption Disruption, forwardConn *grpc.ClientConn) grpc.StreamHandler {
 	handler := &handler{
+		disruption:  disruption,
 		forwardConn: forwardConn,
 	}
 
@@ -30,24 +33,32 @@ func NewHandler(forwardConn *grpc.ClientConn) grpc.StreamHandler {
 }
 
 type handler struct {
+	disruption  Disruption
 	forwardConn *grpc.ClientConn
 }
 
-// It is invoked like any gRPC server stream and uses the emptypb.Empty type server
-// to proxy calls between the input and output streams.
+// handles requests from the client. If selected for error injection, returns an error,
+// otherwise, forwards to the server transparently
 func (h *handler) streamHandler(srv interface{}, serverStream grpc.ServerStream) error {
-	// get a context for connection forwarding
+	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
+		return h.injectError(serverStream)
+	}
+
+	return h.transparentForward(serverStream)
+}
+
+func (h *handler) transparentForward(serverStream grpc.ServerStream) error {
 	// TODO: Add a `forwarded` header to metadata, https://en.wikipedia.org/wiki/X-Forwarded-For.
 	ctx := serverStream.Context()
 	md, _ := metadata.FromIncomingContext(ctx)
 	outgoingCtx := metadata.NewOutgoingContext(ctx, md.Copy())
 	clientCtx, clientCancel := context.WithCancel(outgoingCtx)
 	defer clientCancel()
-
 	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
 	if !ok {
 		return status.Errorf(codes.Internal, "ServerTransportStream not exists in context")
 	}
+
 	clientStream, err := grpc.NewClientStream(
 		clientCtx,
 		clientStreamDescForProxy(),
@@ -141,4 +152,26 @@ func (h *handler) forwardServerToClient(src grpc.ServerStream, dst grpc.ClientSt
 		}
 	}()
 	return ret
+}
+
+func (h *handler) injectError(serverStream grpc.ServerStream) error {
+	err := h.drainServerStream(serverStream)
+	if err != nil {
+		return fmt.Errorf("error receiving request from client %w", err)
+	}
+
+	return status.Error(codes.Code(h.disruption.StatusCode), h.disruption.StatusMessage)
+}
+
+// read all messages from client
+func (h *handler) drainServerStream(src grpc.ServerStream) error {
+	f := &emptypb.Empty{}
+	for {
+		if err := src.RecvMsg(f); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+	}
 }
