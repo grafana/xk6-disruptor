@@ -2,8 +2,6 @@ package test
 
 import (
 	context "context"
-	"net"
-	"strings"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -12,48 +10,6 @@ import (
 	status "google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
-
-type contextDialer func(context.Context, string) (net.Conn, error)
-
-// returns a dialer function for the given Listener (where the test server is expected to be listening)
-func bufconnDialer(l *bufconn.Listener) contextDialer {
-	return func(ctx context.Context, address string) (net.Conn, error) {
-		return l.Dial()
-	}
-}
-
-func compareResponses(actual, expected *PingResponse) bool {
-	if expected == nil && actual == nil {
-		return true
-	}
-
-	if expected == nil || actual == nil {
-		return false
-	}
-
-	if expected.Message == actual.Message {
-		return true
-	}
-
-	return false
-}
-
-func compareHeaders(actual metadata.MD, expected map[string]string) bool {
-	for key, value := range expected {
-		// expected value is a list of comma separated values
-		expectedValues := strings.Split(value, ",")
-		actualValues := actual.Get(key)
-		if len(actualValues) != len(expectedValues) {
-			return false
-		}
-		for i, v := range actualValues {
-			if v != expectedValues[i] {
-				return false
-			}
-		}
-	}
-	return true
-}
 
 func Test_PingServer(t *testing.T) {
 	t.Parallel()
@@ -128,7 +84,7 @@ func Test_PingServer(t *testing.T) {
 			conn, err := grpc.DialContext(
 				context.TODO(),
 				"bufnet",
-				grpc.WithContextDialer(bufconnDialer(l)),
+				grpc.WithContextDialer(BufconnDialer(l)),
 				grpc.WithInsecure(),
 			)
 			if err != nil {
@@ -160,12 +116,12 @@ func Test_PingServer(t *testing.T) {
 				return
 			}
 
-			if !compareResponses(response, tc.response) {
+			if !CompareResponses(response, tc.response) {
 				t.Errorf("expected '%s' but got '%s'", tc.response, response)
 				return
 			}
 
-			if !compareHeaders(headers, tc.expectHeaders) {
+			if !CompareHeaders(headers, tc.expectHeaders) {
 				t.Errorf("expected '%v' but got '%v'", tc.expectHeaders, headers)
 				return
 			}
