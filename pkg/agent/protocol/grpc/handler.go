@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -42,6 +43,15 @@ type handler struct {
 func (h *handler) streamHandler(srv interface{}, serverStream grpc.ServerStream) error {
 	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
 		return h.injectError(serverStream)
+	}
+
+	// add delay
+	if h.disruption.AverageDelay > 0 {
+		delay := int(h.disruption.AverageDelay)
+		if h.disruption.DelayVariation > 0 {
+			delay = delay + int(h.disruption.DelayVariation) - 2*rand.Intn(int(h.disruption.DelayVariation))
+		}
+		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
 
 	return h.transparentForward(serverStream)

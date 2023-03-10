@@ -222,6 +222,24 @@ func Test_ProxyHandler(t *testing.T) {
 			response:     nil,
 			expectStatus: codes.Internal,
 		},
+		{
+			title: "delay injection",
+			disruption: Disruption{
+				AverageDelay:   10,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				StatusCode:     0,
+				StatusMessage:  "",
+			},
+			request: &test.PingRequest{
+				Error:   0,
+				Message: "ping",
+			},
+			response: &test.PingResponse{
+				Message: "ping",
+			},
+			expectStatus: codes.OK,
+		},
 	}
 
 	for _, tc := range testCases {
