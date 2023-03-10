@@ -4,6 +4,8 @@ import (
 	context "context"
 	"testing"
 
+	grpcutils "github.com/grafana/xk6-disruptor/pkg/testutils/grpc"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -84,7 +86,7 @@ func Test_PingServer(t *testing.T) {
 			conn, err := grpc.DialContext(
 				context.TODO(),
 				"bufnet",
-				grpc.WithContextDialer(BufconnDialer(l)),
+				grpc.WithContextDialer(grpcutils.BuffconnDialer(l)),
 				grpc.WithInsecure(),
 			)
 			if err != nil {

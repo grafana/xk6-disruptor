@@ -1,23 +1,10 @@
 package ping
 
 import (
-	context "context"
-	"net"
 	"strings"
 
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/test/bufconn"
 )
-
-// ContextDialer defines a function that returns a connection for a context
-type ContextDialer func(context.Context, string) (net.Conn, error)
-
-// BufconnDialer returns a dialer function for the given Listener (where the test server is expected to be listening)
-func BufconnDialer(l *bufconn.Listener) ContextDialer {
-	return func(ctx context.Context, address string) (net.Conn, error) {
-		return l.Dial()
-	}
-}
 
 // CompareResponses returns a bool indicating if the actual and expected PingResponses are equal
 func CompareResponses(actual, expected *PingResponse) bool {
