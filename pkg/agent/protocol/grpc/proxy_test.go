@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc/test"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/grpc/ping"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -182,8 +182,8 @@ func Test_ProxyHandler(t *testing.T) {
 	type TestCase struct {
 		title        string
 		disruption   Disruption
-		request      *test.PingRequest
-		response     *test.PingResponse
+		request      *ping.PingRequest
+		response     *ping.PingResponse
 		expectStatus codes.Code
 	}
 
@@ -197,11 +197,11 @@ func Test_ProxyHandler(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			request: &test.PingRequest{
+			request: &ping.PingRequest{
 				Error:   0,
 				Message: "ping",
 			},
-			response: &test.PingResponse{
+			response: &ping.PingResponse{
 				Message: "ping",
 			},
 			expectStatus: codes.OK,
@@ -215,7 +215,7 @@ func Test_ProxyHandler(t *testing.T) {
 				StatusCode:     int32(codes.Internal),
 				StatusMessage:  "Internal server error",
 			},
-			request: &test.PingRequest{
+			request: &ping.PingRequest{
 				Error:   0,
 				Message: "ping",
 			},
@@ -231,11 +231,11 @@ func Test_ProxyHandler(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			request: &test.PingRequest{
+			request: &ping.PingRequest{
 				Error:   0,
 				Message: "ping",
 			},
-			response: &test.PingResponse{
+			response: &ping.PingResponse{
 				Message: "ping",
 			},
 			expectStatus: codes.OK,
@@ -256,7 +256,7 @@ func Test_ProxyHandler(t *testing.T) {
 				return
 			}
 			srv := grpc.NewServer()
-			test.RegisterPingServiceServer(srv, test.NewPingServer())
+			ping.RegisterPingServiceServer(srv, ping.NewPingServer())
 			go func() {
 				if serr := srv.Serve(l); err != nil {
 					t.Logf("error in the server: %v", serr)
@@ -298,7 +298,7 @@ func Test_ProxyHandler(t *testing.T) {
 				_ = conn.Close()
 			}()
 
-			client := test.NewPingServiceClient(conn)
+			client := ping.NewPingServiceClient(conn)
 
 			var headers metadata.MD
 			response, err := client.Ping(
@@ -324,7 +324,7 @@ func Test_ProxyHandler(t *testing.T) {
 				return
 			}
 
-			if !test.CompareResponses(response, tc.response) {
+			if !ping.CompareResponses(response, tc.response) {
 				t.Errorf("expected '%s' but got '%s'", tc.response, response)
 				return
 			}

@@ -36,5 +36,5 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 From the root of this project, execute the following command
 
 ```
-protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/agent/protocol/grpc/test/ping.proto 
+protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/testutils/grpc/ping/ping.proto 
 ```

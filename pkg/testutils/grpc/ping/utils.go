@@ -1,4 +1,4 @@
-package test
+package ping
 
 import (
 	context "context"

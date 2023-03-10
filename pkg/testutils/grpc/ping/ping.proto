@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package disruptor.testproto;
 
-option go_package="github.com/grafana/pkg/agent/protocol/grpc/test";
+option go_package="github.com/grafana/pkg/testutils/grpc/ping";
 
 
 message PingResponse {

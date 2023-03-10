@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.12.4
-// source: pkg/agent/protocol/grpc/test/ping.proto
+// source: pkg/testutils/grpc/ping/ping.proto
 
-package test
+package ping
 
 import (
 	context "context"
@@ -101,5 +101,5 @@ var PingService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pkg/agent/protocol/grpc/test/ping.proto",
+	Metadata: "pkg/testutils/grpc/ping/ping.proto",
 }
