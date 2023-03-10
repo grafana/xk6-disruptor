@@ -37,6 +37,8 @@ func main() {
 	}
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
+	rootCmd.AddCommand(commands.BuildGrpcCmd())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
