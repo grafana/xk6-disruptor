@@ -34,7 +34,33 @@ func BuildHttpbinPod() *corev1.Pod {
 	}
 }
 
-// BuildHttpbinService returns a Service definition that exposes httpbin pods at the node port 32080
+// BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
+func BuildGrpcpbinPod() *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "grpcbin",
+			Labels: map[string]string{
+				"app": "grpcbin",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "grpcbin",
+					Image:           "moul/grpcbin",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Ports: []corev1.ContainerPort{
+						{
+							ContainerPort: 9000,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// BuildHttpbinService returns a Service definition that exposes httpbin pods
 func BuildHttpbinService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -52,6 +78,31 @@ func BuildHttpbinService() *corev1.Service {
 				{
 					Name: "http",
 					Port: 80,
+				},
+			},
+		},
+	}
+}
+
+// BuildGrpcbinService returns a Service definition that exposes grpcbin pods at the node port 30000
+func BuildGrpcbinService(nodePort uint) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "grpcbin",
+			Labels: map[string]string{
+				"app": "grpcbin",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Selector: map[string]string{
+				"app": "grpcbin",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "grpcbin",
+					Port:     9000,
+					NodePort: int32(nodePort),
 				},
 			},
 		},
@@ -208,13 +259,15 @@ func DeployApp(
 	return ExposeService(k8s, ns, svc, timeLeft)
 }
 
-// BuildCluster builds a cluster exposing port 32080 and with the required images preloaded
-func BuildCluster(name string) (*cluster.Cluster, error) {
+// BuildCluster builds a cluster with the xk6-disruptor-agent image preloaded and
+// the given node ports exposed
+func BuildCluster(name string, ports ...cluster.NodePort) (*cluster.Cluster, error) {
 	config, err := cluster.NewConfig(
 		name,
 		cluster.Options{
-			Images: []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
-			Wait:   time.Second * 60,
+			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
+			Wait:      time.Second * 60,
+			NodePorts: ports,
 		},
 	)
 	if err != nil {
