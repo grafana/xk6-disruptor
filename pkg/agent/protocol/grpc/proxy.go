@@ -34,6 +34,8 @@ type Disruption struct {
 	StatusCode int32
 	// Status message to be returned in requests selected to return an error
 	StatusMessage string
+	// List of grpc services to be excluded from disruptions
+	Excluded []string
 }
 
 // Proxy defines the parameters used by the proxy for processing grpc requests and its execution state

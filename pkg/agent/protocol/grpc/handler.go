@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -38,20 +39,39 @@ type handler struct {
 	forwardConn *grpc.ClientConn
 }
 
+// contains verifies if a list of strings contains the given string
+func contains(list []string, target string) bool {
+	for _, element := range list {
+		if element == target {
+			return true
+		}
+	}
+	return false
+}
+
 // handles requests from the client. If selected for error injection, returns an error,
 // otherwise, forwards to the server transparently
 func (h *handler) streamHandler(srv interface{}, serverStream grpc.ServerStream) error {
-	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-		return h.injectError(serverStream)
+	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
+	if !ok {
+		return status.Errorf(codes.Internal, "ServerTransportStream not exists in context")
 	}
-
-	// add delay
-	if h.disruption.AverageDelay > 0 {
-		delay := int(h.disruption.AverageDelay)
-		if h.disruption.DelayVariation > 0 {
-			delay = delay + int(h.disruption.DelayVariation) - 2*rand.Intn(int(h.disruption.DelayVariation))
+	// full method name has the form /service/method, we want the service
+	serviceName := strings.Split(fullMethodName, "/")[1]
+	excluded := contains(h.disruption.Excluded, serviceName)
+	if !excluded {
+		if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
+			return h.injectError(serverStream)
 		}
-		time.Sleep(time.Duration(delay) * time.Millisecond)
+
+		// add delay
+		if h.disruption.AverageDelay > 0 {
+			delay := int(h.disruption.AverageDelay)
+			if h.disruption.DelayVariation > 0 {
+				delay = delay + int(h.disruption.DelayVariation) - 2*rand.Intn(int(h.disruption.DelayVariation))
+			}
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+		}
 	}
 
 	return h.transparentForward(serverStream)

@@ -57,6 +57,8 @@ func BuildGrpcCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&iface, "interface", "i", "eth0", "interface to disrupt")
 	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
 	cmd.Flags().UintVarP(&target, "target", "t", 80, "port the proxy will redirect request to")
+	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
+		" to be excluded from disruption")
 
 	return cmd
 }
