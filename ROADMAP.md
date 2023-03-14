@@ -58,7 +58,7 @@ These are goals we expect to achieve in 6-12 months (Q2/2023-Q3/2023).
    Therefore, we plan to research available multi-protocol proxies and study how they could be incorporated in the architecture of the disruptor agent.
 
    Follow-up issues:
-   - https://github.com/grafana/xk6-disruptor/issues/61
+   - [Implement fault injection for grpc services](https://github.com/grafana/xk6-disruptor/issues/121)
 
 2. Implement disruption for outgoing requests
 
