@@ -3,424 +3,190 @@ package disruptors
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
-	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
+	"github.com/grafana/xk6-disruptor/pkg/utils/process"
 )
 
-func Test_PodSelector(t *testing.T) {
-	t.Parallel()
+type fakeAgentController struct {
+	namespace string
+	targets   []string
+	executor  *process.FakeExecutor
+}
 
-	testCases := []struct {
-		title        string
-		pods         []podDesc
-		selector     PodSelector
-		expectError  bool
-		expectedPods []string
-	}{
-		{
-			title: "No matching pod",
-			pods: []podDesc{
-				{
-					name:      "pod-without-labels",
-					namespace: testNamespace,
-					labels:    map[string]string{},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError:  false,
-			expectedPods: []string{},
-		},
-		{
-			title: "No matching namespace",
-			pods: []podDesc{
-				{
-					name:      "pod-with-app-label-in-another-ns",
-					namespace: "anotherNamespace",
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError:  false,
-			expectedPods: []string{},
-		},
-		{
-			title: "one matching pod",
-			pods: []podDesc{
-				{
-					name:      "pod-with-app-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError: false,
-			expectedPods: []string{
-				"pod-with-app-label",
-			},
-		},
-		{
-			title: "multiple matching pods",
-			pods: []podDesc{
-				{
-					name:      "pod-with-app-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-				{
-					name:      "another-pod-with-app-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
-			expectError: false,
-			expectedPods: []string{
-				"pod-with-app-label",
-				"another-pod-with-app-label",
-			},
-		},
-		{
-			title: "multiple selector labels",
-			pods: []podDesc{
-				{
-					name:      "pod-with-app-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-				{
-					name:      "pod-with-dev-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-						"env": "dev",
-					},
-				},
-				{
-					name:      "pod-with-prod-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-						"env": "prod",
-					},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-						"env": "dev",
-					},
-				},
-			},
-			expectError: false,
-			expectedPods: []string{
-				"pod-with-dev-label",
-			},
-		},
-		{
-			title: "exclude labels",
-			pods: []podDesc{
-				{
-					name:      "pod-with-dev-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-						"env": "dev",
-					},
-				},
-				{
-					name:      "pod-with-prod-label",
-					namespace: "test-ns",
-					labels: map[string]string{
-						"app": "test",
-						"env": "prod",
-					},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-				Exclude: PodAttributes{
-					Labels: map[string]string{
-						"env": "prod",
-					},
-				},
-			},
-			expectError: false,
-			expectedPods: []string{
-				"pod-with-dev-label",
-			},
-		},
-		{
-			title: "Namespace selector",
-			pods: []podDesc{
-				{
-					name:      "pod-in-test-ns",
-					namespace: "test-ns",
-					labels:    map[string]string{},
-				},
-				{
-					name:      "another-pod-in-test-ns",
-					namespace: "test-ns",
-					labels:    map[string]string{},
-				},
-				{
-					name:      "pod-in-another-namespace",
-					namespace: "other-ns",
-					labels:    map[string]string{},
-				},
-			},
-			selector: PodSelector{
-				Namespace: "test-ns",
-			},
-			expectError: false,
-			expectedPods: []string{
-				"pod-in-test-ns",
-				"another-pod-in-test-ns",
-			},
-		},
-		{
-			title:        "Empty selector",
-			pods:         []podDesc{},
-			selector:     PodSelector{},
-			expectError:  true,
-			expectedPods: []string{},
-		},
-	}
+func (f *fakeAgentController) Targets() ([]string, error) {
+	return f.targets, nil
+}
 
-	for _, tc := range testCases {
-		tc := tc
+func (f *fakeAgentController) InjectDisruptorAgent() error {
+	return nil
+}
 
-		t.Run(tc.title, func(t *testing.T) {
-			t.Parallel()
+func (f *fakeAgentController) ExecCommand(cmd ...string) error {
+	_, err := f.executor.Exec(cmd[0], cmd[1:]...)
+	return err
+}
 
-			pods := []runtime.Object{}
-			for _, p := range tc.pods {
-				pod := builders.NewPodBuilder(p.name).
-					WithNamespace(p.namespace).
-					WithLabels(p.labels).
-					Build()
-				pods = append(pods, pod)
-			}
-			client := fake.NewSimpleClientset(pods...)
-			k, _ := kubernetes.NewFakeKubernetes(client)
-			targets, err := tc.selector.GetTargets(context.TODO(), k)
-			if tc.expectError && err == nil {
-				t.Errorf("should had failed")
-				return
-			}
-
-			if !tc.expectError && err != nil {
-				t.Errorf("failed: %v", err)
-				return
-			}
-
-			if tc.expectError && err != nil {
-				return
-			}
-
-			if !compareStringArrays(tc.expectedPods, targets) {
-				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
-				return
-			}
-		})
+func newPodDisruptorForTesting(ctx context.Context, selector PodSelector, controller AgentController) PodDisruptor {
+	return &podDisruptor{
+		ctx:        ctx,
+		selector:   selector,
+		controller: controller,
 	}
 }
 
-func Test_InjectAgent(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		title   string
-		targets []string
-		// Set timeout to 0 to prevent waiting the ephemeral container to be ready,
-		// as the fake client will not update its status
-		timeout     time.Duration
-		expectError bool
-	}{
-		{
-			title:       "Inject ephemeral container",
-			targets:     []string{"pod1", "pod2"},
-			timeout:     0,
-			expectError: false,
-		},
-		{
-			title:       "ephemeral container not ready",
-			targets:     []string{"pod1", "pod2"},
-			timeout:     1,
-			expectError: true, // should fail because fake client will not update status
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-
-		t.Run(tc.title, func(t *testing.T) {
-			t.Parallel()
-
-			objs := []runtime.Object{}
-			for _, podName := range tc.targets {
-				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
-				objs = append(objs, pod)
-			}
-			client := fake.NewSimpleClientset(objs...)
-			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			controller := AgentController{
-				k8s:       k8s,
-				namespace: testNamespace,
-				targets:   tc.targets,
-				timeout:   tc.timeout,
-			}
-
-			err := controller.InjectDisruptorAgent()
-			if tc.expectError && err == nil {
-				t.Errorf("should had failed")
-				return
-			}
-
-			if !tc.expectError && err != nil {
-				t.Errorf("failed: %v", err)
-				return
-			}
-
-			if tc.expectError && err != nil {
-				return
-			}
-
-			for _, podName := range tc.targets {
-				pod, err := client.CoreV1().Pods(testNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
-				if err != nil {
-					t.Errorf("failed: %v", err)
-					return
-				}
-
-				if len(pod.Spec.EphemeralContainers) == 0 {
-					t.Errorf("agent container is not attached")
-					return
-				}
-			}
-		})
-	}
-}
-
-func Test_ExecCommand(t *testing.T) {
+func Test_PodHTTPFaultInjection(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title       string
+		selector    PodSelector
 		targets     []string
-		command     []string
-		err         error
-		stdout      []byte
-		stderr      []byte
-		timeout     time.Duration
+		expectedCmd string
 		expectError bool
+		cmdError    error
+		fault       HTTPFault
+		opts        HTTPDisruptionOptions
+		duration    uint
 	}{
 		{
-			title:       "successful execution",
-			targets:     []string{"pod1", "pod2"},
-			command:     []string{"echo", "-n", "hello", "world"},
-			err:         nil,
+			title: "Test error 500",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectedCmd: "xk6-disruptor-agent http -d 60s -r 0.1 -e 500",
 			expectError: false,
+			cmdError:    nil,
+			fault: HTTPFault{
+				ErrorRate: 0.1,
+				ErrorCode: 500,
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
 		},
 		{
-			title:       "failed execution",
-			targets:     []string{"pod1", "pod2"},
-			command:     []string{"echo", "-n", "hello", "world"},
-			err:         fmt.Errorf("fake error"),
-			stderr:      []byte("error output"),
+			title: "Test error 500 with error body",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectedCmd: "xk6-disruptor-agent http -d 60s -r 0.1 -e 500 -b {\"error\": 500}",
+			expectError: false,
+			cmdError:    nil,
+			fault: HTTPFault{
+				ErrorRate: 0.1,
+				ErrorCode: 500,
+				ErrorBody: "{\"error\": 500}",
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
+		},
+		{
+			title: "Test Average delay",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectedCmd: "xk6-disruptor-agent http -d 60s -a 100 -v 0",
+			expectError: false,
+			cmdError:    nil,
+			fault: HTTPFault{
+				AverageDelay: 100,
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
+		},
+		{
+			title: "Test exclude list",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectedCmd: "xk6-disruptor-agent http -d 60s -x /path1,/path2",
+			expectError: false,
+			cmdError:    nil,
+			fault: HTTPFault{
+				Exclude: "/path1,/path2",
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
+		},
+		{
+			title: "Test command execution fault",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectedCmd: "xk6-disruptor-agent http -d 60s -x /path1,/path2",
 			expectError: true,
+			cmdError:    fmt.Errorf("error executing command"),
+			fault:       HTTPFault{},
+			opts:        HTTPDisruptionOptions{},
+			duration:    60,
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			objs := []runtime.Object{}
-			for _, podName := range tc.targets {
-				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
-				objs = append(objs, pod)
-			}
-			client := fake.NewSimpleClientset(objs...)
-			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			executor := k8s.GetFakeProcessExecutor()
-			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			controller := AgentController{
-				k8s:       k8s,
-				namespace: testNamespace,
+			executor := process.NewFakeExecutor([]byte{}, tc.cmdError)
+
+			controller := &fakeAgentController{
+				namespace: tc.selector.Namespace,
 				targets:   tc.targets,
-				timeout:   tc.timeout,
+				executor:  executor,
 			}
-			err := controller.ExecCommand()
+
+			d := newPodDisruptorForTesting(context.TODO(), tc.selector, controller)
+
+			err := d.InjectHTTPFaults(tc.fault, tc.duration, tc.opts)
+
+			if tc.expectError && err != nil {
+				return
+			}
+
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
 			}
 
 			if !tc.expectError && err != nil {
-				t.Errorf("failed: %v", err)
+				t.Errorf("unexpected error : %v", err)
 				return
 			}
 
-			if tc.expectError && err != nil {
-				if !strings.Contains(err.Error(), string(tc.stderr)) {
-					t.Errorf("invalid error message. Expected to contain %s", string(tc.stderr))
-				}
-				return
+			cmd := executor.Cmd()
+			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
 			}
 		})
 	}

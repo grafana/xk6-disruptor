@@ -21,6 +21,51 @@ type serviceDesc struct {
 	selector  map[string]string
 }
 
+type fakePodDisruptor struct {
+	targets  []string
+	duration uint
+	fault    HTTPFault
+	options  HTTPDisruptionOptions
+	err      error
+}
+
+func (f *fakePodDisruptor) Targets() ([]string, error) {
+	return f.targets, nil
+}
+
+func (f *fakePodDisruptor) InjectHTTPFaults(
+	fault HTTPFault,
+	duration uint,
+	options HTTPDisruptionOptions,
+) error {
+	f.duration = duration
+	f.fault = fault
+	f.options = options
+	return f.err
+}
+
+func (f *fakePodDisruptor) GetFaultInjection() (HTTPFault, uint, HTTPDisruptionOptions) {
+	return f.fault, f.duration, f.options
+}
+
+func newServiceDisruptorForTest(
+	ctx context.Context,
+	k8s kubernetes.Kubernetes,
+	service string,
+	namespace string,
+	options ServiceDisruptorOptions,
+	podDisruptor PodDisruptor,
+) ServiceDisruptor {
+	return &serviceDisruptor{
+		ctx:          ctx,
+		service:      service,
+		namespace:    namespace,
+		k8s:          k8s,
+		options:      options,
+		podDisruptor: podDisruptor,
+	}
+}
+
 func Test_NewServiceDisruptor(t *testing.T) {
 	t.Parallel()
 
@@ -279,18 +324,19 @@ func Test_NewServiceDisruptor(t *testing.T) {
 }
 
 // TODO: check the commands sent to the pods
-func Test_HTTPFaultInjection(t *testing.T) {
+func Test_ServicePortMapping(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title       string
-		service     serviceDesc
-		options     ServiceDisruptorOptions
-		fault       HTTPFault
-		duration    uint
-		httpOptions HTTPDisruptionOptions
-		pods        []podDesc
-		expectError bool
+		title         string
+		service       serviceDesc
+		options       ServiceDisruptorOptions
+		fault         HTTPFault
+		duration      uint
+		httpOptions   HTTPDisruptionOptions
+		targets       []string
+		expectError   bool
+		expectedFault HTTPFault
 	}{
 		{
 			title: "invalid Port option",
@@ -307,24 +353,16 @@ func Test_HTTPFaultInjection(t *testing.T) {
 					"app": "test",
 				},
 			},
-			options: ServiceDisruptorOptions{
-				InjectTimeout: -1,
-			},
+			options: ServiceDisruptorOptions{},
 			fault: HTTPFault{
 				Port: 80,
 			},
 			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
-			pods: []podDesc{
-				{
-					name:      "pod-1",
-					namespace: testNamespace,
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
 			expectError: true,
+			expectedFault: HTTPFault{
+				Port: 80,
+			},
 		},
 		{
 			title: "Port option specified",
@@ -334,31 +372,23 @@ func Test_HTTPFaultInjection(t *testing.T) {
 				ports: []corev1.ServicePort{
 					{
 						Port:       8080,
-						TargetPort: intstr.FromInt(8080),
+						TargetPort: intstr.FromInt(80),
 					},
 				},
 				selector: map[string]string{
 					"app": "test",
 				},
 			},
-			options: ServiceDisruptorOptions{
-				InjectTimeout: -1,
-			},
+			options: ServiceDisruptorOptions{},
 			fault: HTTPFault{
 				Port: 8080,
 			},
 			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
-			pods: []podDesc{
-				{
-					name:      "pod-1",
-					namespace: testNamespace,
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
 			expectError: false,
+			expectedFault: HTTPFault{
+				Port: 80,
+			},
 		},
 		{
 			title: "default option specified",
@@ -368,31 +398,23 @@ func Test_HTTPFaultInjection(t *testing.T) {
 				ports: []corev1.ServicePort{
 					{
 						Port:       8080,
-						TargetPort: intstr.FromInt(8080),
+						TargetPort: intstr.FromInt(80),
 					},
 				},
 				selector: map[string]string{
 					"app": "test",
 				},
 			},
-			options: ServiceDisruptorOptions{
-				InjectTimeout: -1,
-			},
+			options: ServiceDisruptorOptions{},
 			fault: HTTPFault{
 				Port: 0,
 			},
 			duration:    1,
 			httpOptions: HTTPDisruptionOptions{},
-			pods: []podDesc{
-				{
-					name:      "pod-1",
-					namespace: testNamespace,
-					labels: map[string]string{
-						"app": "test",
-					},
-				},
-			},
 			expectError: false,
+			expectedFault: HTTPFault{
+				Port: 80,
+			},
 		},
 	}
 
@@ -409,32 +431,22 @@ func Test_HTTPFaultInjection(t *testing.T) {
 				WithPorts(tc.service.ports).
 				Build()
 			objs = append(objs, svc)
-			for _, p := range tc.pods {
-				pod := builders.NewPodBuilder(p.name).
-					WithNamespace(p.namespace).
-					WithLabels(p.labels).
-					Build()
-				objs = append(objs, pod)
-			}
 			client := fake.NewSimpleClientset(objs...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
-			// Force no wait for agent injection as the mock client will not update its status
-			tc.options.InjectTimeout = -1
-			d, err := NewServiceDisruptor(
+			podDisruptor := &fakePodDisruptor{
+				targets: []string{"app-pod"},
+			}
+			d := newServiceDisruptorForTest(
 				context.TODO(),
 				k,
 				tc.service.name,
 				tc.service.namespace,
 				tc.options,
+				podDisruptor,
 			)
 
-			if !tc.expectError && err != nil {
-				t.Errorf(" unexpected error creating service disruptor: %v", err)
-				return
-			}
-
-			err = d.InjectHTTPFaults(tc.fault, tc.duration, tc.httpOptions)
+			err := d.InjectHTTPFaults(tc.fault, tc.duration, tc.httpOptions)
 			if !tc.expectError && err != nil {
 				t.Errorf(" unexpected error creating service disruptor: %v", err)
 				return
@@ -446,6 +458,12 @@ func Test_HTTPFaultInjection(t *testing.T) {
 			}
 
 			if tc.expectError && err != nil {
+				return
+			}
+
+			fault, _, _ := podDisruptor.GetFaultInjection()
+			if fault.Port != tc.expectedFault.Port {
+				t.Errorf("expected port %d in fault injection got %d", tc.expectedFault.Port, fault.Port)
 				return
 			}
 		})
