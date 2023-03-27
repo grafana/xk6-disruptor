@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
@@ -21,10 +22,12 @@ func BuildHTTPCmd() *cobra.Command {
 		Long: "Disrupts http request by introducing delays and errors." +
 			" Requires NET_ADMIM capabilities for setting iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddress := fmt.Sprintf(":%d", port)
+			upstreamAddress := fmt.Sprintf("http://127.0.0.1:%d", target)
 			proxy, err := http.NewProxy(
 				http.ProxyConfig{
-					Port:          target,
-					ListeningPort: port,
+					ListenAddress:   listenAddress,
+					UpstreamAddress: upstreamAddress,
 				}, disruption)
 			if err != nil {
 				return err

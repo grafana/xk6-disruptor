@@ -17,10 +17,10 @@ import (
 
 // ProxyConfig configures the Proxy options
 type ProxyConfig struct {
-	// port the proxy will listen to
-	ListeningPort uint
-	// port the proxy will redirect to
-	Port uint
+	// Address to listen for incoming requests
+	ListenAddress string
+	// Address where to redirect requests
+	UpstreamAddress string
 }
 
 // Disruption specifies disruptions in http requests
@@ -48,16 +48,12 @@ type proxy struct {
 
 // NewProxy return a new Proxy for HTTP requests
 func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
-	if c.ListeningPort == 0 {
-		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")
+	if c.ListenAddress == "" {
+		return nil, fmt.Errorf("proxy's listening address must be provided")
 	}
 
-	if c.Port == 0 {
-		return nil, fmt.Errorf("proxy's target port must be valid tcp port")
-	}
-
-	if c.Port == c.ListeningPort {
-		return nil, fmt.Errorf("target port and listening port cannot be the same")
+	if c.UpstreamAddress == "" {
+		return nil, fmt.Errorf("proxy's forwarding address must be provided")
 	}
 
 	if d.DelayVariation > d.AverageDelay {
@@ -148,7 +144,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	upstreamURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.config.Port))
+	upstreamURL, err := url.Parse(p.config.UpstreamAddress)
 	if err != nil {
 		return err
 	}
@@ -160,7 +156,7 @@ func (p *proxy) Start() error {
 	}
 
 	p.srv = &http.Server{
-		Addr:    fmt.Sprintf(":%d", p.config.ListeningPort),
+		Addr:    p.config.ListenAddress,
 		Handler: handler,
 	}
 

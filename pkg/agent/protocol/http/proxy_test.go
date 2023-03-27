@@ -51,13 +51,13 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: false,
 		},
 		{
-			title: "invalid listening port",
+			title: "invalid listening address",
 			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
@@ -66,13 +66,13 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 0,
-				Port:          80,
+				ListenAddress:   "",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: true,
 		},
 		{
-			title: "invalid target port",
+			title: "invalid upstream address",
 			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
@@ -81,23 +81,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          0,
-			},
-			expectError: true,
-		},
-		{
-			title: "target port equals listening port",
-			disruption: Disruption{
-				AverageDelay:   0,
-				DelayVariation: 0,
-				ErrorRate:      0.0,
-				ErrorCode:      0,
-				Excluded:       nil,
-			},
-			config: ProxyConfig{
-				ListeningPort: 80,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "",
 			},
 			expectError: true,
 		},
@@ -111,8 +96,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: true,
 		},
@@ -126,8 +111,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: false,
 		},
@@ -141,8 +126,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: false,
 		},
@@ -156,8 +141,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: true,
 		},
@@ -171,8 +156,8 @@ func Test_Validations(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				ListeningPort: 8080,
-				Port:          80,
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
 			},
 			expectError: true,
 		},
@@ -225,8 +210,8 @@ func Test_ProxyHandler(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -244,8 +229,8 @@ func Test_ProxyHandler(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -263,8 +248,8 @@ func Test_ProxyHandler(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "/excluded/path",
 			statusCode:     200,
@@ -282,8 +267,8 @@ func Test_ProxyHandler(t *testing.T) {
 				Excluded:       []string{"/excluded/path"},
 			},
 			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "/non-excluded/path",
 			statusCode:     200,
@@ -302,8 +287,8 @@ func Test_ProxyHandler(t *testing.T) {
 				Excluded:       nil,
 			},
 			config: ProxyConfig{
-				Port:          8080,
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -324,14 +309,18 @@ func Test_ProxyHandler(t *testing.T) {
 				status: tc.expectedStatus,
 			}
 
-			upstreamURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tc.config.Port))
+			upstreamURL, err := url.Parse(tc.config.UpstreamAddress)
+			if err != nil {
+				t.Errorf("error parsing upstream address %v", err)
+				return
+			}
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				client:      client,
 				disruption:  tc.disruption,
 			}
 
-			reqURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
+			reqURL := fmt.Sprintf("http://%s%s", tc.config.ListenAddress, tc.path)
 			req := httptest.NewRequest(tc.method, reqURL, strings.NewReader(string(tc.body)))
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, req)

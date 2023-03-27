@@ -1,6 +1,6 @@
 package disruptors
 
-// HTTPFault specifies a f to be injected in http requests
+// HTTPFault specifies a fault to be injected in http requests
 type HTTPFault struct {
 	// port the disruptions will be applied to
 	Port uint
