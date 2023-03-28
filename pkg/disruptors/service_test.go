@@ -24,8 +24,8 @@ type serviceDesc struct {
 type fakePodDisruptor struct {
 	targets  []string
 	duration uint
-	fault    HTTPFault
-	options  HTTPDisruptionOptions
+	fault    interface{}
+	options  interface{}
 	err      error
 }
 
@@ -44,8 +44,27 @@ func (f *fakePodDisruptor) InjectHTTPFaults(
 	return f.err
 }
 
-func (f *fakePodDisruptor) GetFaultInjection() (HTTPFault, uint, HTTPDisruptionOptions) {
-	return f.fault, f.duration, f.options
+func (f *fakePodDisruptor) InjectGrpcFaults(
+	fault GrpcFault,
+	duration uint,
+	options GrpcDisruptionOptions,
+) error {
+	f.duration = duration
+	f.fault = fault
+	f.options = options
+	return f.err
+}
+
+func (f *fakePodDisruptor) GetHTTPFaultInjection() (HTTPFault, uint, HTTPDisruptionOptions) {
+	fault, _ := f.fault.(HTTPFault)
+	options, _ := f.options.(HTTPDisruptionOptions)
+	return fault, f.duration, options
+}
+
+func (f *fakePodDisruptor) GetGrpcFaultInjection() (GrpcFault, uint, GrpcDisruptionOptions) {
+	fault, _ := f.fault.(GrpcFault)
+	options, _ := f.options.(GrpcDisruptionOptions)
+	return fault, f.duration, options
 }
 
 func newServiceDisruptorForTest(
@@ -461,7 +480,7 @@ func Test_ServicePortMapping(t *testing.T) {
 				return
 			}
 
-			fault, _, _ := podDisruptor.GetFaultInjection()
+			fault, _, _ := podDisruptor.GetHTTPFaultInjection()
 			if fault.Port != tc.expectedFault.Port {
 				t.Errorf("expected port %d in fault injection got %d", tc.expectedFault.Port, fault.Port)
 				return

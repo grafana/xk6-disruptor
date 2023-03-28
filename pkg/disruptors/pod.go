@@ -24,6 +24,14 @@ type HTTPDisruptionOptions struct {
 	Iface string
 }
 
+// GrpcDisruptionOptions defines options for the injection of grpc faults in a target pod
+type GrpcDisruptionOptions struct {
+	// Port used by the agent for listening
+	ProxyPort uint `js:"proxyPort"`
+	// Network interface the agent will be listening traffic from
+	Iface string
+}
+
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
@@ -31,6 +39,9 @@ type PodDisruptor interface {
 	// InjectHTTPFault injects faults in the HTTP requests sent to the disruptor's targets
 	// for the specified duration (in seconds)
 	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
+	// InjectGrpcFault injects faults in the grpc requests sent to the disruptor's targets
+	// for the specified duration (in seconds)
+	InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
@@ -97,6 +108,7 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.controller.Targets()
 }
 
+//nolint:dupl
 func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
@@ -144,6 +156,57 @@ func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOpt
 func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
+	err := d.controller.ExecCommand(cmd...)
+	return err
+}
+
+//nolint:dupl
+func buildGrpcFaultCmd(fault GrpcFault, duration uint, options GrpcDisruptionOptions) []string {
+	cmd := []string{
+		"xk6-disruptor-agent",
+		"grpc",
+		"-d", fmt.Sprintf("%ds", duration),
+	}
+
+	if fault.AverageDelay > 0 {
+		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
+	}
+
+	if fault.ErrorRate > 0 {
+		cmd = append(
+			cmd,
+			"-s",
+			fmt.Sprint(fault.StatusCode),
+			"-r",
+			fmt.Sprint(fault.ErrorRate),
+		)
+		if fault.StatusMessage != "" {
+			cmd = append(cmd, "-m", fault.StatusMessage)
+		}
+	}
+
+	if fault.Port != 0 {
+		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
+	}
+
+	if len(fault.Exclude) > 0 {
+		cmd = append(cmd, "-x", fault.Exclude)
+	}
+
+	if options.ProxyPort != 0 {
+		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
+	}
+
+	if options.Iface != "" {
+		cmd = append(cmd, "-i", options.Iface)
+	}
+
+	return cmd
+}
+
+// InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
+func (d *podDisruptor) InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error {
+	cmd := buildGrpcFaultCmd(fault, duration, options)
 	err := d.controller.ExecCommand(cmd...)
 	return err
 }

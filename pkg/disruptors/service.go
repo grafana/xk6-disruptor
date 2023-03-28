@@ -115,6 +115,24 @@ func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, opti
 	return d.podDisruptor.InjectHTTPFaults(fault, duration, options)
 }
 
+func (d *serviceDisruptor) InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error {
+	svc, err := d.k8s.CoreV1().
+		Services(d.namespace).
+		Get(d.ctx, d.service, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Get the target port for the service. This port will be used when injecting http faults in the target pods
+	port, err := getTargetPort(svc.Spec.Ports, fault.Port)
+	if err != nil {
+		return err
+	}
+
+	fault.Port = port
+	return d.podDisruptor.InjectGrpcFaults(fault, duration, options)
+}
+
 func (d *serviceDisruptor) Targets() ([]string, error) {
 	return d.podDisruptor.Targets()
 }
