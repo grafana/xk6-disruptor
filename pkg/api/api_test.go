@@ -265,6 +265,79 @@ func Test_JsPodDisruptor(t *testing.T) {
 			`,
 			expectError: true,
 		},
+		{
+			description: "inject Grpc Fault with full arguments",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				statusCode: 500,
+				statusMessage: '',
+				averageDelay: 100,
+				delayVariation: 10,
+				exclude: "",
+				port: 80
+			}
+
+			const faultOpts = {
+				proxyPort: 4000,
+				iface: "eth0"
+			}
+
+			d.injectGrpcFaults(fault, 1, faultOpts)
+			`,
+			expectError: false,
+		},
+		{
+			description: "inject Grpc Fault without options",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				statusCode: 500,
+				statusMessage: '',
+				averageDelay: 100,
+				delayVariation: 10,
+				exclude: "",
+				port: 80
+			}
+
+			d.injectGrpcFaults(fault, 1)
+			`,
+			expectError: false,
+		},
+		{
+			description: "inject Grpc Fault without duration",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				statusCode: 500,
+				statusMessage: '',
+				averageDelay: 100,
+				delayVariation: 10,
+				exclude: "",
+				port: 80
+			}
+
+			const faultOpts = {
+				proxyPort: 4000,
+				iface: "eth0"
+			}
+
+			d.injectGrpcFaults(fault)
+			`,
+			expectError: true,
+		},
+		{
+			description: "inject Grpc Fault with malformed fault (misspelled field)",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				status: 500,       // this is should be 'statusCode'
+			}
+
+			d.injectGrpcFaults(fault, 1)
+			`,
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {

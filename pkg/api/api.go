@@ -72,6 +72,37 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 	}
 }
 
+// InjectGrpcFaults is a proxy method. Validates parameters and delegates to the PodDisruptor method
+func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
+	if len(args) < 2 {
+		common.Throw(p.rt, fmt.Errorf("GrpcFault and duration are required"))
+	}
+
+	fault := disruptors.GrpcFault{}
+	err := convertValue(p.rt, args[0], &fault)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
+	}
+
+	duration := args[1].ToInteger()
+	if duration < 0 {
+		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	}
+
+	opts := disruptors.GrpcDisruptionOptions{}
+	if len(args) > 2 {
+		err = convertValue(p.rt, args[2], &opts)
+		if err != nil {
+			common.Throw(p.rt, fmt.Errorf("invalid options argument: %w", err))
+		}
+	}
+
+	err = p.disruptor.InjectGrpcFaults(fault, uint(duration), opts)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
+	}
+}
+
 func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*goja.Object, error) {
 	jsDisruptor := JsPodDisruptor{
 		rt:        rt,
@@ -85,6 +116,11 @@ func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*
 	}
 
 	err = obj.Set("injectHTTPFaults", jsDisruptor.InjectHTTPFaults)
+	if err != nil {
+		return nil, err
+	}
+
+	err = obj.Set("injectGrpcFaults", jsDisruptor.InjectGrpcFaults)
 	if err != nil {
 		return nil, err
 	}
