@@ -15,6 +15,12 @@ issues:
   exclude-use-default: false
 
   exclude-rules:
+    # Exclude duplicate code and function length and complexity checking in api
+    - path: pkg/api/(.+)\.go
+      linters:
+        - dupl
+        - funlen
+
     # Exclude duplicate code and function length and complexity checking in test
     # files (due to common repeats and long functions in test code)
     - path: _(test|gen)\.go

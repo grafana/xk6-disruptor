@@ -1,6 +1,6 @@
 package disruptors
 
-// HTTPFault specifies a f to be injected in http requests
+// HTTPFault specifies a fault to be injected in http requests
 type HTTPFault struct {
 	// port the disruptions will be applied to
 	Port uint
@@ -16,4 +16,22 @@ type HTTPFault struct {
 	ErrorBody string `js:"errorBody"`
 	// Comma-separated list of url paths to be excluded from disruptions
 	Exclude string
+}
+
+// GrpcFault specifies a fault to be injected in grpc requests
+type GrpcFault struct {
+	// port the disruptions will be applied to
+	Port uint
+	// Average delay introduced to requests
+	AverageDelay uint `js:"averageDelay"`
+	// Variation in the delay (with respect of the average delay)
+	DelayVariation uint `js:"delayVariation"`
+	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
+	ErrorRate float32 `js:"errorRate"`
+	// Status code to be returned by requests selected to return an error
+	StatusCode int32 `js:"statusCode"`
+	// Status message to be returned in requests selected to return an error
+	StatusMessage string `js:"statusMessage"`
+	// List of grpc services to be excluded from disruptions
+	Exclude string `js:"exclude"`
 }

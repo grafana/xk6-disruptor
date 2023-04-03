@@ -1,3 +1,4 @@
+// Package http implements a proxy that applies disruptions to HTTP requests
 package http
 
 import (
@@ -10,49 +11,66 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 )
 
-// Proxy defines an interface for a proxy
-type Proxy interface {
-	Start() error
-	Stop() error
-	Force() error
-}
-
-// ProxyConfig specifies the configuration for the http proxy
+// ProxyConfig configures the Proxy options
 type ProxyConfig struct {
-	// Port on which the proxy will be running
-	ListeningPort uint
+	// Address to listen for incoming requests
+	ListenAddress string
+	// Address where to redirect requests
+	UpstreamAddress string
 }
 
-// Target defines the upstream target  to forward requests to
-type Target struct {
-	// Port to redirect traffic to
-	Port uint
+// Disruption specifies disruptions in http requests
+type Disruption struct {
+	// Average delay introduced to requests
+	AverageDelay uint
+	// Variation in the delay (with respect of the average delay)
+	DelayVariation uint
+	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
+	ErrorRate float32
+	// Error code to be returned by requests selected in the error rate
+	ErrorCode uint
+	// Body to be returned when an error is injected
+	ErrorBody string
+	// List of url paths to be excluded from disruptions
+	Excluded []string
 }
 
 // Proxy defines the parameters used by the proxy for processing http requests and its execution state
 type proxy struct {
 	config     ProxyConfig
-	target     Target
 	disruption Disruption
 	srv        *http.Server
 }
 
-// NewProxy return a new HttpProxy
-func NewProxy(target Target, disruption Disruption, config ProxyConfig) (Proxy, error) {
-	if config.ListeningPort == 0 {
-		return nil, fmt.Errorf("proxy's listening port must be valid tcp port")
+// NewProxy return a new Proxy for HTTP requests
+func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
+	if c.ListenAddress == "" {
+		return nil, fmt.Errorf("proxy's listening address must be provided")
 	}
 
-	if target.Port == config.ListeningPort {
-		return nil, fmt.Errorf("target port and listening port cannot be the same")
+	if c.UpstreamAddress == "" {
+		return nil, fmt.Errorf("proxy's forwarding address must be provided")
+	}
+
+	if d.DelayVariation > d.AverageDelay {
+		return nil, fmt.Errorf("variation must be less that average delay")
+	}
+
+	if d.ErrorRate < 0.0 || d.ErrorRate > 1.0 {
+		return nil, fmt.Errorf("error rate must be in the range [0.0, 1.0]")
+	}
+
+	if d.ErrorRate > 0.0 && d.ErrorCode == 0 {
+		return nil, fmt.Errorf("error code must be a valid http error code")
 	}
 
 	return &proxy{
-		target:     target,
-		disruption: disruption,
-		config:     config,
+		disruption: d,
+		config:     c,
 	}, nil
 }
 
@@ -126,7 +144,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	upstreamURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", p.target.Port))
+	upstreamURL, err := url.Parse(p.config.UpstreamAddress)
 	if err != nil {
 		return err
 	}
@@ -138,7 +156,7 @@ func (p *proxy) Start() error {
 	}
 
 	p.srv = &http.Server{
-		Addr:    fmt.Sprintf(":%d", p.config.ListeningPort),
+		Addr:    p.config.ListenAddress,
 		Handler: handler,
 	}
 

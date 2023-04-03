@@ -32,12 +32,163 @@ func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+func Test_Validations(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		disruption  Disruption
+		config      ProxyConfig
+		expectError bool
+	}{
+		{
+			title: "valid defaults",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: false,
+		},
+		{
+			title: "invalid listening address",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   "",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: true,
+		},
+		{
+			title: "invalid upstream address",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "",
+			},
+			expectError: true,
+		},
+		{
+			title: "variation larger than average delay",
+			disruption: Disruption{
+				AverageDelay:   100,
+				DelayVariation: 200,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: true,
+		},
+		{
+			title: "valid error rate",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.1,
+				ErrorCode:      500,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: false,
+		},
+		{
+			title: "valid delay and variation",
+			disruption: Disruption{
+				AverageDelay:   100,
+				DelayVariation: 10,
+				ErrorRate:      0.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: false,
+		},
+		{
+			title: "invalid error code",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: true,
+		},
+		{
+			title: "negative error rate",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      -1.0,
+				ErrorCode:      0,
+				Excluded:       nil,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":8080",
+				UpstreamAddress: "http://127.0.0.1:80",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewProxy(
+				tc.config,
+				tc.disruption,
+			)
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+			}
+		})
+	}
+}
+
 func Test_ProxyHandler(t *testing.T) {
 	t.Parallel()
 
 	type TestCase struct {
 		title          string
-		target         Target
 		disruption     Disruption
 		config         ProxyConfig
 		method         string
@@ -58,11 +209,9 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -79,11 +228,9 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -100,11 +247,9 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "/excluded/path",
 			statusCode:     200,
@@ -121,11 +266,9 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "/non-excluded/path",
 			statusCode:     200,
@@ -143,11 +286,9 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorBody:      "{\"error\": 500, \"message\":\"internal server error\"}",
 				Excluded:       nil,
 			},
-			target: Target{
-				Port: 8080,
-			},
 			config: ProxyConfig{
-				ListeningPort: 9080,
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -168,14 +309,18 @@ func Test_ProxyHandler(t *testing.T) {
 				status: tc.expectedStatus,
 			}
 
-			upstreamURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tc.target.Port))
+			upstreamURL, err := url.Parse(tc.config.UpstreamAddress)
+			if err != nil {
+				t.Errorf("error parsing upstream address %v", err)
+				return
+			}
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				client:      client,
 				disruption:  tc.disruption,
 			}
 
-			reqURL := fmt.Sprintf("http://127.0.0.1:%d%s", tc.config.ListeningPort, tc.path)
+			reqURL := fmt.Sprintf("http://%s%s", tc.config.ListenAddress, tc.path)
 			req := httptest.NewRequest(tc.method, reqURL, strings.NewReader(string(tc.body)))
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, req)
