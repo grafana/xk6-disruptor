@@ -156,7 +156,7 @@ func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOpt
 func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
-	err := d.controller.ExecCommand(cmd...)
+	err := d.controller.ExecCommand(cmd)
 	return err
 }
 
@@ -207,6 +207,6 @@ func buildGrpcFaultCmd(fault GrpcFault, duration uint, options GrpcDisruptionOpt
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
 func (d *podDisruptor) InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error {
 	cmd := buildGrpcFaultCmd(fault, duration, options)
-	err := d.controller.ExecCommand(cmd...)
+	err := d.controller.ExecCommand(cmd)
 	return err
 }

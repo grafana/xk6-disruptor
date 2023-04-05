@@ -133,7 +133,7 @@ func Test_ExecCommand(t *testing.T) {
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
 			controller := NewAgentController(context.TODO(), k8s, testNamespace, tc.targets, tc.timeout)
 
-			err := controller.ExecCommand()
+			err := controller.ExecCommand(tc.command)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return

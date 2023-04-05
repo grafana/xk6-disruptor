@@ -23,9 +23,20 @@ func (f *fakeAgentController) InjectDisruptorAgent() error {
 	return nil
 }
 
-func (f *fakeAgentController) ExecCommand(cmd ...string) error {
+func (f *fakeAgentController) ExecCommand(cmd []string) error {
 	_, err := f.executor.Exec(cmd[0], cmd[1:]...)
 	return err
+}
+
+func (f *fakeAgentController) Visit(visitor func(string) []string) error {
+	for _, t := range f.targets {
+		cmd := visitor(t)
+		_, err := f.executor.Exec(cmd[0], cmd[1:]...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func newPodDisruptorForTesting(ctx context.Context, selector PodSelector, controller AgentController) PodDisruptor {
