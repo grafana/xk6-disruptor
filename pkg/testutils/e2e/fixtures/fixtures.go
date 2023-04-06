@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // BuildHttpbinPod returns the definition for deploying Httpbin as a Pod
@@ -28,6 +29,12 @@ func BuildHttpbinPod() *corev1.Pod {
 					Name:            "httpbin",
 					Image:           "kennethreitz/httpbin",
 					ImagePullPolicy: corev1.PullIfNotPresent,
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: 80,
+						},
+					},
 				},
 			},
 		},
@@ -76,8 +83,9 @@ func BuildHttpbinService() *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "http",
-					Port: 80,
+					Name:       "http",
+					Port:       80,
+					TargetPort: intstr.FromString("http"),
 				},
 			},
 		},

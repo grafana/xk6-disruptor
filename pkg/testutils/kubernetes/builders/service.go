@@ -79,3 +79,71 @@ func (s *serviceBuilder) Build() *corev1.Service {
 		},
 	}
 }
+
+// EndpointsBuilder defines the methods for building a service EndPoints
+type EndpointsBuilder interface {
+	// WithNamespace sets namespace for the pod to be built
+	WithNamespace(namespace string) EndpointsBuilder
+	// WithSubset adds a subset to the Endpoints
+	WithSubset(ports []corev1.EndpointPort, pods []string) EndpointsBuilder
+	// Build builds the Endpoints
+	Build() *corev1.Endpoints
+}
+
+type endpointsBuilder struct {
+	service   string
+	namespace string
+	subsets   []corev1.EndpointSubset
+}
+
+// NewEndPointsBuilder creates a new EndpointsBuilder for a given service
+func NewEndPointsBuilder(service string) EndpointsBuilder {
+	return &endpointsBuilder{
+		service:   service,
+		namespace: metav1.NamespaceDefault,
+		subsets:   []corev1.EndpointSubset{},
+	}
+}
+
+func (b *endpointsBuilder) WithNamespace(namespace string) EndpointsBuilder {
+	b.namespace = namespace
+	return b
+}
+
+func (b *endpointsBuilder) WithSubset(ports []corev1.EndpointPort, pods []string) EndpointsBuilder {
+	addresses := []corev1.EndpointAddress{}
+	for _, p := range pods {
+		addresses = append(
+			addresses,
+			corev1.EndpointAddress{
+				TargetRef: &corev1.ObjectReference{
+					Kind:      "Pod",
+					Namespace: b.namespace,
+					Name:      p,
+				},
+			},
+		)
+	}
+
+	subset := corev1.EndpointSubset{
+		Ports:     ports,
+		Addresses: addresses,
+	}
+	b.subsets = append(b.subsets, subset)
+
+	return b
+}
+
+func (b *endpointsBuilder) Build() *corev1.Endpoints {
+	return &corev1.Endpoints{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "EndPoints",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      b.service,
+			Namespace: b.namespace,
+		},
+		Subsets: b.subsets,
+	}
+}

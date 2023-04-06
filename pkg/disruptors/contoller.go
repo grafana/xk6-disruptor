@@ -150,6 +150,12 @@ func NewAgentController(
 	targets []string,
 	timeout time.Duration,
 ) AgentController {
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	if timeout < 0 {
+		timeout = 0
+	}
 	return &agentController{
 		ctx:       ctx,
 		k8s:       k8s,

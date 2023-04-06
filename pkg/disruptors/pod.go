@@ -3,7 +3,6 @@ package disruptors
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -77,20 +76,13 @@ func NewPodDisruptor(
 		namespace = metav1.NamespaceDefault
 	}
 
-	timeout := options.InjectTimeout
-	if timeout == 0 {
-		timeout = 30
-	}
-	if timeout < 0 {
-		timeout = 0
-	}
-	controller := &agentController{
-		ctx:       ctx,
-		k8s:       k8s,
-		namespace: namespace,
-		targets:   targets,
-		timeout:   time.Duration(timeout * int(time.Second)),
-	}
+	controller := NewAgentController(
+		ctx,
+		k8s,
+		namespace,
+		targets,
+		time.Duration(options.InjectTimeout*int(time.Second)),
+	)
 	err = controller.InjectDisruptorAgent()
 	if err != nil {
 		return nil, err
@@ -108,100 +100,12 @@ func (d *podDisruptor) Targets() ([]string, error) {
 	return d.controller.Targets()
 }
 
-//nolint:dupl
-func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) []string {
-	cmd := []string{
-		"xk6-disruptor-agent",
-		"http",
-		"-d", fmt.Sprintf("%ds", duration),
-	}
-
-	if fault.AverageDelay > 0 {
-		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
-	}
-
-	if fault.ErrorRate > 0 {
-		cmd = append(
-			cmd,
-			"-e",
-			fmt.Sprint(fault.ErrorCode),
-			"-r",
-			fmt.Sprint(fault.ErrorRate),
-		)
-		if fault.ErrorBody != "" {
-			cmd = append(cmd, "-b", fault.ErrorBody)
-		}
-	}
-
-	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
-	}
-
-	if len(fault.Exclude) > 0 {
-		cmd = append(cmd, "-x", fault.Exclude)
-	}
-
-	if options.ProxyPort != 0 {
-		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
-	}
-
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
-	}
-
-	return cmd
-}
-
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
 func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
 	err := d.controller.ExecCommand(cmd)
 	return err
-}
-
-//nolint:dupl
-func buildGrpcFaultCmd(fault GrpcFault, duration uint, options GrpcDisruptionOptions) []string {
-	cmd := []string{
-		"xk6-disruptor-agent",
-		"grpc",
-		"-d", fmt.Sprintf("%ds", duration),
-	}
-
-	if fault.AverageDelay > 0 {
-		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
-	}
-
-	if fault.ErrorRate > 0 {
-		cmd = append(
-			cmd,
-			"-s",
-			fmt.Sprint(fault.StatusCode),
-			"-r",
-			fmt.Sprint(fault.ErrorRate),
-		)
-		if fault.StatusMessage != "" {
-			cmd = append(cmd, "-m", fault.StatusMessage)
-		}
-	}
-
-	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
-	}
-
-	if len(fault.Exclude) > 0 {
-		cmd = append(cmd, "-x", fault.Exclude)
-	}
-
-	if options.ProxyPort != 0 {
-		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
-	}
-
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
-	}
-
-	return cmd
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets

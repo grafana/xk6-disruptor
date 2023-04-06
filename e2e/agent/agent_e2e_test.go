@@ -69,6 +69,7 @@ func buildHttpbinPodWithDisruptorAgent(args []string) *corev1.Pod {
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					Ports: []corev1.ContainerPort{
 						{
+							Name: "http",
 							ContainerPort: 80,
 						},
 					},

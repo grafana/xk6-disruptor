@@ -391,6 +391,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 		{
 			description: "valid constructor",
 			script: `
+			// do not wait for fault injection
 			const opts = {
 				injectTimeout: 0
 			}
@@ -463,9 +464,15 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 				return
 			}
 
-			// create a service because the ServiceDisruptor's constructor expects it to exist
-			svc := builders.NewServiceBuilder("service").Build()
+			// create a k8s resources because the ServiceDisruptor's constructor expects it to exist
+			labels := map[string]string{
+				"app": "test",
+			}
+			svc := builders.NewServiceBuilder("service").WithSelector(labels).Build()
+			ep := builders.NewEndPointsBuilder("service").Build()
+
 			_, _ = env.k8s.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
+			_, _ = env.k8s.CoreV1().Endpoints("default").Create(context.TODO(), ep, v1.CreateOptions{})
 
 			_, err = env.rt.RunString(tc.script)
 
