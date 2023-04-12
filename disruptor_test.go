@@ -17,6 +17,7 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -116,18 +117,16 @@ if (targets.length != 1) {
 
 func Test_ServiceDisruptor(t *testing.T) {
 	t.Parallel()
+	labels := map[string]string{
+		"app": "test",
+	}
+	pod := builders.NewPodBuilder("app-pod").WithLabels(labels).Build()
+	svc := builders.NewServiceBuilder("app-service").WithSelector(labels).Build()
+	endpoints := builders.NewEndPointsBuilder("app-service").
+		WithSubset([]corev1.EndpointPort{{Name: "http", Port: 80}}, []string{"app-pod"}).
+		Build()
 
-	pod := builders.NewPodBuilder("pod-with-app-label").
-		WithLabels(map[string]string{
-			"app": "test",
-		}).
-		Build()
-	svc := builders.NewServiceBuilder("app-service").
-		WithSelector(map[string]string{
-			"app": "test",
-		}).
-		Build()
-	client := fake.NewSimpleClientset(pod, svc)
+	client := fake.NewSimpleClientset(pod, svc, endpoints)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
 	err := setTestModule(k8s, vu)

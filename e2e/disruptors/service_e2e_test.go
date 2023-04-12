@@ -67,6 +67,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		// apply disruption in a go-routine as it is a blocking function
 		go func() {
 			fault := disruptors.HTTPFault{
+				Port: 80,
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}

@@ -21,7 +21,7 @@ func Test_InjectAgent(t *testing.T) {
 	testCases := []struct {
 		title   string
 		targets []string
-		// Set timeout to 0 to prevent waiting the ephemeral container to be ready,
+		// Set timeout to -1 to prevent waiting the ephemeral container to be ready,
 		// as the fake client will not update its status
 		timeout     time.Duration
 		expectError bool
@@ -29,7 +29,7 @@ func Test_InjectAgent(t *testing.T) {
 		{
 			title:       "Inject ephemeral container",
 			targets:     []string{"pod1", "pod2"},
-			timeout:     0,
+			timeout:     -1,
 			expectError: false,
 		},
 		{
@@ -133,7 +133,7 @@ func Test_ExecCommand(t *testing.T) {
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
 			controller := NewAgentController(context.TODO(), k8s, testNamespace, tc.targets, tc.timeout)
 
-			err := controller.ExecCommand()
+			err := controller.ExecCommand(tc.command)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return

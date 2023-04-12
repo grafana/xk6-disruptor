@@ -18,9 +18,11 @@ type AgentController interface {
 	// InjectDisruptorAgent injects the Disruptor agent in the target pods
 	InjectDisruptorAgent() error
 	// ExecCommand executes a command in the targets of the AgentController and reports any error
-	ExecCommand(cmd ...string) error
+	ExecCommand(cmd []string) error
 	// Targets returns the list of targets for the controller
 	Targets() ([]string, error)
+	// Visit allows executing a different command on each target returned by a visiting function
+	Visit(func(target string) []string) error
 }
 
 // AgentController controls de agents in a set of target pods
@@ -97,11 +99,21 @@ func (c *agentController) InjectDisruptorAgent() error {
 }
 
 // ExecCommand executes a command in the targets of the AgentController and reports any error
-func (c *agentController) ExecCommand(cmd ...string) error {
+func (c *agentController) ExecCommand(cmd []string) error {
+	// visit each target with the same command
+	return c.Visit(func(string) []string {
+		return cmd
+	})
+}
+
+// Visit allows executing a different command on each target returned by a visiting function
+func (c *agentController) Visit(visitor func(string) []string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
 	errors := make(chan error, len(c.targets))
 	for _, pod := range c.targets {
+		// get the command to execute in the target
+		cmd := visitor(pod)
 		wg.Add(1)
 		// attach each container asynchronously
 		go func(pod string) {
@@ -138,6 +150,12 @@ func NewAgentController(
 	targets []string,
 	timeout time.Duration,
 ) AgentController {
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	if timeout < 0 {
+		timeout = 0
+	}
 	return &agentController{
 		ctx:       ctx,
 		k8s:       k8s,
