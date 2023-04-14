@@ -37,6 +37,12 @@ type agentController struct {
 // InjectDisruptorAgent injects the Disruptor agent in the target pods
 // TODO: use the agent version that matches the extension version
 func (c *agentController) InjectDisruptorAgent() error {
+	var (
+		rootUser     = int64(0)
+		rootGroup    = int64(0)
+		runAsNonRoot = false
+	)
+
 	agentContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
 			Name:            "xk6-agent",
@@ -46,6 +52,9 @@ func (c *agentController) InjectDisruptorAgent() error {
 				Capabilities: &corev1.Capabilities{
 					Add: []corev1.Capability{"NET_ADMIN"},
 				},
+				RunAsUser:    &rootUser,
+				RunAsGroup:   &rootGroup,
+				RunAsNonRoot: &runAsNonRoot,
 			},
 			TTY:   true,
 			Stdin: true,
