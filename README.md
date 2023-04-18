@@ -62,7 +62,7 @@ export default function () {
         errorRate: 0.1,
         errorCode: 500
     }
-    disruptor.injectHTTPFaults(fault, 30)
+    disruptor.injectHTTPFaults(fault, "30s")
 }
 ```
 

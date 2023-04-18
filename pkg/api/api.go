@@ -26,6 +26,24 @@ func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error 
 	return err
 }
 
+// converts a goja Value to a duration
+func convertDuration(rt *goja.Runtime, value goja.Value, duration *time.Duration) error {
+	durationString := ""
+
+	err := IsCompatible(value, durationString)
+	if err != nil {
+		return err
+	}
+
+	err = rt.ExportTo(value, &durationString)
+	if err != nil {
+		return err
+	}
+
+	*duration, err = time.ParseDuration(durationString)
+	return err
+}
+
 // JsPodDisruptor implements the JS interface for PodDisruptor
 type JsPodDisruptor struct {
 	rt        *goja.Runtime
@@ -54,9 +72,10 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
 	}
 
-	duration := args[1].ToInteger()
-	if duration < 0 {
-		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	var duration time.Duration
+	err = convertDuration(p.rt, args[1], &duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
 
 	opts := disruptors.HTTPDisruptionOptions{}
@@ -67,7 +86,7 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectHTTPFaults(fault, time.Duration(duration)*time.Second, opts)
+	err = p.disruptor.InjectHTTPFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
@@ -85,9 +104,10 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
 	}
 
-	duration := args[1].ToInteger()
-	if duration < 0 {
-		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	var duration time.Duration
+	err = convertDuration(p.rt, args[1], &duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
 
 	opts := disruptors.GrpcDisruptionOptions{}
@@ -98,7 +118,7 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectGrpcFaults(fault, time.Duration(duration)*time.Second, opts)
+	err = p.disruptor.InjectGrpcFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}

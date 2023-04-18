@@ -215,7 +215,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				iface: "eth0"
 			}
 
-			d.injectHTTPFaults(fault, 1, faultOpts)
+			d.injectHTTPFaults(fault, "1s", faultOpts)
 			`,
 			expectError: false,
 		},
@@ -232,7 +232,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				port: 80
 			}
 
-			d.injectHTTPFaults(fault, 1)
+			d.injectHTTPFaults(fault, "1s")
 			`,
 			expectError: false,
 		},
@@ -254,6 +254,23 @@ func Test_JsPodDisruptor(t *testing.T) {
 			expectError: true,
 		},
 		{
+			description: "inject HTTP Fault with invalid duration",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				errorCode: 500,
+				averageDelay: 100,
+				delayVariation: 10,
+				errorBody: '',
+				exclude: "",
+				port: 80
+			}
+
+			d.injectHTTPFaults(fault, "1")  // missing duration unit
+			`,
+			expectError: true,
+		},
+		{
 			description: "inject HTTP Fault with malformed fault (misspelled field)",
 			script: `
 			const fault = {
@@ -261,7 +278,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				error: 500,       // this is should be 'errorCode'
 			}
 
-			d.injectHTTPFaults(fault, 1)
+			d.injectHTTPFaults(fault, "1s")
 			`,
 			expectError: true,
 		},
@@ -283,7 +300,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				iface: "eth0"
 			}
 
-			d.injectGrpcFaults(fault, 1, faultOpts)
+			d.injectGrpcFaults(fault, "1s", faultOpts)
 			`,
 			expectError: false,
 		},
@@ -300,7 +317,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				port: 80
 			}
 
-			d.injectGrpcFaults(fault, 1)
+			d.injectGrpcFaults(fault, "1s")
 			`,
 			expectError: false,
 		},
@@ -323,6 +340,28 @@ func Test_JsPodDisruptor(t *testing.T) {
 			}
 
 			d.injectGrpcFaults(fault)
+			`,
+			expectError: true,
+		},
+		{
+			description: "inject Grpc Fault without invalid duration",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				statusCode: 500,
+				statusMessage: '',
+				averageDelay: 100,
+				delayVariation: 10,
+				exclude: "",
+				port: 80
+			}
+
+			const faultOpts = {
+				proxyPort: 4000,
+				iface: "eth0"
+			}
+
+			d.injectGrpcFaults(fault, "1")    // missing duration unit
 			`,
 			expectError: true,
 		},
