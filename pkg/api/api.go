@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
@@ -66,7 +67,7 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectHTTPFaults(fault, uint(duration), opts)
+	err = p.disruptor.InjectHTTPFaults(fault, time.Duration(duration)*time.Second, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
@@ -97,7 +98,7 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectGrpcFaults(fault, uint(duration), opts)
+	err = p.disruptor.InjectGrpcFaults(fault, time.Duration(duration)*time.Second, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}

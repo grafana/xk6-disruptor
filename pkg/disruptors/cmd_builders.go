@@ -1,13 +1,18 @@
 package disruptors
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/utils"
+)
 
 //nolint:dupl
-func buildGrpcFaultCmd(fault GrpcFault, duration uint, options GrpcDisruptionOptions) []string {
+func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"grpc",
-		"-d", fmt.Sprintf("%ds", duration),
+		"-d", utils.DurationSeconds(duration),
 	}
 
 	if fault.AverageDelay > 0 {
@@ -47,11 +52,11 @@ func buildGrpcFaultCmd(fault GrpcFault, duration uint, options GrpcDisruptionOpt
 }
 
 //nolint:dupl
-func buildHTTPFaultCmd(fault HTTPFault, duration uint, options HTTPDisruptionOptions) []string {
+func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
-		"-d", fmt.Sprintf("%ds", duration),
+		"-d", utils.DurationSeconds(duration),
 	}
 
 	if fault.AverageDelay > 0 {
