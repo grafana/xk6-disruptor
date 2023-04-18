@@ -27,7 +27,7 @@ func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error 
 }
 
 // converts a goja Value to a duration
-func convertDuration(rt *goja.Runtime, value goja.Value, duration *time.Duration) error {
+func convertDurationValue(rt *goja.Runtime, value goja.Value, duration *time.Duration) error {
 	durationString := ""
 
 	err := IsCompatible(value, durationString)
@@ -73,7 +73,7 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 	}
 
 	var duration time.Duration
-	err = convertDuration(p.rt, args[1], &duration)
+	err = convertDurationValue(p.rt, args[1], &duration)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
@@ -105,7 +105,7 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 	}
 
 	var duration time.Duration
-	err = convertDuration(p.rt, args[1], &duration)
+	err = convertDurationValue(p.rt, args[1], &duration)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}

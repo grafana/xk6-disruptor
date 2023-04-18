@@ -3,21 +3,7 @@ package api
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
-
-// transforms an identifier to its camel case
-// maps 'fieldName' and 'field_name' to 'FieldName'
-func toGoCase(name string) string {
-	goCase := ""
-	for _, world := range strings.Split(name, "_") {
-		runes := []rune(world)
-		first := strings.ToUpper(string(runes[0]))
-		goCase = goCase + first + string(runes[1:])
-	}
-
-	return goCase
-}
 
 // IsCompatible checks if the actual value can be assigned to a variable of the expected type
 // For Slices it expects []interface{} and therefore cannot check the type of the elements.
