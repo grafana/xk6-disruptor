@@ -45,9 +45,9 @@ type PodDisruptor interface {
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
 type PodDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// timeout when waiting agent to be injected in seconds. A zero value forces default.
 	// A Negative value forces no waiting.
-	InjectTimeout int `js:"injectTimeout"`
+	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
@@ -81,7 +81,7 @@ func NewPodDisruptor(
 		k8s,
 		namespace,
 		targets,
-		time.Duration(options.InjectTimeout*int(time.Second)),
+		options.InjectTimeout,
 	)
 	err = controller.InjectDisruptorAgent()
 	if err != nil {

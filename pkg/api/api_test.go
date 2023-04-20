@@ -70,7 +70,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 				}
 			}
 			const opts = {
-				injectTimeout: 0
+				injectTimeout: "10s"
 			}
 			new PodDisruptor(selector, opts)
 			`,
@@ -123,7 +123,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 				}
 			}
 			const opts = {
-				timeout: 0
+				timeout: "0s"
 			}
 			new PodDisruptor(selector, opts)
 			`,
@@ -174,10 +174,8 @@ const setupPodDisruptor = `
 		}
 	}
 }
-const opts = {
-	injectTimeout: 0
-}
-const d = new PodDisruptor(selector, opts)
+
+const d = new PodDisruptor(selector)
 `
 
 // This function tests covers both PodDisruptor and ServiceDisruptor because
@@ -430,9 +428,8 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 		{
 			description: "valid constructor",
 			script: `
-			// do not wait for fault injection
 			const opts = {
-				injectTimeout: 0
+				injectTimeout: "30s"
 			}
 			new ServiceDisruptor("service", "default", opts)
 			`,
@@ -477,7 +474,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			description: "valid constructor malformed options",
 			script: `
 			const opts = {
-				timeout: 0
+				timeout: "30s"
 			}
 			new ServiceDisruptor("service", "default", opts)
 			`,
