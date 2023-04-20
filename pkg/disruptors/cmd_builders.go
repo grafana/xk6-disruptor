@@ -16,7 +16,13 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 	}
 
 	if fault.AverageDelay > 0 {
-		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
+		cmd = append(
+			cmd,
+			"-a",
+			fmt.Sprint(fault.AverageDelay.Milliseconds()),
+			"-v",
+			fmt.Sprint(fault.DelayVariation.Milliseconds()),
+		)
 	}
 
 	if fault.ErrorRate > 0 {
@@ -60,7 +66,13 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 	}
 
 	if fault.AverageDelay > 0 {
-		cmd = append(cmd, "-a", fmt.Sprint(fault.AverageDelay), "-v", fmt.Sprint(fault.DelayVariation))
+		cmd = append(
+			cmd,
+			"-a",
+			fmt.Sprint(fault.AverageDelay.Milliseconds()),
+			"-v",
+			fmt.Sprint(fault.DelayVariation.Milliseconds()),
+		)
 	}
 
 	if fault.ErrorRate > 0 {

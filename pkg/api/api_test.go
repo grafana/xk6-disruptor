@@ -203,8 +203,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
@@ -225,8 +225,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
@@ -242,8 +242,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
@@ -259,8 +259,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
@@ -289,8 +289,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -311,8 +311,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -328,8 +328,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -350,8 +350,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -373,7 +373,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				status: 500,       // this is should be 'statusCode'
 			}
 
-			d.injectGrpcFaults(fault, 1)
+			d.injectGrpcFaults(fault, "1m")
 			`,
 			expectError: true,
 		},

@@ -120,7 +120,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
-				AverageDelay: 100,
+				AverageDelay: 100 * time.Millisecond,
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -274,7 +274,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			targets: []string{"my-app-pod"},
 			fault: GrpcFault{
-				AverageDelay: 100,
+				AverageDelay: 100 * time.Millisecond,
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
