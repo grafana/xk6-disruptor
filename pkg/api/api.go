@@ -5,7 +5,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/dop251/goja"
@@ -14,34 +13,9 @@ import (
 	"go.k6.io/k6/js/common"
 )
 
-// converts a goja.Value into a object. target is expected to be a pointer
+//nolint:unparam   // TODO: call directly Convert from API methods
 func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error {
-	// get the value pointed to by the target and check for compatibility
-	err := IsCompatible(value.Export(), reflect.ValueOf(target).Elem().Interface())
-	if err != nil {
-		return err
-	}
-
-	err = rt.ExportTo(value, target)
-	return err
-}
-
-// converts a goja Value to a duration
-func convertDurationValue(rt *goja.Runtime, value goja.Value, duration *time.Duration) error {
-	durationString := ""
-
-	err := IsCompatible(value, durationString)
-	if err != nil {
-		return err
-	}
-
-	err = rt.ExportTo(value, &durationString)
-	if err != nil {
-		return err
-	}
-
-	*duration, err = time.ParseDuration(durationString)
-	return err
+	return Convert(value.Export(), target)
 }
 
 // JsPodDisruptor implements the JS interface for PodDisruptor
@@ -73,7 +47,7 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 	}
 
 	var duration time.Duration
-	err = convertDurationValue(p.rt, args[1], &duration)
+	err = convertValue(p.rt, args[1], &duration)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
@@ -105,7 +79,7 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 	}
 
 	var duration time.Duration
-	err = convertDurationValue(p.rt, args[1], &duration)
+	err = convertValue(p.rt, args[1], &duration)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
