@@ -15,32 +15,10 @@ type PodAttributes struct {
 	Labels map[string]string
 }
 
-// HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod
-type HTTPDisruptionOptions struct {
-	// Port used by the agent for listening
-	ProxyPort uint `js:"proxyPort"`
-	// Network interface the agent will be listening traffic from
-	Iface string
-}
-
-// GrpcDisruptionOptions defines options for the injection of grpc faults in a target pod
-type GrpcDisruptionOptions struct {
-	// Port used by the agent for listening
-	ProxyPort uint `js:"proxyPort"`
-	// Network interface the agent will be listening traffic from
-	Iface string
-}
-
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
-	// Targets returns the list of targets for the disruptor
-	Targets() ([]string, error)
-	// InjectHTTPFault injects faults in the HTTP requests sent to the disruptor's targets
-	// for the specified duration
-	InjectHTTPFaults(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) error
-	// InjectGrpcFault injects faults in the grpc requests sent to the disruptor's targets
-	// for the specified duration
-	InjectGrpcFaults(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) error
+	Disruptor
+	ProtocolFaultInjector
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
