@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
 	"github.com/grafana/xk6-disruptor/pkg/utils/process"
@@ -59,7 +60,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 		cmdError    error
 		fault       HTTPFault
 		opts        HTTPDisruptionOptions
-		duration    uint
+		duration    time.Duration
 	}{
 		{
 			title: "Test error 500",
@@ -80,7 +81,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				ErrorCode: 500,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60,
+			duration: 60 * time.Second,
 		},
 		{
 			title: "Test error 500 with error body",
@@ -102,7 +103,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				ErrorBody: "{\"error\": 500}",
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60,
+			duration: 60 * time.Second,
 		},
 		{
 			title: "Test Average delay",
@@ -119,10 +120,10 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
-				AverageDelay: 100,
+				AverageDelay: 100 * time.Millisecond,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60,
+			duration: 60 * time.Second,
 		},
 		{
 			title: "Test exclude list",
@@ -142,7 +143,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				Exclude: "/path1,/path2",
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60,
+			duration: 60 * time.Second,
 		},
 		{
 			title: "Test command execution fault",
@@ -160,7 +161,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			cmdError:    fmt.Errorf("error executing command"),
 			fault:       HTTPFault{},
 			opts:        HTTPDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 		},
 	}
 
@@ -212,7 +213,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		targets     []string
 		fault       GrpcFault
 		opts        GrpcDisruptionOptions
-		duration    uint
+		duration    time.Duration
 		expectedCmd string
 		expectError bool
 		cmdError    error
@@ -234,7 +235,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				StatusCode: 14,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -r 0.1 -s 14",
 			expectError: false,
 			cmdError:    nil,
@@ -242,7 +243,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		{
 			title: "Test error with status message",
 			selector: PodSelector{
-				Namespace: "testns",
+				Namespace: "			duration:    60,testns",
 				Select: PodAttributes{
 					Labels: map[string]string{
 						"app": "myapp",
@@ -256,7 +257,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				StatusMessage: "internal error",
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -r 0.1 -s 14 -m internal error",
 			expectError: false,
 			cmdError:    nil,
@@ -273,10 +274,10 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			targets: []string{"my-app-pod"},
 			fault: GrpcFault{
-				AverageDelay: 100,
+				AverageDelay: 100 * time.Millisecond,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -a 100 -v 0",
 			expectError: false,
 			cmdError:    nil,
@@ -296,7 +297,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				Exclude: "service1,service2",
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -x service1,service2",
 			expectError: false,
 			cmdError:    nil,
@@ -314,7 +315,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			targets:     []string{"my-app-pod"},
 			fault:       GrpcFault{},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
+			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s",
 			expectError: true,
 			cmdError:    fmt.Errorf("error executing command"),

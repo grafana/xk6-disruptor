@@ -18,9 +18,9 @@ type ServiceDisruptor interface {
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
 type ServiceDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// timeout when waiting agent to be injected (default 30s). A zero value forces default.
 	// A Negative value forces no waiting.
-	InjectTimeout int `js:"injectTimeout"`
+	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
 // serviceDisruptor is an instance of a ServiceDisruptor
@@ -67,7 +67,7 @@ func NewServiceDisruptor(
 		k8s,
 		namespace,
 		targets,
-		time.Duration(options.InjectTimeout*int(time.Second)),
+		options.InjectTimeout,
 	)
 
 	err = controller.InjectDisruptorAgent()
@@ -168,7 +168,11 @@ func NewPortMapper(
 	}
 }
 
-func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
+func (d *serviceDisruptor) InjectHTTPFaults(
+	fault HTTPFault,
+	duration time.Duration,
+	options HTTPDisruptionOptions,
+) error {
 	targets, err := d.mapper.Map(fault.Port)
 	if err != nil {
 		return fmt.Errorf("error getting target for fault injection: %w", err)
@@ -187,7 +191,11 @@ func (d *serviceDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, opti
 	return err
 }
 
-func (d *serviceDisruptor) InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error {
+func (d *serviceDisruptor) InjectGrpcFaults(
+	fault GrpcFault,
+	duration time.Duration,
+	options GrpcDisruptionOptions,
+) error {
 	targets, err := d.mapper.Map(fault.Port)
 	if err != nil {
 		return fmt.Errorf("error getting target for fault injection: %w", err)

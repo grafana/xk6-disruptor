@@ -5,7 +5,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
@@ -13,16 +13,9 @@ import (
 	"go.k6.io/k6/js/common"
 )
 
-// converts a goja.Value into a object. target is expected to be a pointer
+//nolint:unparam   // TODO: call directly Convert from API methods
 func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error {
-	// get the value pointed to by the target and check for compatibility
-	err := IsCompatible(value.Export(), reflect.ValueOf(target).Elem().Interface())
-	if err != nil {
-		return err
-	}
-
-	err = rt.ExportTo(value, target)
-	return err
+	return Convert(value.Export(), target)
 }
 
 // JsPodDisruptor implements the JS interface for PodDisruptor
@@ -53,9 +46,10 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
 	}
 
-	duration := args[1].ToInteger()
-	if duration < 0 {
-		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	var duration time.Duration
+	err = convertValue(p.rt, args[1], &duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
 
 	opts := disruptors.HTTPDisruptionOptions{}
@@ -66,7 +60,7 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectHTTPFaults(fault, uint(duration), opts)
+	err = p.disruptor.InjectHTTPFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
@@ -84,9 +78,10 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
 	}
 
-	duration := args[1].ToInteger()
-	if duration < 0 {
-		common.Throw(p.rt, fmt.Errorf("duration must be non-negative"))
+	var duration time.Duration
+	err = convertValue(p.rt, args[1], &duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
 	}
 
 	opts := disruptors.GrpcDisruptionOptions{}
@@ -97,7 +92,7 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectGrpcFaults(fault, uint(duration), opts)
+	err = p.disruptor.InjectGrpcFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}

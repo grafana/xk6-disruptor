@@ -70,7 +70,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 				}
 			}
 			const opts = {
-				injectTimeout: 0
+				injectTimeout: "10s"
 			}
 			new PodDisruptor(selector, opts)
 			`,
@@ -123,7 +123,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 				}
 			}
 			const opts = {
-				timeout: 0
+				timeout: "0s"
 			}
 			new PodDisruptor(selector, opts)
 			`,
@@ -174,10 +174,8 @@ const setupPodDisruptor = `
 		}
 	}
 }
-const opts = {
-	injectTimeout: 0
-}
-const d = new PodDisruptor(selector, opts)
+
+const d = new PodDisruptor(selector)
 `
 
 // This function tests covers both PodDisruptor and ServiceDisruptor because
@@ -203,8 +201,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
@@ -215,7 +213,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				iface: "eth0"
 			}
 
-			d.injectHTTPFaults(fault, 1, faultOpts)
+			d.injectHTTPFaults(fault, "1s", faultOpts)
 			`,
 			expectError: false,
 		},
@@ -225,14 +223,14 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
 			}
 
-			d.injectHTTPFaults(fault, 1)
+			d.injectHTTPFaults(fault, "1s")
 			`,
 			expectError: false,
 		},
@@ -242,14 +240,31 @@ func Test_JsPodDisruptor(t *testing.T) {
 			const fault = {
 				errorRate: 1.0,
 				errorCode: 500,
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				errorBody: '',
 				exclude: "",
 				port: 80
 			}
 
 			d.injectHTTPFaults(fault)
+			`,
+			expectError: true,
+		},
+		{
+			description: "inject HTTP Fault with invalid duration",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				errorCode: 500,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
+				errorBody: '',
+				exclude: "",
+				port: 80
+			}
+
+			d.injectHTTPFaults(fault, "1")  // missing duration unit
 			`,
 			expectError: true,
 		},
@@ -261,7 +276,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				error: 500,       // this is should be 'errorCode'
 			}
 
-			d.injectHTTPFaults(fault, 1)
+			d.injectHTTPFaults(fault, "1s")
 			`,
 			expectError: true,
 		},
@@ -272,8 +287,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -283,7 +298,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				iface: "eth0"
 			}
 
-			d.injectGrpcFaults(fault, 1, faultOpts)
+			d.injectGrpcFaults(fault, "1s", faultOpts)
 			`,
 			expectError: false,
 		},
@@ -294,13 +309,13 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
 
-			d.injectGrpcFaults(fault, 1)
+			d.injectGrpcFaults(fault, "1s")
 			`,
 			expectError: false,
 		},
@@ -311,8 +326,8 @@ func Test_JsPodDisruptor(t *testing.T) {
 				errorRate: 1.0,
 				statusCode: 500,
 				statusMessage: '',
-				averageDelay: 100,
-				delayVariation: 10,
+				averageDelay: "100ms",
+				delayVariation: "10ms",
 				exclude: "",
 				port: 80
 			}
@@ -327,6 +342,28 @@ func Test_JsPodDisruptor(t *testing.T) {
 			expectError: true,
 		},
 		{
+			description: "inject Grpc Fault without invalid duration",
+			script: `
+			const fault = {
+				errorRate: 1.0,
+				statusCode: 500,
+				statusMessage: '',
+				averageDelay: "100ms",
+				delayVariation: "10ms",
+				exclude: "",
+				port: 80
+			}
+
+			const faultOpts = {
+				proxyPort: 4000,
+				iface: "eth0"
+			}
+
+			d.injectGrpcFaults(fault, "1")    // missing duration unit
+			`,
+			expectError: true,
+		},
+		{
 			description: "inject Grpc Fault with malformed fault (misspelled field)",
 			script: `
 			const fault = {
@@ -334,7 +371,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				status: 500,       // this is should be 'statusCode'
 			}
 
-			d.injectGrpcFaults(fault, 1)
+			d.injectGrpcFaults(fault, "1m")
 			`,
 			expectError: true,
 		},
@@ -391,9 +428,8 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 		{
 			description: "valid constructor",
 			script: `
-			// do not wait for fault injection
 			const opts = {
-				injectTimeout: 0
+				injectTimeout: "30s"
 			}
 			new ServiceDisruptor("service", "default", opts)
 			`,
@@ -438,7 +474,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			description: "valid constructor malformed options",
 			script: `
 			const opts = {
-				timeout: 0
+				timeout: "30s"
 			}
 			new ServiceDisruptor("service", "default", opts)
 			`,

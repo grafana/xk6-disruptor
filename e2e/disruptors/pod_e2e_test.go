@@ -119,7 +119,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectHTTPFaults(tc.fault, 60, tc.options)
+					err := disruptor.InjectHTTPFaults(tc.fault, 60 * time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return
@@ -229,7 +229,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectGrpcFaults(tc.fault, 60, tc.options)
+					err := disruptor.InjectGrpcFaults(tc.fault, 60 * time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return

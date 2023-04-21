@@ -36,18 +36,18 @@ type PodDisruptor interface {
 	// Targets returns the list of targets for the disruptor
 	Targets() ([]string, error)
 	// InjectHTTPFault injects faults in the HTTP requests sent to the disruptor's targets
-	// for the specified duration (in seconds)
-	InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error
+	// for the specified duration
+	InjectHTTPFaults(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) error
 	// InjectGrpcFault injects faults in the grpc requests sent to the disruptor's targets
-	// for the specified duration (in seconds)
-	InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error
+	// for the specified duration
+	InjectGrpcFaults(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) error
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
 type PodDisruptorOptions struct {
-	// timeout when waiting agent to be injected in seconds (default 30s). A zero value forces default.
+	// timeout when waiting agent to be injected in seconds. A zero value forces default.
 	// A Negative value forces no waiting.
-	InjectTimeout int `js:"injectTimeout"`
+	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
@@ -81,7 +81,7 @@ func NewPodDisruptor(
 		k8s,
 		namespace,
 		targets,
-		time.Duration(options.InjectTimeout*int(time.Second)),
+		options.InjectTimeout,
 	)
 	err = controller.InjectDisruptorAgent()
 	if err != nil {
@@ -101,7 +101,11 @@ func (d *podDisruptor) Targets() ([]string, error) {
 }
 
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
-func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options HTTPDisruptionOptions) error {
+func (d *podDisruptor) InjectHTTPFaults(
+	fault HTTPFault,
+	duration time.Duration,
+	options HTTPDisruptionOptions,
+) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
 	err := d.controller.ExecCommand(cmd)
@@ -109,7 +113,11 @@ func (d *podDisruptor) InjectHTTPFaults(fault HTTPFault, duration uint, options 
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
-func (d *podDisruptor) InjectGrpcFaults(fault GrpcFault, duration uint, options GrpcDisruptionOptions) error {
+func (d *podDisruptor) InjectGrpcFaults(
+	fault GrpcFault,
+	duration time.Duration,
+	options GrpcDisruptionOptions,
+) error {
 	cmd := buildGrpcFaultCmd(fault, duration, options)
 	err := d.controller.ExecCommand(cmd)
 	return err

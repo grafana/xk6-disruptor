@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 
@@ -25,9 +26,9 @@ type ProxyConfig struct {
 // Disruption specifies disruptions in grpc requests
 type Disruption struct {
 	// Average delay introduced to requests
-	AverageDelay uint
+	AverageDelay time.Duration
 	// Variation in the delay (with respect of the average delay)
-	DelayVariation uint
+	DelayVariation time.Duration
 	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
 	ErrorRate float32
 	// Status code to be returned by requests selected to return an error
