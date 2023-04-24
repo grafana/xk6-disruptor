@@ -110,9 +110,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		expectError bool
 		container   string
 		state       corev1.ContainerState
-		timeout     time.Duration
+		options     AttachOptions
 	}
 
+	// TODO: check injecting agent when it is already present in the pod
 	testCases := []TestCase{
 		{
 			test:        "Create ephemeral container not waiting",
@@ -123,7 +124,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout: 0,
+			options: AttachOptions{
+				Timeout:        0,
+				IgnoreIfExists: true,
+			},
 		},
 		{
 			test:        "Create ephemeral container waiting",
@@ -134,7 +138,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Running: &corev1.ContainerStateRunning{},
 			},
-			timeout: 5 * time.Second,
+			options: AttachOptions{
+				Timeout:        5 * time.Second,
+				IgnoreIfExists: true,
+			},
 		},
 		{
 			test:        "Fail waiting for container",
@@ -145,7 +152,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout: 5 * time.Second,
+			options: AttachOptions{
+				Timeout:        5 * time.Second,
+				IgnoreIfExists: true,
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -178,7 +188,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				context.TODO(),
 				tc.podName,
 				corev1.EphemeralContainer{},
-				tc.timeout,
+				tc.options,
 			)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)

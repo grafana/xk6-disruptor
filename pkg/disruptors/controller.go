@@ -8,9 +8,9 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/internal/consts"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // AgentController defines the interface for controlling agents in a set of targets
@@ -35,7 +35,6 @@ type agentController struct {
 }
 
 // InjectDisruptorAgent injects the Disruptor agent in the target pods
-// TODO: use the agent version that matches the extension version
 func (c *agentController) InjectDisruptorAgent() error {
 	var (
 		rootUser     = int64(0)
@@ -70,27 +69,15 @@ func (c *agentController) InjectDisruptorAgent() error {
 		go func(podName string) {
 			defer wg.Done()
 
-			// check if the container has already been injected
-			pod, err := c.k8s.CoreV1().Pods(c.namespace).Get(c.ctx, podName, metav1.GetOptions{})
-			if err != nil {
-				errors <- err
-				return
-			}
-
-			// if the container has already been injected, nothing to do
-			for _, c := range pod.Spec.EphemeralContainers {
-				if c.Name == agentContainer.Name {
-					return
-				}
-			}
-
-			err = c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
+			err := c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
 				c.ctx,
 				podName,
 				agentContainer,
-				c.timeout,
+				helpers.AttachOptions{
+					Timeout:        c.timeout,
+					IgnoreIfExists: true,
+				},
 			)
-
 			if err != nil {
 				errors <- err
 			}

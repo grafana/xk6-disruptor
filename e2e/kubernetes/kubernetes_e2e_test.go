@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
@@ -164,7 +165,15 @@ func Test_Kubernetes(t *testing.T) {
 			},
 		}
 
-		err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer(context.TODO(), "paused", ephemeral, 15*time.Second)
+		err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer(
+			context.TODO(),
+			"paused",
+			ephemeral,
+			helpers.AttachOptions{
+				Timeout: 15*time.Second,
+			},
+		)
+
 		if err != nil {
 			t.Errorf("error attaching ephemeral container to pod: %v", err)
 			return

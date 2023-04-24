@@ -25,14 +25,21 @@ type PodHelper interface {
 	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
-	// AttachEphemeralContainer adds an ephemeral container to a running pod, waiting for up to
-	// a given timeout until the container is running
+	// AttachEphemeralContainer adds an ephemeral container to a running pod
 	AttachEphemeralContainer(
 		ctx context.Context,
 		podName string,
 		container corev1.EphemeralContainer,
-		timeout time.Duration,
+		options AttachOptions,
 	) error
+}
+
+// AttachOptions defines options for attaching a container
+type AttachOptions struct {
+	// timeout for waiting until container is ready.
+	Timeout time.Duration
+	// If container exists, ignore and return
+	IgnoreIfExists bool
 }
 
 // podConditionChecker defines a function that checks if a pod satisfies a condition
@@ -143,7 +150,7 @@ func (h *helpers) AttachEphemeralContainer(
 	ctx context.Context,
 	podName string,
 	container corev1.EphemeralContainer,
-	timeout time.Duration,
+	options AttachOptions,
 ) error {
 	pod, err := h.client.CoreV1().Pods(h.namespace).Get(
 		ctx,
@@ -153,6 +160,17 @@ func (h *helpers) AttachEphemeralContainer(
 	if err != nil {
 		return err
 	}
+
+	// check if container already exists
+	for _, c := range pod.Spec.EphemeralContainers {
+		if c.Name == container.Name {
+			if options.IgnoreIfExists {
+				return nil
+			}
+			return fmt.Errorf("ephemeral container %s already exists", container.Name)
+		}
+	}
+
 	podJSON, err := json.Marshal(pod)
 	if err != nil {
 		return err
@@ -182,21 +200,21 @@ func (h *helpers) AttachEphemeralContainer(
 		return err
 	}
 
-	if timeout == 0 {
+	if options.Timeout == 0 {
 		return nil
 	}
 	running, err := h.waitForCondition(
 		ctx,
 		h.namespace,
 		podName,
-		timeout,
+		options.Timeout,
 		checkEphemeralContainerState,
 	)
 	if err != nil {
 		return err
 	}
 	if !running {
-		return fmt.Errorf("ephemeral container has not started after %fs", timeout.Seconds())
+		return fmt.Errorf("ephemeral container has not started after %fs", options.Timeout.Seconds())
 	}
 	return nil
 }
