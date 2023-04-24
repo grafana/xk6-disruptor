@@ -1,10 +1,13 @@
 // Package api implements a layer between javascript code (via goja)) and the disruptors
 // allowing for validations and type conversions when needed
+//
+// The implementation of the JS API follows the design described in
 package api
 
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/dop251/goja"
@@ -18,15 +21,33 @@ func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error 
 	return Convert(value.Export(), target)
 }
 
-// JsPodDisruptor implements the JS interface for PodDisruptor
-type JsPodDisruptor struct {
-	rt        *goja.Runtime
-	disruptor disruptors.PodDisruptor
+// buildObject returns the value as a
+func buildObject(rt *goja.Runtime, value interface{}) (*goja.Object, error) {
+	obj := rt.NewObject()
+
+	t := reflect.TypeOf(value)
+	v := reflect.ValueOf(value)
+	for i := 0; i < t.NumMethod(); i++ {
+		name := t.Method(i).Name
+		f := v.MethodByName(name)
+		err := obj.Set(toCamelCase(name), f.Interface())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return obj, nil
+}
+
+// jsDisruptor implements the JS interface for PodDisruptor
+type jsDisruptor struct {
+	rt *goja.Runtime
+	disruptors.Disruptor
 }
 
 // Targets is a proxy method. Validates parameters and delegates to the PodDisruptor method
-func (p *JsPodDisruptor) Targets() goja.Value {
-	targets, err := p.disruptor.Targets()
+func (p *jsDisruptor) Targets() goja.Value {
+	targets, err := p.Disruptor.Targets()
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error getting kubernetes config path: %w", err))
 	}
@@ -34,8 +55,14 @@ func (p *JsPodDisruptor) Targets() goja.Value {
 	return p.rt.ToValue(targets)
 }
 
-// InjectHTTPFaults is a proxy method. Validates parameters and delegates to the PodDisruptor method
-func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
+// jsProtocolFaultInjector implements the JS interface for PodDisruptor
+type jsProtocolFaultInjector struct {
+	rt *goja.Runtime
+	disruptors.ProtocolFaultInjector
+}
+
+// injectHTTPFaults is a proxy method. Validates parameters and delegates to the Protocol Disruptor method
+func (p *jsProtocolFaultInjector) InjectHTTPFaults(args ...goja.Value) {
 	if len(args) < 2 {
 		common.Throw(p.rt, fmt.Errorf("HTTPFault and duration are required"))
 	}
@@ -60,14 +87,14 @@ func (p *JsPodDisruptor) InjectHTTPFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectHTTPFaults(fault, duration, opts)
+	err = p.ProtocolFaultInjector.InjectHTTPFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
 }
 
 // InjectGrpcFaults is a proxy method. Validates parameters and delegates to the PodDisruptor method
-func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
+func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...goja.Value) {
 	if len(args) < 2 {
 		common.Throw(p.rt, fmt.Errorf("GrpcFault and duration are required"))
 	}
@@ -92,35 +119,52 @@ func (p *JsPodDisruptor) InjectGrpcFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.disruptor.InjectGrpcFaults(fault, duration, opts)
+	err = p.ProtocolFaultInjector.InjectGrpcFaults(fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
 }
 
+type jsPodDisruptor struct {
+	jsDisruptor
+	jsProtocolFaultInjector
+}
+
+// buildJsPodDisruptor builds a goja object that implements the PodDisruptor API
 func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*goja.Object, error) {
-	jsDisruptor := JsPodDisruptor{
-		rt:        rt,
-		disruptor: disruptor,
+	d := &jsPodDisruptor{
+		jsDisruptor: jsDisruptor{
+			rt:        rt,
+			Disruptor: disruptor,
+		},
+		jsProtocolFaultInjector: jsProtocolFaultInjector{
+			rt:                    rt,
+			ProtocolFaultInjector: disruptor,
+		},
 	}
 
-	obj := rt.NewObject()
-	err := obj.Set("targets", jsDisruptor.Targets)
-	if err != nil {
-		return nil, err
+	return buildObject(rt, d)
+}
+
+type jsServiceDisruptor struct {
+	jsDisruptor
+	jsProtocolFaultInjector
+}
+
+// buildJsServiceDisruptor builds a goja object that implements the ServiceDisruptor API
+func buildJsServiceDisruptor(rt *goja.Runtime, disruptor disruptors.ServiceDisruptor) (*goja.Object, error) {
+	d := &jsServiceDisruptor{
+		jsDisruptor: jsDisruptor{
+			rt:        rt,
+			Disruptor: disruptor,
+		},
+		jsProtocolFaultInjector: jsProtocolFaultInjector{
+			rt:                    rt,
+			ProtocolFaultInjector: disruptor,
+		},
 	}
 
-	err = obj.Set("injectHTTPFaults", jsDisruptor.InjectHTTPFaults)
-	if err != nil {
-		return nil, err
-	}
-
-	err = obj.Set("injectGrpcFaults", jsDisruptor.InjectGrpcFaults)
-	if err != nil {
-		return nil, err
-	}
-
-	return obj, nil
+	return buildObject(rt, d)
 }
 
 // NewPodDisruptor creates an instance of a PodDisruptor
@@ -162,7 +206,7 @@ func NewPodDisruptor(
 	return obj, nil
 }
 
-// NewServiceDisruptor creates an instance of a ServiceDisruptor
+// NewServiceDisruptor creates an instance of a ServiceDisruptor and returns it as a goja object
 func NewServiceDisruptor(
 	ctx context.Context,
 	rt *goja.Runtime,
@@ -199,11 +243,7 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}
 
-	// ServiceDisruptor is a wrapper to PodDisruptor, so we can use it for building a JsPodDisruptor.
-	// Notice that when [1] is implemented, this will make even more sense because there will be only
-	// a Disruptor interface.
-	// [1] https://github.com/grafana/xk6-disruptor/issues/60
-	obj, err := buildJsPodDisruptor(rt, disruptor)
+	obj, err := buildJsServiceDisruptor(rt, disruptor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}

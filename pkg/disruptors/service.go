@@ -13,7 +13,8 @@ import (
 
 // ServiceDisruptor defines operations for injecting faults in services
 type ServiceDisruptor interface {
-	PodDisruptor
+	Disruptor
+	ProtocolFaultInjector
 }
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor

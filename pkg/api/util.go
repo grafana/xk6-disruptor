@@ -14,3 +14,11 @@ func toGoCase(name string) string {
 
 	return goCase
 }
+
+// toCamelCase transforms an identifier from its Go case to camel case.
+// Maps 'FieldName' to 'fieldName'
+func toCamelCase(name string) string {
+	runes := []rune(name)
+	first := strings.ToLower(string(runes[0]))
+	return first + string(runes[1:])
+}
