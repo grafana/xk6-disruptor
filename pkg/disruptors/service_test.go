@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/assertions"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
@@ -603,7 +604,7 @@ func Test_Targets(t *testing.T) {
 				return
 			}
 
-			if !compareStringArrays(tc.expectedPods, targets) {
+			if !assertions.CompareStringArrays(tc.expectedPods, targets) {
 				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
 				return
 			}

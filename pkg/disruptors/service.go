@@ -65,7 +65,7 @@ func NewServiceDisruptor(
 	targets := getTargetPods(ep)
 	controller := NewAgentController(
 		ctx,
-		k8s,
+		k8s.NamespacedHelpers(namespace),
 		namespace,
 		targets,
 		options.InjectTimeout,

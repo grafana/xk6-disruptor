@@ -1,8 +1,6 @@
 package disruptors
 
 import (
-	"sort"
-
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,25 +28,4 @@ type podDesc struct {
 	name      string
 	namespace string
 	labels    map[string]string
-}
-
-// compareSortedArrays compares if two arrays of strings has the same elements
-func compareStringArrays(a, b []string) bool {
-	sort.Strings(a)
-	sort.Strings(b)
-	if len(a) != len(b) {
-		return false
-	}
-
-	if len(a) == 0 {
-		return true
-	}
-
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }

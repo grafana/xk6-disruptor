@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/internal/consts"
-	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
 	corev1 "k8s.io/api/core/v1"
@@ -28,7 +28,7 @@ type AgentController interface {
 // AgentController controls de agents in a set of target pods
 type agentController struct {
 	ctx       context.Context
-	k8s       kubernetes.Kubernetes
+	helper    helpers.PodHelper
 	namespace string
 	targets   []string
 	timeout   time.Duration
@@ -69,7 +69,7 @@ func (c *agentController) InjectDisruptorAgent() error {
 		go func(podName string) {
 			defer wg.Done()
 
-			err := c.k8s.NamespacedHelpers(c.namespace).AttachEphemeralContainer(
+			err := c.helper.AttachEphemeralContainer(
 				c.ctx,
 				podName,
 				agentContainer,
@@ -113,8 +113,7 @@ func (c *agentController) Visit(visitor func(string) []string) error {
 		wg.Add(1)
 		// attach each container asynchronously
 		go func(pod string) {
-			_, stderr, err := c.k8s.NamespacedHelpers(c.namespace).
-				Exec(pod, "xk6-agent", cmd, []byte{})
+			_, stderr, err := c.helper.Exec(pod, "xk6-agent", cmd, []byte{})
 			if err != nil {
 				errors <- fmt.Errorf("error invoking agent: %w \n%s", err, string(stderr))
 			}
@@ -141,7 +140,7 @@ func (c *agentController) Targets() ([]string, error) {
 // NewAgentController creates a new controller for a list of target pods
 func NewAgentController(
 	ctx context.Context,
-	k8s kubernetes.Kubernetes,
+	helper helpers.PodHelper,
 	namespace string,
 	targets []string,
 	timeout time.Duration,
@@ -154,7 +153,7 @@ func NewAgentController(
 	}
 	return &agentController{
 		ctx:       ctx,
-		k8s:       k8s,
+		helper:    helper,
 		namespace: namespace,
 		targets:   targets,
 		timeout:   timeout,

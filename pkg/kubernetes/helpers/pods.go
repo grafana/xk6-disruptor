@@ -11,6 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
@@ -32,6 +34,16 @@ type PodHelper interface {
 		container corev1.EphemeralContainer,
 		options AttachOptions,
 	) error
+	// List returns a list of pods that match the given PodFilter
+	List(ctx context.Context, filter PodFilter) ([]string, error)
+}
+
+// PodFilter defines the criteria for selecting a pod for disruption
+type PodFilter struct {
+	// Select Pods that match these labels
+	Select map[string]string
+	// Select Pods that match these labels
+	Exclude map[string]string
 }
 
 // AttachOptions defines options for attaching a container
@@ -229,4 +241,52 @@ func checkEphemeralContainerState(pod *corev1.Pod) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// buildLabelSelector builds a label selector to be used in the k8s api, from a PodSelector
+func buildLabelSelector(f PodFilter) (labels.Selector, error) {
+	labelsSelector := labels.NewSelector()
+	for label, value := range f.Select {
+		req, err := labels.NewRequirement(label, selection.Equals, []string{value})
+		if err != nil {
+			return nil, err
+		}
+		labelsSelector = labelsSelector.Add(*req)
+	}
+
+	for label, value := range f.Exclude {
+		req, err := labels.NewRequirement(label, selection.NotEquals, []string{value})
+		if err != nil {
+			return nil, err
+		}
+		labelsSelector = labelsSelector.Add(*req)
+	}
+
+	return labelsSelector, nil
+}
+
+// List retrieves the pods that matcht the given PodFilter
+func (h *helpers) List(ctx context.Context, filter PodFilter) ([]string, error) {
+	labelSelector, err := buildLabelSelector(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	}
+	pods, err := h.client.CoreV1().Pods(h.namespace).List(
+		ctx,
+		listOptions,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+	for _, p := range pods.Items {
+		names = append(names, p.Name)
+	}
+
+	return names, nil
 }

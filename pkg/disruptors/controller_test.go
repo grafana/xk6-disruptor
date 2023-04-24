@@ -53,7 +53,8 @@ func Test_InjectAgent(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(objs...)
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			controller := NewAgentController(context.TODO(), k8s, testNamespace, tc.targets, tc.timeout)
+			helper := k8s.NamespacedHelpers(testNamespace)
+			controller := NewAgentController(context.TODO(), helper, testNamespace, tc.targets, tc.timeout)
 
 			err := controller.InjectDisruptorAgent()
 			if tc.expectError && err == nil {
@@ -131,7 +132,8 @@ func Test_ExecCommand(t *testing.T) {
 			k8s, _ := kubernetes.NewFakeKubernetes(client)
 			executor := k8s.GetFakeProcessExecutor()
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			controller := NewAgentController(context.TODO(), k8s, testNamespace, tc.targets, tc.timeout)
+			helper := k8s.NamespacedHelpers(testNamespace)
+			controller := NewAgentController(context.TODO(), helper, testNamespace, tc.targets, tc.timeout)
 
 			err := controller.ExecCommand(tc.command)
 			if tc.expectError && err == nil {
