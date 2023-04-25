@@ -31,12 +31,12 @@ func Test_ServiceDisruptor(t *testing.T) {
 	}
 
 	t.Run("Inject HTTP error 500", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-pods")
+		ns, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-pods")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
 
 		svc := fixtures.BuildHttpbinService()
 		err = fixtures.DeployApp(

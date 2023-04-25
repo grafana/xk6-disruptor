@@ -16,7 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -36,6 +38,22 @@ type PodHelper interface {
 	) error
 	// List returns a list of pods that match the given PodFilter
 	List(ctx context.Context, filter PodFilter) ([]string, error)
+}
+
+// helpers struct holds the data required by the helpers
+type podHelper struct {
+	config    *rest.Config
+	client    kubernetes.Interface
+	namespace string
+}
+
+// NewPodHelper returns a PodHelper
+func NewPodHelper(client kubernetes.Interface, config *rest.Config, namespace string) PodHelper {
+	return &podHelper{
+		client:    client,
+		config:    config,
+		namespace: namespace,
+	}
 }
 
 // PodFilter defines the criteria for selecting a pod for disruption
@@ -58,7 +76,7 @@ type AttachOptions struct {
 type podConditionChecker func(*corev1.Pod) (bool, error)
 
 // waitForCondition watches a Pod in a namespace until a podConditionChecker is satisfied or a timeout expires
-func (h *helpers) waitForCondition(
+func (h *podHelper) waitForCondition(
 	ctx context.Context,
 	namespace string,
 	name string,
@@ -103,7 +121,7 @@ func (h *helpers) waitForCondition(
 	}
 }
 
-func (h *helpers) WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error) {
+func (h *podHelper) WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error) {
 	return h.waitForCondition(
 		ctx,
 		h.namespace,
@@ -121,7 +139,7 @@ func (h *helpers) WaitPodRunning(ctx context.Context, name string, timeout time.
 	)
 }
 
-func (h *helpers) Exec(
+func (h *podHelper) Exec(
 	pod string,
 	container string,
 	command []string,
@@ -158,7 +176,7 @@ func (h *helpers) Exec(
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-func (h *helpers) AttachEphemeralContainer(
+func (h *podHelper) AttachEphemeralContainer(
 	ctx context.Context,
 	podName string,
 	container corev1.EphemeralContainer,
@@ -265,8 +283,7 @@ func buildLabelSelector(f PodFilter) (labels.Selector, error) {
 	return labelsSelector, nil
 }
 
-// List retrieves the pods that matcht the given PodFilter
-func (h *helpers) List(ctx context.Context, filter PodFilter) ([]string, error) {
+func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]string, error) {
 	labelSelector, err := buildLabelSelector(filter)
 	if err != nil {
 		return nil, err

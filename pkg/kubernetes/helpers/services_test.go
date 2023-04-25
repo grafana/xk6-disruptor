@@ -183,7 +183,7 @@ func Test_WaitServiceReady(t *testing.T) {
 				}
 			}(tc)
 
-			h := NewHelper(client, nil, "default")
+			h := NewServiceHelper(client, nil, "default")
 
 			err := h.WaitServiceReady(context.TODO(), "service", tc.timeout)
 			if !tc.expectError && err != nil {
@@ -532,7 +532,7 @@ func Test_ServicePortMapping(t *testing.T) {
 				t.Errorf("error creating endpoint: %v", err)
 			}
 
-			helper := NewHelper(client, nil, tc.namespace)
+			helper := NewServiceHelper(client, nil, tc.namespace)
 
 			targets, err := helper.MapPort(context.TODO(), tc.serviceName, tc.port)
 			if !tc.expectError && err != nil {
@@ -642,7 +642,7 @@ func Test_Targets(t *testing.T) {
 				}
 			}
 
-			helper := NewHelper(client, nil, tc.namespace)
+			helper := NewServiceHelper(client, nil, tc.namespace)
 			targets, err := helper.GetTargets(context.TODO(), tc.serviceName)
 			if !tc.expectError && err != nil {
 				t.Errorf("failed: %v", err)

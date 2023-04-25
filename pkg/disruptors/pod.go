@@ -66,7 +66,7 @@ func NewPodDisruptor(
 	if selector.Namespace == "" {
 		selector.Namespace = metav1.NamespaceDefault
 	}
-	helper := k8s.NamespacedHelpers(namespace)
+	helper := k8s.PodHelper(namespace)
 
 	filter := helpers.PodFilter{
 		Select:  selector.Select.Labels,

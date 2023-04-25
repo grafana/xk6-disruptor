@@ -10,6 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -25,7 +27,23 @@ type ServiceHelper interface {
 	GetTargets(ctx context.Context, service string) ([]string, error)
 }
 
-func (h *helpers) WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error {
+// helpers struct holds the data required by the helpers
+type serviceHelper struct {
+	config    *rest.Config
+	client    kubernetes.Interface
+	namespace string
+}
+
+// NewServiceHelper returns a ServiceHelper
+func NewServiceHelper(client kubernetes.Interface, config *rest.Config, namespace string) ServiceHelper {
+	return &serviceHelper{
+		client:    client,
+		config:    config,
+		namespace: namespace,
+	}
+}
+
+func (h *serviceHelper) WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error {
 	return utils.Retry(timeout, time.Second, func() (bool, error) {
 		ep, err := h.client.CoreV1().Endpoints(h.namespace).Get(ctx, service, metav1.GetOptions{})
 		if err != nil {
@@ -65,7 +83,7 @@ func getTargetPort(service *corev1.Service, port uint) (corev1.ServicePort, erro
 	return ports[0], nil
 }
 
-func (h *helpers) MapPort(ctx context.Context, name string, port uint) (map[string]uint, error) {
+func (h *serviceHelper) MapPort(ctx context.Context, name string, port uint) (map[string]uint, error) {
 	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
@@ -100,17 +118,29 @@ func (h *helpers) MapPort(ctx context.Context, name string, port uint) (map[stri
 	return targets, nil
 }
 
-func (h *helpers) GetTargets(ctx context.Context, name string) ([]string, error) {
+func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, error) {
 	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
 	}
 
-	filter := PodFilter{
-		Select: service.Spec.Selector,
+	listOptions := metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(service.Spec.Selector).String(),
+	}
+	pods, err := h.client.CoreV1().Pods(h.namespace).List(
+		ctx,
+		listOptions,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	return h.List(ctx, filter)
+	names := []string{}
+	for _, p := range pods.Items {
+		names = append(names, p.Name)
+	}
+
+	return names, nil
 }
 
 // ServiceClient is the minimal interface for executing HTTP requests
@@ -151,7 +181,7 @@ func newServiceProxy(
 	}
 }
 
-func (h *helpers) GetServiceProxy(service string, port int) (ServiceClient, error) {
+func (h *serviceHelper) GetServiceProxy(service string, port int) (ServiceClient, error) {
 	httpClient, err := rest.HTTPClientFor(h.config)
 	if err != nil {
 		return nil, err

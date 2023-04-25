@@ -15,8 +15,9 @@ import (
 
 // test environment
 type testEnv struct {
-	rt  *goja.Runtime
-	k8s kubernetes.Kubernetes
+	rt     *goja.Runtime
+	client *fake.Clientset
+	k8s    kubernetes.Kubernetes
 }
 
 // a function that constructs an object
@@ -40,13 +41,15 @@ func testSetup() (*testEnv, error) {
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
-	k8s, err := kubernetes.NewFakeKubernetes(fake.NewSimpleClientset())
+	client := fake.NewSimpleClientset()
+	k8s, err := kubernetes.NewFakeKubernetes(client)
 	if err != nil {
 		return nil, err
 	}
 	return &testEnv{
-		rt:  rt,
-		k8s: k8s,
+		rt:     rt,
+		client: client,
+		k8s:    k8s,
 	}, nil
 }
 
@@ -507,8 +510,8 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			svc := builders.NewServiceBuilder("service").WithSelector(labels).Build()
 			ep := builders.NewEndPointsBuilder("service").Build()
 
-			_, _ = env.k8s.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
-			_, _ = env.k8s.CoreV1().Endpoints("default").Create(context.TODO(), ep, v1.CreateOptions{})
+			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
+			_, _ = env.client.CoreV1().Endpoints("default").Create(context.TODO(), ep, v1.CreateOptions{})
 
 			_, err = env.rt.RunString(tc.script)
 

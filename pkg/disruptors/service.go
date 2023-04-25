@@ -44,16 +44,16 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("must specify a service name")
 	}
 
-	helper := k8s.NamespacedHelpers(namespace)
-
-	targets, err := helper.GetTargets(ctx, service)
+	sh := k8s.ServiceHelper(namespace)
+	targets, err := sh.GetTargets(ctx, service)
 	if err != nil {
 		return nil, err
 	}
 
+	ph := k8s.PodHelper(namespace)
 	controller := NewAgentController(
 		ctx,
-		helper,
+		ph,
 		namespace,
 		targets,
 		options.InjectTimeout,
@@ -69,6 +69,7 @@ func NewServiceDisruptor(
 		service:    service,
 		namespace:  namespace,
 		options:    options,
+		helper:     sh,
 		controller: controller,
 	}, nil
 }

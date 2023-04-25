@@ -17,9 +17,14 @@ import (
 // Kubernetes defines an interface that extends kubernetes interface[k8s.io/client-go/kubernetes.Interface]
 // Adding helper functions for common tasks
 type Kubernetes interface {
-	kubernetes.Interface
-	Helpers() helpers.Helpers
-	NamespacedHelpers(namespace string) helpers.Helpers
+	// Client returns a Kubernetes client
+	Client() kubernetes.Interface
+	// ServiceHelper returns a helpers.ServiceHelper scoped for the given namespace
+	ServiceHelper(namespace string) helpers.ServiceHelper
+	// PodHelper returns a helpers.PodHelper scoped for the given namespace
+	PodHelper(namespace string) helpers.PodHelper
+	// NamespaceHelper returns a namespace helper
+	NamespaceHelper() helpers.NamespaceHelper
 }
 
 // k8s Holds the reference to the helpers for interacting with kubernetes
@@ -104,20 +109,31 @@ func checkK8sVersion(config *rest.Config) error {
 	return nil
 }
 
-// Helpers returns Helpers for the default namespace
-func (k *k8s) Helpers() helpers.Helpers {
-	return helpers.NewHelper(
-		k.Interface,
-		k.config,
-		"default",
-	)
-}
-
-// NamespacedHelpers returns helpers for the given namespace
-func (k *k8s) NamespacedHelpers(namespace string) helpers.Helpers {
-	return helpers.NewHelper(
+// ServiceHelper returns a ServiceHelper for the given namespace
+func (k *k8s) ServiceHelper(namespace string) helpers.ServiceHelper {
+	return helpers.NewServiceHelper(
 		k.Interface,
 		k.config,
 		namespace,
 	)
+}
+
+// PodHelper returns a PodHelper for the given namespace
+func (k *k8s) PodHelper(namespace string) helpers.PodHelper {
+	return helpers.NewPodHelper(
+		k.Interface,
+		k.config,
+		namespace,
+	)
+}
+
+// NamespaceHelper returns a NamespaceHelper
+func (k *k8s) NamespaceHelper() helpers.NamespaceHelper {
+	return helpers.NewNamespaceHelper(
+		k.Interface,
+	)
+}
+
+func (k *k8s) Client() kubernetes.Interface {
+	return k.Interface
 }

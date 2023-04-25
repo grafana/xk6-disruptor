@@ -70,7 +70,6 @@ func TestPods_Wait(t *testing.T) {
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
@@ -80,6 +79,7 @@ func TestPods_Wait(t *testing.T) {
 				watcher.Modify(pod)
 			}(tc)
 
+			h := NewPodHelper(client, nil, testNamespace)
 			result, err := h.WaitPodRunning(
 				context.TODO(),
 				tc.name,
@@ -172,7 +172,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			client := fake.NewSimpleClientset(pod)
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
 
 			// add watcher to update ephemeral container's status
 			go func(tc TestCase) {
@@ -186,6 +185,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				watcher.Modify(pod)
 			}(tc)
 
+			h := NewPodHelper(client, nil, testNamespace)
 			err := h.AttachEphemeralContainer(
 				context.TODO(),
 				tc.podName,
@@ -416,7 +416,7 @@ func Test_ListPods(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(pods...)
 
-			helper := NewHelper(client, nil, tc.namespace)
+			helper := NewPodHelper(client, nil, tc.namespace)
 			podList, err := helper.List(context.TODO(), tc.filter)
 
 			if tc.expectError && err == nil {

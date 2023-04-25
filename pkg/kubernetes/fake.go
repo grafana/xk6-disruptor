@@ -5,12 +5,13 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 // FakeKubernetes is a fake implementation of the Kubernetes interface
 type FakeKubernetes struct {
-	*fake.Clientset
+	client   *fake.Clientset
 	ctx      context.Context
 	executor *helpers.FakePodCommandExecutor
 }
@@ -18,33 +19,40 @@ type FakeKubernetes struct {
 // NewFakeKubernetes returns a new fake implementation of Kubernetes from fake Clientset
 func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 	return &FakeKubernetes{
-		Clientset: clientset,
-		ctx:       context.TODO(),
-		executor:  helpers.NewFakePodCommandExecutor(),
+		client:   clientset,
+		ctx:      context.TODO(),
+		executor: helpers.NewFakePodCommandExecutor(),
 	}, nil
 }
 
-// Context returns the context for executing k8s actions
-func (f *FakeKubernetes) Context() context.Context {
-	return f.ctx
-}
-
-// Helpers return a instance of FakeHelper
-func (f *FakeKubernetes) Helpers() helpers.Helpers {
-	return helpers.NewFakeHelper(
-		f.Clientset,
-		"default",
-		f.executor,
-	)
-}
-
-// NamespacedHelpers return a instance of FakeHelper for a given namespace
-func (f *FakeKubernetes) NamespacedHelpers(namespace string) helpers.Helpers {
-	return helpers.NewFakeHelper(
-		f.Clientset,
+// PodHelper returns a PodHelper for the given namespace
+func (f *FakeKubernetes) PodHelper(namespace string) helpers.PodHelper {
+	return helpers.NewFakePodHelper(
+		f.client,
 		namespace,
 		f.executor,
 	)
+}
+
+// ServiceHelper returns a ServiceHelper for the given namespace
+func (f *FakeKubernetes) ServiceHelper(namespace string) helpers.ServiceHelper {
+	return helpers.NewFakeServiceHelper(
+		f.client,
+		namespace,
+		f.executor,
+	)
+}
+
+// NamespaceHelper returns a NamespaceHelper for the given namespace
+func (f *FakeKubernetes) NamespaceHelper() helpers.NamespaceHelper {
+	return helpers.NewFakeNamespaceHelper(
+		f.client,
+	)
+}
+
+// Client return a kubernetes client
+func (f *FakeKubernetes) Client() kubernetes.Interface {
+	return f.client
 }
 
 // GetFakeProcessExecutor returns the FakeProcessExecutor used by the helpers to mock

@@ -205,7 +205,7 @@ func BuildNginxService() *corev1.Service {
 
 // ExposeService exposes a service in the given namespace and waits for it to be ready
 func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, timeout time.Duration) error {
-	_, err := k8s.CoreV1().Services(ns).Create(
+	_, err := k8s.Client().CoreV1().Services(ns).Create(
 		context.TODO(),
 		svc,
 		metav1.CreateOptions{},
@@ -215,7 +215,7 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 	}
 
 	// wait for the service to be ready for accepting requests
-	err = k8s.NamespacedHelpers(ns).WaitServiceReady(context.TODO(), svc.Name, timeout)
+	err = k8s.ServiceHelper(ns).WaitServiceReady(context.TODO(), svc.Name, timeout)
 	if err != nil {
 		return fmt.Errorf("error waiting for service %s: %w", svc.Name, err)
 	}
@@ -225,7 +225,7 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 
 // RunPod creates a pod and waits it for be running
 func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.Duration) error {
-	_, err := k8s.CoreV1().Pods(ns).Create(
+	_, err := k8s.Client().CoreV1().Pods(ns).Create(
 		context.TODO(),
 		pod,
 		metav1.CreateOptions{},
@@ -234,7 +234,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 		return fmt.Errorf("error creating pod %s: %w", pod.Name, err)
 	}
 
-	running, err := k8s.NamespacedHelpers(ns).WaitPodRunning(
+	running, err := k8s.PodHelper(ns).WaitPodRunning(
 		context.TODO(),
 		pod.Name,
 		timeout,
