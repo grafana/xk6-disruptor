@@ -505,7 +505,6 @@ func Test_ServicePortMapping(t *testing.T) {
 				WithSubset(
 					[]corev1.EndpointPort{
 						{
-							Name: "http",
 							Port: 8080,
 						},
 					},

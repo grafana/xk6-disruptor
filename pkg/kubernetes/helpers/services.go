@@ -86,7 +86,7 @@ func (h *helpers) MapPort(ctx context.Context, name string, port uint) (map[stri
 	// and retrieve the name of the pods and the target por
 	for _, subset := range endpoints.Subsets {
 		for _, p := range subset.Ports {
-			if p.Name == tp.Name {
+			if (tp.TargetPort.StrVal != "" && tp.TargetPort.StrVal == p.Name) || tp.TargetPort.IntVal == p.Port {
 				for _, addr := range subset.Addresses {
 					if addr.TargetRef.Kind == "Pod" {
 						targets[addr.TargetRef.Name] = uint(p.Port)
