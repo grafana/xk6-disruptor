@@ -433,7 +433,6 @@ func Test_ListPods(t *testing.T) {
 				return
 			}
 
-
 			if !assertions.CompareStringArrays(podList, tc.expectedPods) {
 				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, pods)
 				return

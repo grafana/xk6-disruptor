@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/testutils/assertions"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -276,6 +280,392 @@ func Test_ServiceClient(t *testing.T) {
 
 			if fakeClient.Request.Method != tc.method {
 				t.Errorf("invalid request method. Expected: %s received: %s", tc.method, fakeClient.Request.Method)
+				return
+			}
+		})
+	}
+}
+
+func Test_ServicePortMapping(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		serviceName string
+		namespace   string
+		service     *corev1.Service
+		endpoints   *corev1.Endpoints
+		port        uint
+		expectError bool
+		targets     map[string]uint
+	}{
+		{
+			title:       "invalid Port option",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromInt(8080),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 80,
+						},
+					},
+					[]string{"pod-1"},
+				).Build(),
+			port:        80,
+			targets:     map[string]uint{},
+			expectError: true,
+		},
+		{
+			title:       "Numeric target port specified",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 80,
+						},
+					},
+					[]string{"pod-1"},
+				).Build(),
+			port:        8080,
+			expectError: false,
+			targets: map[string]uint{
+				"pod-1": 80,
+			},
+		},
+		{
+			title:       "named target port",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromString("http"),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 80,
+						},
+					},
+					[]string{"pod-1"},
+				).Build(),
+			port:        8080,
+			expectError: false,
+			targets: map[string]uint{
+				"pod-1": 80,
+			},
+		},
+		{
+			title:       "Multiple target ports",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       80,
+							TargetPort: intstr.FromString("http"),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 80,
+						},
+					},
+					[]string{"pod-1"},
+				).
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 8080,
+						},
+					},
+					[]string{"pod-2"},
+				).
+				Build(),
+			port:        80,
+			expectError: false,
+			targets: map[string]uint{
+				"pod-1": 80,
+				"pod-2": 8080,
+			},
+		},
+		{
+			title:       "Default port mapping",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 80,
+						},
+					},
+					[]string{"pod-1"},
+				).Build(),
+			port: 0,
+			targets: map[string]uint{
+				"pod-1": 80,
+			},
+			expectError: false,
+		},
+		{
+			title:       "No target for mapping",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Port:       8080,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				).Build(),
+			endpoints: builders.NewEndPointsBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSubset(
+					[]corev1.EndpointPort{
+						{
+							Name: "http",
+							Port: 8080,
+						},
+					},
+					[]string{"pod-1"},
+				).Build(),
+			port:        8080,
+			expectError: false,
+			targets:     map[string]uint{},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			client := fake.NewSimpleClientset()
+			_, err := client.CoreV1().Services(tc.namespace).Create(context.TODO(), tc.service, metav1.CreateOptions{})
+			if err != nil {
+				t.Errorf("error creating service: %v", err)
+			}
+			_, err = client.CoreV1().Endpoints(tc.namespace).Create(context.TODO(), tc.endpoints, metav1.CreateOptions{})
+			if err != nil {
+				t.Errorf("error creating endpoint: %v", err)
+			}
+
+			helper := NewHelper(client, nil, tc.namespace)
+
+			targets, err := helper.MapPort(context.TODO(), tc.serviceName, tc.port)
+			if !tc.expectError && err != nil {
+				t.Errorf(" failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if !reflect.DeepEqual(tc.targets, targets) {
+				t.Errorf("expected %v got %v", tc.targets, targets)
+				return
+			}
+		})
+	}
+}
+
+func Test_Targets(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title        string
+		serviceName  string
+		namespace    string
+		service      *corev1.Service
+		pods         []*corev1.Pod
+		expectError  bool
+		expectedPods []string
+	}{
+		{
+			title:       "one endpoint",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				).Build(),
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-1").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).Build(),
+			},
+			expectError:  false,
+			expectedPods: []string{"pod-1"},
+		},
+		{
+			title:       "no targets",
+			serviceName: "test-svc",
+			namespace:   "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelector(map[string]string{
+					"app": "test",
+				}).
+				WithPorts(
+					[]corev1.ServicePort{
+						{
+							Name:       "http",
+							Port:       8080,
+							TargetPort: intstr.FromInt(80),
+						},
+					},
+				).Build(),
+			pods:         []*corev1.Pod{},
+			expectError:  false,
+			expectedPods: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			client := fake.NewSimpleClientset()
+			_, err := client.CoreV1().Services(tc.service.Namespace).Create(context.TODO(), tc.service, metav1.CreateOptions{})
+			if err != nil {
+				t.Errorf("error creating service: %v", err)
+			}
+
+			for _, pod := range tc.pods {
+				_, err = client.CoreV1().Pods(tc.namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("error creating endpoint: %v", err)
+				}
+			}
+
+			helper := NewHelper(client, nil, tc.namespace)
+			targets, err := helper.GetTargets(context.TODO(), tc.serviceName)
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf(" unexpected error creating service disruptor: %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed creating service disruptor")
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if !assertions.CompareStringArrays(tc.expectedPods, targets) {
+				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
 				return
 			}
 		})

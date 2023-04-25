@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -18,6 +19,10 @@ type ServiceHelper interface {
 	WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error
 	// GetServiceProxy returns a client for making HTTP requests to the service using api server's proxy
 	GetServiceProxy(service string, port int) (ServiceClient, error)
+	// MapPort return a map of pod, port pairs for a service port
+	MapPort(ctx context.Context, service string, port uint) (map[string]uint, error)
+	// GetTargets returns the list of pods that match the service selector criteria
+	GetTargets(ctx context.Context, service string) ([]string, error)
 }
 
 func (h *helpers) WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error {
@@ -38,6 +43,74 @@ func (h *helpers) WaitServiceReady(ctx context.Context, service string, timeout 
 
 		return false, nil
 	})
+}
+
+// getTargetPort returns the service port that corresponds to the given port number
+// if the given port is 0, it will return the default port or error if more than one port is defined
+func getTargetPort(service *corev1.Service, port uint) (corev1.ServicePort, error) {
+	ports := service.Spec.Ports
+	if port != 0 {
+		for _, p := range ports {
+			if uint(p.Port) == port {
+				return p, nil
+			}
+		}
+		return corev1.ServicePort{}, fmt.Errorf("the service does not expose the given port: %d", port)
+	}
+
+	if len(ports) > 1 {
+		return corev1.ServicePort{}, fmt.Errorf("service exposes multiple ports. Port option must be defined")
+	}
+
+	return ports[0], nil
+}
+
+func (h *helpers) MapPort(ctx context.Context, name string, port uint) (map[string]uint, error) {
+	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
+	}
+
+	targets := map[string]uint{}
+	tp, err := getTargetPort(service, port)
+	if err != nil {
+		return nil, err
+	}
+
+	endpoints, err := h.client.CoreV1().Endpoints(h.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve endpoints for service %s: %w", service, err)
+	}
+
+	// iterate over sub-ranges looking for those that have the target port
+	// and retrieve the name of the pods and the target por
+	for _, subset := range endpoints.Subsets {
+		for _, p := range subset.Ports {
+			if p.Name == tp.Name {
+				for _, addr := range subset.Addresses {
+					if addr.TargetRef.Kind == "Pod" {
+						targets[addr.TargetRef.Name] = uint(p.Port)
+					}
+				}
+				break
+			}
+		}
+	}
+
+	return targets, nil
+}
+
+func (h *helpers) GetTargets(ctx context.Context, name string) ([]string, error) {
+	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
+	}
+
+	filter := PodFilter{
+		Select: service.Spec.Selector,
+	}
+
+	return h.List(ctx, filter)
 }
 
 // ServiceClient is the minimal interface for executing HTTP requests
