@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
@@ -19,22 +20,39 @@ func Test_InjectAgent(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title   string
-		targets []string
+		title     string
+		namespace string
+		pods      []*corev1.Pod
 		// Set timeout to -1 to prevent waiting the ephemeral container to be ready,
 		// as the fake client will not update its status
 		timeout     time.Duration
 		expectError bool
 	}{
 		{
-			title:       "Inject ephemeral container",
-			targets:     []string{"pod1", "pod2"},
+			title:     "Inject ephemeral container",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					Build(),
+			},
 			timeout:     -1,
 			expectError: false,
 		},
 		{
-			title:       "ephemeral container not ready",
-			targets:     []string{"pod1", "pod2"},
+			title:     "ephemeral container not ready",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					Build(),
+			},
 			timeout:     1,
 			expectError: true, // should fail because fake client will not update status
 		},
@@ -47,14 +65,23 @@ func Test_InjectAgent(t *testing.T) {
 			t.Parallel()
 
 			objs := []runtime.Object{}
-			for _, podName := range tc.targets {
-				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
+
+			targets := []string{}
+			for _, pod := range tc.pods {
 				objs = append(objs, pod)
+				targets = append(targets, pod.Name)
 			}
+
 			client := fake.NewSimpleClientset(objs...)
-			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			helper := k8s.PodHelper(testNamespace)
-			controller := NewAgentController(context.TODO(), helper, testNamespace, tc.targets, tc.timeout)
+			executor := helpers.NewFakePodCommandExecutor()
+			helper := helpers.NewFakePodHelper(client, tc.namespace, executor)
+			controller := NewAgentController(
+				context.TODO(),
+				helper,
+				tc.namespace,
+				targets,
+				tc.timeout,
+			)
 
 			err := controller.InjectDisruptorAgent()
 			if tc.expectError && err == nil {
@@ -71,8 +98,10 @@ func Test_InjectAgent(t *testing.T) {
 				return
 			}
 
-			for _, podName := range tc.targets {
-				pod, err := client.CoreV1().Pods(testNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
+			for _, podName := range targets {
+				pod, err := client.CoreV1().
+					Pods(tc.namespace).
+					Get(context.TODO(), podName, metav1.GetOptions{})
 				if err != nil {
 					t.Errorf("failed: %v", err)
 					return
@@ -92,7 +121,8 @@ func Test_ExecCommand(t *testing.T) {
 
 	testCases := []struct {
 		title       string
-		targets     []string
+		namespace   string
+		pods        []*corev1.Pod
 		command     []string
 		err         error
 		stdout      []byte
@@ -101,15 +131,31 @@ func Test_ExecCommand(t *testing.T) {
 		expectError bool
 	}{
 		{
-			title:       "successful execution",
-			targets:     []string{"pod1", "pod2"},
+			title:     "successful execution",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					Build(),
+			},
 			command:     []string{"echo", "-n", "hello", "world"},
 			err:         nil,
 			expectError: false,
 		},
 		{
-			title:       "failed execution",
-			targets:     []string{"pod1", "pod2"},
+			title:     "failed execution",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					Build(),
+			},
 			command:     []string{"echo", "-n", "hello", "world"},
 			err:         fmt.Errorf("fake error"),
 			stderr:      []byte("error output"),
@@ -124,17 +170,24 @@ func Test_ExecCommand(t *testing.T) {
 			t.Parallel()
 
 			objs := []runtime.Object{}
-			for _, podName := range tc.targets {
-				pod := builders.NewPodBuilder(podName).WithNamespace(testNamespace).Build()
+
+			targets := []string{}
+			for _, pod := range tc.pods {
 				objs = append(objs, pod)
+				targets = append(targets, pod.Name)
 			}
 			client := fake.NewSimpleClientset(objs...)
-			k8s, _ := kubernetes.NewFakeKubernetes(client)
-			executor := k8s.GetFakeProcessExecutor()
-			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			helper := k8s.PodHelper(testNamespace)
-			controller := NewAgentController(context.TODO(), helper, testNamespace, tc.targets, tc.timeout)
+			executor := helpers.NewFakePodCommandExecutor()
+			helper := helpers.NewFakePodHelper(client, tc.namespace, executor)
+			controller := NewAgentController(
+				context.TODO(),
+				helper,
+				tc.namespace,
+				targets,
+				tc.timeout,
+			)
 
+			executor.SetResult(tc.stdout, tc.stderr, tc.err)
 			err := controller.ExecCommand(tc.command)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -151,6 +204,33 @@ func Test_ExecCommand(t *testing.T) {
 					t.Errorf("invalid error message. Expected to contain %s", string(tc.stderr))
 				}
 				return
+			}
+
+			pods := map[string]bool{}
+			for _, p := range targets {
+				pods[p] = true
+			}
+
+			history := executor.GetHistory()
+			if len(history) != len(targets) {
+				t.Errorf("invalid number of exec invocations. Expected %d got %d", len(targets), len(history))
+			}
+			for _, c := range history {
+				if _, found := pods[c.Pod]; !found {
+					t.Errorf("invalid pod name. Expected to be in %s got %s", targets, c.Pod)
+					return
+				}
+				// TODO: don't use hard-coded agent name
+				if c.Container != "xk6-agent" {
+					t.Errorf("invalid container name. Expected %s got %s", "xk6-agent", c.Container)
+					return
+				}
+				ec := strings.Join(tc.command, " ")
+				ac := strings.Join(c.Command, " ")
+				if ac != ec {
+					t.Errorf("invalid command executed. Expected %s got %s", ec, ac)
+					return
+				}
 			}
 		})
 	}
