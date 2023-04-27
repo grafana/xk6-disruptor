@@ -1,4 +1,3 @@
-// Package builders offers functions for building test objects
 package builders
 
 import (
@@ -20,14 +19,17 @@ type ServiceBuilder interface {
 	WithPorts(ports []corev1.ServicePort) ServiceBuilder
 	// WithSelector sets the service's selector labels
 	WithSelector(labels map[string]string) ServiceBuilder
+	// WithServiceType sets the type of the service (default is NodePort)
+	WithServiceType(t corev1.ServiceType) ServiceBuilder
 }
 
 // serviceBuilder defines the attributes for building a service
 type serviceBuilder struct {
-	name      string
-	namespace string
-	ports     []corev1.ServicePort
-	selector  map[string]string
+	name        string
+	namespace   string
+	serviceType corev1.ServiceType
+	ports       []corev1.ServicePort
+	selector    map[string]string
 }
 
 // DefaultServicePorts returns an array of ServicePort with default values
@@ -44,10 +46,11 @@ func DefaultServicePorts() []corev1.ServicePort {
 // and default attributes
 func NewServiceBuilder(name string) ServiceBuilder {
 	return &serviceBuilder{
-		name:      name,
-		namespace: metav1.NamespaceDefault,
-		ports:     DefaultServicePorts(),
-		selector:  map[string]string{},
+		name:        name,
+		namespace:   metav1.NamespaceDefault,
+		serviceType: corev1.ServiceTypeNodePort,
+		ports:       DefaultServicePorts(),
+		selector:    map[string]string{},
 	}
 }
 
@@ -58,6 +61,11 @@ func (s *serviceBuilder) WithNamespace(namespace string) ServiceBuilder {
 
 func (s *serviceBuilder) WithPorts(ports []corev1.ServicePort) ServiceBuilder {
 	s.ports = ports
+	return s
+}
+
+func (s *serviceBuilder) WithServiceType(serviceType corev1.ServiceType) ServiceBuilder {
+	s.serviceType = serviceType
 	return s
 }
 
@@ -78,6 +86,7 @@ func (s *serviceBuilder) Build() *corev1.Service {
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: s.selector,
+			Type:     s.serviceType,
 			Ports:    s.ports,
 		},
 	}

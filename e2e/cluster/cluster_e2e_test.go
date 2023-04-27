@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,20 +57,14 @@ func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 
 // buildBusyboxPod returns a pod specification for running Busybox from a local image
 func buildBusyboxPod() *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "busybox",
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:            "busybox",
-					Image:           "busybox",
-					ImagePullPolicy: corev1.PullNever,
-				},
-			},
-		},
-	}
+	busybox := builders.NewContainerBuilder("busybox").
+		WithImage("busybox").
+		WithPullPolicy(corev1.PullNever).
+		Build()
+
+	return builders.NewPodBuilder("busybox").
+		WithContainer(*busybox).
+		Build()
 }
 
 func Test_PreloadImages(t *testing.T) {
@@ -223,5 +218,4 @@ func Test_InvalidKubernetesVersion(t *testing.T) {
 		cluster.Delete()
 		return
 	}
-
 }

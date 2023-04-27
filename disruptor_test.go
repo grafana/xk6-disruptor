@@ -85,6 +85,7 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
 
 	pod := builders.NewPodBuilder("pod-with-app-label").
+		WithNamespace("default").
 		WithLabels(map[string]string{
 			"app": "test",
 		}).
@@ -120,7 +121,10 @@ func Test_ServiceDisruptor(t *testing.T) {
 	labels := map[string]string{
 		"app": "test",
 	}
-	pod := builders.NewPodBuilder("app-pod").WithLabels(labels).Build()
+	pod := builders.NewPodBuilder("app-pod").
+		WithNamespace("default").
+		WithLabels(labels).
+		Build()
 	svc := builders.NewServiceBuilder("app-service").WithSelector(labels).Build()
 	endpoints := builders.NewEndPointsBuilder("app-service").
 		WithSubset([]corev1.EndpointPort{{Name: "http", Port: 80}}, []string{"app-pod"}).

@@ -31,18 +31,18 @@ func Test_ServiceDisruptor(t *testing.T) {
 	}
 
 	t.Run("Inject HTTP error 500", func(t *testing.T) {
-		ns, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-pods")
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-pods")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		svc := fixtures.BuildHttpbinService()
+		svc := fixtures.BuildHttpbinService(namespace)
 		err = fixtures.DeployApp(
 			k8s,
-			ns,
-			fixtures.BuildHttpbinPod(),
+			namespace,
+			fixtures.BuildHttpbinPod(namespace),
 			svc,
 			20*time.Second,
 		)
@@ -52,7 +52,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}
 
 		options := disruptors.ServiceDisruptorOptions{}
-		disruptor, err := disruptors.NewServiceDisruptor(context.TODO(), k8s, svc.Name, ns, options)
+		disruptor, err := disruptors.NewServiceDisruptor(context.TODO(), k8s, svc.Name, namespace, options)
 		if err != nil {
 			t.Errorf("error creating service disruptor: %v", err)
 			return
@@ -81,7 +81,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		err = checks.CheckService(
 			k8s,
 			checks.ServiceCheck{
-				Namespace:    ns,
+				Namespace:    namespace,
 				Service:      "httpbin",
 				Port:         80,
 				Method:       "GET",
