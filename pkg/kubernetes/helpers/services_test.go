@@ -16,64 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func buildEndpointsWithoutAddresses() *corev1.Endpoints {
-	return &corev1.Endpoints{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "EndPoints",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "service",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{},
-	}
-}
-
-func buildEndpointsWithAddresses() *corev1.Endpoints {
-	return &corev1.Endpoints{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "EndPoints",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "service",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: "1.1.1.1",
-					},
-				},
-			},
-		},
-	}
-}
-
-func buildOtherEndpointsWithAddresses() *corev1.Endpoints {
-	return &corev1.Endpoints{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "EndPoints",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "otherservice",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: "1.1.1.1",
-					},
-				},
-			},
-		},
-	}
-}
-
 func buildEndpointsWithNotReadyAddresses() *corev1.Endpoints {
 	return &corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
@@ -118,40 +60,60 @@ func Test_WaitServiceReady(t *testing.T) {
 			timeout:     time.Second * 5,
 		},
 		{
-			test:        "endpoint ready",
-			endpoints:   buildEndpointsWithAddresses(),
+			test: "endpoint ready",
+			endpoints: builders.NewEndPointsBuilder("service").
+				WithSubset(
+					[]corev1.EndpointPort{},
+					[]string{"pod1"},
+				).
+				Build(),
 			updated:     nil,
 			delay:       time.Second * 0,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
-			test:        "wait for endpoint to be ready",
-			endpoints:   buildEndpointsWithoutAddresses(),
-			updated:     buildEndpointsWithAddresses(),
+			test:      "wait for endpoint to be ready",
+			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			updated: builders.NewEndPointsBuilder("service").
+				WithSubset(
+					[]corev1.EndpointPort{},
+					[]string{"pod1"},
+				).
+				Build(),
 			delay:       time.Second * 2,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "not ready addresses",
-			endpoints:   buildEndpointsWithoutAddresses(),
+			endpoints:   builders.NewEndPointsBuilder("service").Build(),
 			updated:     buildEndpointsWithNotReadyAddresses(),
 			delay:       time.Second * 2,
 			expectError: true,
 			timeout:     time.Second * 5,
 		},
 		{
-			test:        "timeout waiting for addresses",
-			endpoints:   buildEndpointsWithoutAddresses(),
-			updated:     buildEndpointsWithAddresses(),
+			test:      "timeout waiting for addresses",
+			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			updated: builders.NewEndPointsBuilder("service").
+				WithSubset(
+					[]corev1.EndpointPort{},
+					[]string{"pod1"},
+				).
+				Build(),
 			delay:       time.Second * 10,
 			expectError: true,
 			timeout:     time.Second * 5,
 		},
 		{
-			test:        "other endpoint ready",
-			endpoints:   buildOtherEndpointsWithAddresses(),
+			test: "other endpoint ready",
+			endpoints: builders.NewEndPointsBuilder("another-service").
+				WithSubset(
+					[]corev1.EndpointPort{},
+					[]string{"pod1"},
+				).
+				Build(),
 			updated:     nil,
 			delay:       time.Second * 10,
 			expectError: true,

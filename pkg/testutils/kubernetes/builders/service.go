@@ -2,6 +2,9 @@
 package builders
 
 import (
+	"fmt"
+	"math/rand"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -110,12 +113,19 @@ func (b *endpointsBuilder) WithNamespace(namespace string) EndpointsBuilder {
 	return b
 }
 
+func randomIP() string {
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("%d.%d.%d.%d", b[0], b[1], b[2], b[3])
+}
+
 func (b *endpointsBuilder) WithSubset(ports []corev1.EndpointPort, pods []string) EndpointsBuilder {
 	addresses := []corev1.EndpointAddress{}
 	for _, p := range pods {
 		addresses = append(
 			addresses,
 			corev1.EndpointAddress{
+				IP: randomIP(),
 				TargetRef: &corev1.ObjectReference{
 					Kind:      "Pod",
 					Namespace: b.namespace,
