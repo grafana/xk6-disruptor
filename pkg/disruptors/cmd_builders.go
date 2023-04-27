@@ -19,9 +19,9 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 		cmd = append(
 			cmd,
 			"-a",
-			fmt.Sprint(fault.AverageDelay.Milliseconds()),
+			utils.DurationMillSeconds(fault.AverageDelay),
 			"-v",
-			fmt.Sprint(fault.DelayVariation.Milliseconds()),
+			utils.DurationMillSeconds(fault.DelayVariation),
 		)
 	}
 
@@ -69,9 +69,9 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 		cmd = append(
 			cmd,
 			"-a",
-			fmt.Sprint(fault.AverageDelay.Milliseconds()),
+			utils.DurationMillSeconds(fault.AverageDelay),
 			"-v",
-			fmt.Sprint(fault.DelayVariation.Milliseconds()),
+			utils.DurationMillSeconds(fault.DelayVariation),
 		)
 	}
 
