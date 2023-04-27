@@ -116,7 +116,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				},
 			},
 			targets:     []string{"my-app-pod"},
-			expectedCmd: "xk6-disruptor-agent http -d 60s -a 100 -v 0",
+			expectedCmd: "xk6-disruptor-agent http -d 60s -a 100ms -v 0ms",
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
@@ -243,7 +243,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		{
 			title: "Test error with status message",
 			selector: PodSelector{
-				Namespace: "			duration:    60,testns",
+				Namespace: "testns",
 				Select: PodAttributes{
 					Labels: map[string]string{
 						"app": "myapp",
@@ -278,7 +278,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -a 100 -v 0",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -a 100ms -v 0ms",
 			expectError: false,
 			cmdError:    nil,
 		},
