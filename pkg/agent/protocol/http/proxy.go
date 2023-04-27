@@ -127,11 +127,12 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !excluded && h.disruption.AverageDelay > 0 {
-		delay := int(h.disruption.AverageDelay)
+		delay := int64(h.disruption.AverageDelay)
 		if h.disruption.DelayVariation > 0 {
-			delay = delay + int(h.disruption.DelayVariation) - 2*rand.Intn(int(h.disruption.DelayVariation))
+			variation := int64(h.disruption.DelayVariation)
+			delay = delay + variation - 2*rand.Int63n(variation)
 		}
-		time.Sleep(time.Duration(delay) * time.Millisecond)
+		time.Sleep(time.Duration(delay))
 	}
 
 	// return response to the client
