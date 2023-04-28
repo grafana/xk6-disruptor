@@ -40,10 +40,9 @@ func (f *fakeAgentController) Visit(visitor func(string) []string) error {
 	return nil
 }
 
-func newPodDisruptorForTesting(ctx context.Context, selector PodSelector, controller AgentController) PodDisruptor {
+func newPodDisruptorForTesting(ctx context.Context, controller AgentController) PodDisruptor {
 	return &podDisruptor{
 		ctx:        ctx,
-		selector:   selector,
 		controller: controller,
 	}
 }
@@ -178,7 +177,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(context.TODO(), tc.selector, controller)
+			d := newPodDisruptorForTesting(context.TODO(), controller)
 
 			err := d.InjectHTTPFaults(tc.fault, tc.duration, tc.opts)
 
@@ -335,7 +334,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(context.TODO(), tc.selector, controller)
+			d := newPodDisruptorForTesting(context.TODO(), controller)
 
 			err := d.InjectGrpcFaults(tc.fault, tc.duration, tc.opts)
 

@@ -1,4 +1,3 @@
-// Package builders offers functions for building test objects
 package builders
 
 import (
@@ -16,6 +15,8 @@ type PodBuilder interface {
 	WithLabels(labels map[string]string) PodBuilder
 	// WithStatus sets the PodPhase for the pod  to be built
 	WithStatus(status corev1.PodPhase) PodBuilder
+	// WithContainer add a container to the pod
+	WithContainer(c corev1.Container) PodBuilder
 }
 
 // podBuilder defines the attributes for building a pod
@@ -33,13 +34,6 @@ func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
 		name:      name,
 		namespace: metav1.NamespaceDefault,
-		containers: []corev1.Container{
-			{
-				Name:    "busybox",
-				Image:   "busybox",
-				Command: []string{"sh", "-c", "sleep 300"},
-			},
-		},
 	}
 }
 
@@ -55,6 +49,11 @@ func (b *podBuilder) WithStatus(phase corev1.PodPhase) PodBuilder {
 
 func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	b.labels = labels
+	return b
+}
+
+func (b *podBuilder) WithContainer(c corev1.Container) PodBuilder {
+	b.containers = append(b.containers, c)
 	return b
 }
 

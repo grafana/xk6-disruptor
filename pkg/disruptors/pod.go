@@ -3,17 +3,15 @@ package disruptors
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// PodAttributes defines the attributes a Pod must match for being selected/excluded
-type PodAttributes struct {
-	Labels map[string]string
-}
 
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
@@ -31,8 +29,21 @@ type PodDisruptorOptions struct {
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
 type podDisruptor struct {
 	ctx        context.Context
-	selector   PodSelector
 	controller AgentController
+}
+
+// PodSelector defines the criteria for selecting a pod for disruption
+type PodSelector struct {
+	Namespace string
+	// Select Pods that match these PodAttributes
+	Select PodAttributes
+	// Select Pods that match these PodAttributes
+	Exclude PodAttributes
+}
+
+// PodAttributes defines the attributes a Pod must match for being selected/excluded
+type PodAttributes struct {
+	Labels map[string]string
 }
 
 // NewPodDisruptor creates a new instance of a PodDisruptor that acts on the pods
@@ -43,20 +54,33 @@ func NewPodDisruptor(
 	selector PodSelector,
 	options PodDisruptorOptions,
 ) (PodDisruptor, error) {
-	targets, err := selector.GetTargets(ctx, k8s)
+	// validate selector
+	emptySelect := reflect.DeepEqual(selector.Select, PodAttributes{})
+	emptyExclude := reflect.DeepEqual(selector.Exclude, PodAttributes{})
+	if selector.Namespace == "" && emptySelect && emptyExclude {
+		return nil, fmt.Errorf("namespace, select and exclude attributes in pod selector cannot all be empty")
+	}
+
+	// ensure selector nd controller use default namespace if none specified
+	namespace := selector.Namespace
+	if selector.Namespace == "" {
+		selector.Namespace = metav1.NamespaceDefault
+	}
+	helper := k8s.PodHelper(namespace)
+
+	filter := helpers.PodFilter{
+		Select:  selector.Select.Labels,
+		Exclude: selector.Exclude.Labels,
+	}
+
+	targets, err := helper.List(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	// ensure selector and controller use default namespace if none specified
-	namespace := selector.Namespace
-	if namespace == "" {
-		namespace = metav1.NamespaceDefault
-	}
-
 	controller := NewAgentController(
 		ctx,
-		k8s,
+		helper,
 		namespace,
 		targets,
 		options.InjectTimeout,
@@ -68,7 +92,6 @@ func NewPodDisruptor(
 
 	return &podDisruptor{
 		ctx:        ctx,
-		selector:   selector,
 		controller: controller,
 	}, nil
 }

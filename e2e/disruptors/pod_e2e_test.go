@@ -76,18 +76,18 @@ func Test_PodDisruptor(t *testing.T) {
 			t.Run(tc.title, func(t *testing.T) {
 				t.Parallel()
 
-				namespace, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-pods")
+				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-pods")
 				if err != nil {
 					t.Errorf("error creating test namespace: %v", err)
 					return
 				}
-				defer k8s.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					fixtures.BuildHttpbinPod(),
-					fixtures.BuildHttpbinService(),
+					fixtures.BuildHttpbinPod(namespace),
+					fixtures.BuildHttpbinService(namespace),
 					30*time.Second,
 				)
 				if err != nil {
@@ -186,18 +186,18 @@ func Test_PodDisruptor(t *testing.T) {
 		for _, tc := range testCases {
 			tc := tc
 			t.Run(tc.title, func(t *testing.T) {
-				namespace, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-pods")
+				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-pods")
 				if err != nil {
 					t.Errorf("error creating test namespace: %v", err)
 					return
 				}
-				defer k8s.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					fixtures.BuildGrpcpbinPod(),
-					fixtures.BuildGrpcbinService(uint(grpcPort.NodePort)),
+					fixtures.BuildGrpcpbinPod(namespace),
+					fixtures.BuildGrpcbinService(namespace, uint(grpcPort.NodePort)),
 					30*time.Second,
 				)
 				if err != nil {

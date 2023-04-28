@@ -64,29 +64,59 @@ func NewFakePodCommandExecutor() *FakePodCommandExecutor {
 	return &FakePodCommandExecutor{}
 }
 
-// fakeHelper is an fake instance of a Helpers. It can delegate to the actual
-// helpers the execution of actions or override them when needed
-type fakeHelper struct {
-	*helpers
+// fakePodHelper is an fake instance of a PodHelpers. It can delegate to the actual
+// helper the execution of actions or override them when needed
+type fakePodHelper struct {
+	PodHelper
 	executor *FakePodCommandExecutor
 }
 
-// NewFakeHelper creates a set of helpers on the default namespace
-func NewFakeHelper(client kubernetes.Interface, namespace string, executor *FakePodCommandExecutor) Helpers {
-	helpers := &helpers{
-		client:    client,
-		namespace: namespace,
-	}
-
-	return &fakeHelper{
-		helpers,
+// NewFakePodHelper creates a set of a FakePodHelper on the default namespace
+func NewFakePodHelper(client kubernetes.Interface, namespace string, executor *FakePodCommandExecutor) PodHelper {
+	h := NewPodHelper(client, nil, namespace)
+	return &fakePodHelper{
+		h,
 		executor,
 	}
 }
 
 // Fakes the execution of a command in a pod
-func (f *fakeHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
+func (f *fakePodHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
 	return f.executor.Exec(pod, container, command, stdin)
+}
+
+// fakePodHelper is an fake instance of a PodHelpers. It can delegate to the actual
+// helper the execution of actions or override them when needed
+type fakeServiceHelper struct {
+	ServiceHelper
+	executor *FakePodCommandExecutor
+}
+
+// NewFakeServiceHelper creates a set of a FakeServiceHelper on the default namespace
+func NewFakeServiceHelper(
+	client kubernetes.Interface,
+	namespace string,
+	executor *FakePodCommandExecutor,
+) ServiceHelper {
+	h := NewServiceHelper(client, nil, namespace)
+	return &fakeServiceHelper{
+		h,
+		executor,
+	}
+}
+
+// fakeNamespaceHelper is an fake instance of a NamespaceHelper. It can delegate to the actual
+// helper the execution of actions or override them when needed
+type fakeNamespaceHelper struct {
+	NamespaceHelper
+}
+
+// NewFakeNamespaceHelper creates a set of a NamespaceHelper on the default namespace
+func NewFakeNamespaceHelper(client kubernetes.Interface) NamespaceHelper {
+	h := NewNamespaceHelper(client)
+	return &fakeNamespaceHelper{
+		h,
+	}
 }
 
 // FakeHTTPClient implement a fake HTTPClient that returns a fixed response.

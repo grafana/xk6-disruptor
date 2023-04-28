@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
@@ -42,7 +43,7 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 		prefix := "test"
-		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), prefix)
+		ns, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), prefix)
 		if err != nil {
 			t.Errorf("unexpected error creating namespace: %v", err)
 			return
@@ -54,19 +55,19 @@ func Test_Kubernetes(t *testing.T) {
 
 	// Test Wait Service Ready helper
 	t.Run("Wait Service Ready", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		// Deploy nginx and expose it as a service. Intentionally not using e2e fixures
 		// because these functions rely on WaitPodRunnin and WaitServiceReady which we
 		// are testing here.
-		_, err = k8s.CoreV1().Pods(ns).Create(
+		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxPod(),
+			fixtures.BuildNginxPod(namespace),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -74,9 +75,9 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 
-		_, err = k8s.CoreV1().Services(ns).Create(
+		_, err = k8s.Client().CoreV1().Services(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxService(),
+			fixtures.BuildNginxService(namespace),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -85,7 +86,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// wait for the service to be ready for accepting requests
-		err = k8s.NamespacedHelpers(ns).WaitServiceReady(context.TODO(), "nginx", time.Second*20)
+		err = k8s.ServiceHelper(namespace).WaitServiceReady(context.TODO(), "nginx", time.Second*20)
 		if err != nil {
 			t.Errorf("error waiting for service nginx: %v", err)
 			return
@@ -95,7 +96,7 @@ func Test_Kubernetes(t *testing.T) {
 		err = checks.CheckService(
 			k8s,
 			checks.ServiceCheck{
-				Namespace:    ns,
+				Namespace:    namespace,
 				Service:      "nginx",
 				Path:         "/",
 				Port:         80,
@@ -109,20 +110,20 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Exec Command", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, ns, fixtures.BuildBusyBoxPod(), 10*time.Second)
+		err = fixtures.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(namespace), 10*time.Second)
 		if err != nil {
 			t.Errorf("error creating pod: %v", err)
 			return
 		}
 
-		stdout, _, err := k8s.NamespacedHelpers(ns).Exec(
+		stdout, _, err := k8s.PodHelper(namespace).Exec(
 			"busybox",
 			"busybox",
 			[]string{"echo", "-n", "hello", "world"},
@@ -141,14 +142,14 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Attach Ephemeral Container", func(t *testing.T) {
-		ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, ns, fixtures.BuildPausedPod(), 10*time.Second)
+		err = fixtures.RunPod(k8s, namespace, fixtures.BuildPausedPod(namespace), 10*time.Second)
 		if err != nil {
 			t.Errorf("error running pod %v: ", err)
 			return
@@ -164,13 +165,21 @@ func Test_Kubernetes(t *testing.T) {
 			},
 		}
 
-		err = k8s.NamespacedHelpers(ns).AttachEphemeralContainer(context.TODO(), "paused", ephemeral, 15*time.Second)
+		err = k8s.PodHelper(namespace).AttachEphemeralContainer(
+			context.TODO(),
+			"paused",
+			ephemeral,
+			helpers.AttachOptions{
+				Timeout: 15*time.Second,
+			},
+		)
+
 		if err != nil {
 			t.Errorf("error attaching ephemeral container to pod: %v", err)
 			return
 		}
 
-		stdout, _, err := k8s.NamespacedHelpers(ns).Exec(
+		stdout, _, err := k8s.PodHelper(namespace).Exec(
 			"paused",
 			"ephemeral",
 			[]string{"echo", "-n", "hello", "world"},

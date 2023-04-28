@@ -6,10 +6,12 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stest "k8s.io/client-go/testing"
 
+	"github.com/grafana/xk6-disruptor/pkg/testutils/assertions"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
@@ -68,7 +70,6 @@ func TestPods_Wait(t *testing.T) {
 			client := fake.NewSimpleClientset()
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
@@ -78,6 +79,7 @@ func TestPods_Wait(t *testing.T) {
 				watcher.Modify(pod)
 			}(tc)
 
+			h := NewPodHelper(client, nil, testNamespace)
 			result, err := h.WaitPodRunning(
 				context.TODO(),
 				tc.name,
@@ -110,9 +112,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		expectError bool
 		container   string
 		state       corev1.ContainerState
-		timeout     time.Duration
+		options     AttachOptions
 	}
 
+	// TODO: check injecting agent when it is already present in the pod
 	testCases := []TestCase{
 		{
 			test:        "Create ephemeral container not waiting",
@@ -123,7 +126,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout: 0,
+			options: AttachOptions{
+				Timeout:        0,
+				IgnoreIfExists: true,
+			},
 		},
 		{
 			test:        "Create ephemeral container waiting",
@@ -134,7 +140,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Running: &corev1.ContainerStateRunning{},
 			},
-			timeout: 5 * time.Second,
+			options: AttachOptions{
+				Timeout:        5 * time.Second,
+				IgnoreIfExists: true,
+			},
 		},
 		{
 			test:        "Fail waiting for container",
@@ -145,7 +154,10 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			state: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{},
 			},
-			timeout: 5 * time.Second,
+			options: AttachOptions{
+				Timeout:        5 * time.Second,
+				IgnoreIfExists: true,
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -160,7 +172,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			client := fake.NewSimpleClientset(pod)
 			watcher := watch.NewRaceFreeFake()
 			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			h := NewHelper(client, nil, testNamespace)
 
 			// add watcher to update ephemeral container's status
 			go func(tc TestCase) {
@@ -174,14 +185,256 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				watcher.Modify(pod)
 			}(tc)
 
+			h := NewPodHelper(client, nil, testNamespace)
 			err := h.AttachEphemeralContainer(
 				context.TODO(),
 				tc.podName,
 				corev1.EphemeralContainer{},
-				tc.timeout,
+				tc.options,
 			)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
+				return
+			}
+		})
+	}
+}
+
+func Test_ListPods(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title        string
+		pods         []*corev1.Pod
+		namespace    string
+		filter       PodFilter
+		expectError  bool
+		expectedPods []string
+	}{
+		{
+			title: "No matching pod",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-without-labels").
+					WithNamespace("test-ns").
+					Build(),
+			},
+			namespace: "test-ns",
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+				},
+			},
+			expectError:  false,
+			expectedPods: []string{},
+		},
+		{
+			title:     "No matching namespace",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-with-app-label-in-another-ns").
+					WithNamespace("anotherNamespace").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).
+					Build(),
+			},
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+				},
+			},
+			expectError:  false,
+			expectedPods: []string{},
+		},
+		{
+			title:     "one matching pod",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-with-app-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).
+					Build(),
+			},
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+				},
+			},
+			expectError: false,
+			expectedPods: []string{
+				"pod-with-app-label",
+			},
+		},
+		{
+			title:     "multiple matching pods",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-with-app-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).
+					Build(),
+				builders.NewPodBuilder("another-pod-with-app-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).
+					Build(),
+			},
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+				},
+			},
+			expectError: false,
+			expectedPods: []string{
+				"pod-with-app-label",
+				"another-pod-with-app-label",
+			},
+		},
+		{
+			title:     "multiple selector labels",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-with-app-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+						},
+					).
+					Build(),
+				builders.NewPodBuilder("pod-with-dev-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+							"env": "dev",
+						},
+					).
+					Build(),
+				builders.NewPodBuilder("pod-with-prod-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+							"env": "prod",
+						},
+					).
+					Build(),
+			},
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+					"env": "dev",
+				},
+			},
+			expectError: false,
+			expectedPods: []string{
+				"pod-with-dev-label",
+			},
+		},
+		{
+			title:     "exclude labels",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-with-dev-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+							"env": "dev",
+						},
+					).
+					Build(),
+				builders.NewPodBuilder("pod-with-prod-label").
+					WithNamespace("test-ns").
+					WithLabels(
+						map[string]string{
+							"app": "test",
+							"env": "prod",
+						},
+					).
+					Build(),
+			},
+			filter: PodFilter{
+				Select: map[string]string{
+					"app": "test",
+				},
+				Exclude: map[string]string{
+					"env": "prod",
+				},
+			},
+			expectError: false,
+			expectedPods: []string{
+				"pod-with-dev-label",
+			},
+		},
+		{
+			title:     "Namespace selector",
+			namespace: "test-ns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("pod-in-test-ns").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("another-pod-in-test-ns").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-in-another-namespace").
+					WithNamespace("other-ns").
+					Build(),
+			},
+			filter:      PodFilter{},
+			expectError: false,
+			expectedPods: []string{
+				"pod-in-test-ns",
+				"another-pod-in-test-ns",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			pods := []runtime.Object{}
+			for _, p := range tc.pods {
+				pods = append(pods, p)
+			}
+			client := fake.NewSimpleClientset(pods...)
+
+			helper := NewPodHelper(client, nil, tc.namespace)
+			podList, err := helper.List(context.TODO(), tc.filter)
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if !assertions.CompareStringArrays(podList, tc.expectedPods) {
+				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, pods)
 				return
 			}
 		})

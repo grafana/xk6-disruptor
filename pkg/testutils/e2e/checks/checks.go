@@ -68,7 +68,7 @@ func CheckService(k8s kubernetes.Kubernetes, c ServiceCheck) error {
 		port = 80
 	}
 
-	serviceClient, err := k8s.NamespacedHelpers(namespace).GetServiceProxy(c.Service, port)
+	serviceClient, err := k8s.ServiceHelper(namespace).GetServiceProxy(c.Service, port)
 	if err != nil {
 		return err
 	}

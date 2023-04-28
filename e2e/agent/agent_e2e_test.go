@@ -14,12 +14,14 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var injectHTTP500 = []string{
+	"xk6-disruptor-agent",
 	"http",
 	"--duration",
 	"300s",
@@ -34,6 +36,7 @@ var injectHTTP500 = []string{
 }
 
 var injectGrpcInternal = []string{
+	"xk6-disruptor-agent",
 	"grpc",
 	"--duration",
 	"300s",
@@ -53,84 +56,53 @@ var injectGrpcInternal = []string{
 }
 
 // deploy pod with [httpbin] and the xk6-disruptor as sidekick container
-func buildHttpbinPodWithDisruptorAgent(args []string) *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "httpbin",
-			Labels: map[string]string{
+func buildHttpbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.Pod {
+	httpbin := builders.NewContainerBuilder("httpbin").
+		WithImage("kennethreitz/httpbin").
+		WithPort("http", 80).
+		Build()
+
+	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
+		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
+		WithCommand(cmd...).
+		WithCapabilities("NET_ADMIN").
+		Build()
+
+	return builders.NewPodBuilder("httpbin").
+		WithNamespace(namespace).
+		WithLabels(
+			map[string]string{
 				"app": "httpbin",
 			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:            "httpbin",
-					Image:           "kennethreitz/httpbin",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Ports: []corev1.ContainerPort{
-						{
-							Name: "http",
-							ContainerPort: 80,
-						},
-					},
-				},
-				{
-					Name:            "xk6-disruptor-agent",
-					Image:           "ghcr.io/grafana/xk6-disruptor-agent",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"xk6-disruptor-agent"},
-					Args:            args,
-					SecurityContext: &corev1.SecurityContext{
-						Capabilities: &corev1.Capabilities{
-							Add: []corev1.Capability{
-								"NET_ADMIN",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+		).
+		WithContainer(*httpbin).
+		WithContainer(*agent).
+		Build()
 }
 
 // deploy pod with grpcbin and the xk6-disruptor as sidekick container
-func buildGrpcbinPodWithDisruptorAgent(args []string) *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "grpcbin",
-			Labels: map[string]string{
+func buildGrpcbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.Pod {
+	grpcbin := builders.NewContainerBuilder("grpcbin").
+		WithImage("moul/grpcbin").
+		WithPort("grpc", 9000).
+		Build()
+
+	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
+		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
+		WithCommand(cmd...).
+		WithCapabilities("NET_ADMIN").
+		Build()
+
+	return builders.NewPodBuilder("grpcbin").
+		WithNamespace(namespace).
+		WithLabels(
+			map[string]string{
 				"app": "grpcbin",
 			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:            "grpcbin",
-					Image:           "moul/grpcbin",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Ports: []corev1.ContainerPort{
-						{
-							ContainerPort: 9000,
-						},
-					},
-				},
-				{
-					Name:            "xk6-disruptor-agent",
-					Image:           "ghcr.io/grafana/xk6-disruptor-agent",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"xk6-disruptor-agent"},
-					Args:            args,
-					SecurityContext: &corev1.SecurityContext{
-						Capabilities: &corev1.Capabilities{
-							Add: []corev1.Capability{
-								"NET_ADMIN",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+		).
+		WithContainer(*grpcbin).
+		WithContainer(*agent).
+		Build()
 }
 
 func Test_Agent(t *testing.T) {
@@ -156,7 +128,7 @@ func Test_Agent(t *testing.T) {
 		return
 	}
 
-	t.Run("Test HTTP Fault Injection", func (t *testing.T) {
+	t.Run("Test HTTP Fault Injection", func(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
@@ -171,7 +143,7 @@ func Test_Agent(t *testing.T) {
 				title: "Inject HTTP 500",
 				cmd:   injectHTTP500,
 				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(), 20*time.Second)
+					err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(ns), 20*time.Second)
 					if err != nil {
 						return fmt.Errorf("failed to create service: %v", err)
 					}
@@ -191,23 +163,10 @@ func Test_Agent(t *testing.T) {
 				title: "Prevent execution of multiple commands",
 				cmd:   injectHTTP500,
 				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					_, stderr, err := k8s.NamespacedHelpers(ns).Exec(
+					_, stderr, err := k8s.PodHelper(ns).Exec(
 						"httpbin",
 						"xk6-disruptor-agent",
-						[]string{
-							"xk6-disruptor-agent",
-							"http",
-							"--duration",
-							"300s",
-							"--rate",
-							"1.0",
-							"--error",
-							"500",
-							"--port",
-							"8080",
-							"--target",
-							"80",
-						},
+						injectHTTP500,
 						[]byte{},
 					)
 					if err == nil {
@@ -226,17 +185,17 @@ func Test_Agent(t *testing.T) {
 			tc := tc
 			t.Run(tc.title, func(t *testing.T) {
 				t.Parallel()
-				ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
+				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 				if err != nil {
 					t.Errorf("error creating test namespace: %v", err)
 					return
 				}
-				defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 				err = fixtures.RunPod(
 					k8s,
-					ns,
-					buildHttpbinPodWithDisruptorAgent(tc.cmd),
+					namespace,
+					buildHttpbinPodWithDisruptorAgent(namespace, tc.cmd),
 					30*time.Second,
 				)
 				if err != nil {
@@ -244,7 +203,7 @@ func Test_Agent(t *testing.T) {
 					return
 				}
 
-				err = tc.check(k8s, ns)
+				err = tc.check(k8s, namespace)
 				if err != nil {
 					t.Errorf("failed : %v", err)
 					return
@@ -270,7 +229,7 @@ func Test_Agent(t *testing.T) {
 				check: func(k8s kubernetes.Kubernetes, ns string) error {
 					err = fixtures.ExposeService(k8s,
 						ns,
-						fixtures.BuildGrpcbinService(uint(grpcPort.NodePort)),
+						fixtures.BuildGrpcbinService(ns, uint(grpcPort.NodePort)),
 						20*time.Second,
 					)
 					if err != nil {
@@ -295,17 +254,17 @@ func Test_Agent(t *testing.T) {
 			tc := tc
 			t.Run(tc.title, func(t *testing.T) {
 				t.Parallel()
-				ns, err := k8s.Helpers().CreateRandomNamespace(context.TODO(), "test-")
+				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 				if err != nil {
 					t.Errorf("error creating test namespace: %v", err)
 					return
 				}
-				defer k8s.CoreV1().Namespaces().Delete(context.TODO(), ns, metav1.DeleteOptions{})
+				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 				err = fixtures.RunPod(
 					k8s,
-					ns,
-					buildGrpcbinPodWithDisruptorAgent(tc.cmd),
+					namespace,
+					buildGrpcbinPodWithDisruptorAgent(namespace, tc.cmd),
 					30*time.Second,
 				)
 				if err != nil {
@@ -313,7 +272,7 @@ func Test_Agent(t *testing.T) {
 					return
 				}
 
-				err = tc.check(k8s, ns)
+				err = tc.check(k8s, namespace)
 				if err != nil {
 					t.Errorf("failed : %v", err)
 					return
