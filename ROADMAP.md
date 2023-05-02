@@ -1,14 +1,54 @@
 # xk6-disruptor roadmap
 
-xk6-disruptor is a young project and is still in an early development phase. The initial releases have been focused on providing a MVP (Minimal Viable Product) that show-cases its potential for a relevant use case: Fault injection in the HTTP requests server by a set of Pods.
+xk6-disruptor is a young project still in an early development phase. The initial releases have been focused on providing a MVP (Minimal Viable Product) that show-cases its potential for a relevant use case: Fault injection in the most common protocols used in microservice applications (HTTP and gRPC)
 
-However, the vision of the project is more ambitions. We envision to have a tool that democratizes the reliability testing by offering application developers, testers, QA engineers, Devops, SREs and any one concerned with reliability, a simple way to test applications under multiple disruptive conditions.
+However, the vision of the project is more ambitions. We envision to have a tool that makes reliability testing accessible to application developers, testers, QA engineers, Devops, SREs and any one concerned with reliability, by offering a simple way to test applications under multiple disruptive conditions.
 
 Our roadmap includes therefore objectives to extend the xk6-disruptor to new use cases, but also to improve existing functionalities making them easier to use and more robust.
 
 ## Short-term
 
-These are goals we expect to achieve in the next 3-6 months (Q4/2022-Q1/2023).
+These are goals we expect to achieve in the next 6 months (Q3/2023-Q4/2023).
+
+1. Improve API
+
+    The main tenet of xk6-disruptor is to offer the best developer experience. In this regard, we will continue improving the API, providing more simplicity and convenience (making the general use cases easier) and extensibility (making complex use cases possible).
+
+    - Add more criteria for Pod selection
+
+        Presently the pod selector only supports labels. It would be convenient to also select or exclude Pods based on annotations or their state (for example, exclude pods that are in Terminated state). The [selector API](https://github.com/grafana/xk6-disruptor/blob/main/docs/01-development/design-docs/001-selector-api.md) defines some of these criteria and defines a syntax for incorporating in the definition of a selector.
+
+      Follow-up issues:
+      - [https://github.com/grafana/xk6-disruptor/issues/73](https://github.com/grafana/xk6-disruptor/issues/73)
+
+    - Add criteria for selecting which requests to be affected by fault injection
+
+        Presently all requests served by a target will be equally affected by the fault injection. However, in most applications, different logical operations (for example, HTTP endpoints) behave differently, as they may be backed by different databases or have different dependencies to other services. Therefore, in order to reproduce real usage conditions, it is necessary to provide the ability to select which requests will be affected by the fault injection based on elements such as the target URL pattern.
+
+      Follow-up issues:
+      - [https://github.com/grafana/xk6-disruptor/issues/73](https://github.com/grafana/xk6-disruptor/issues/73)
+ 
+ 2. Improve disruptor reliability
+
+     The xk6-disruptor [works by installing an agent in the targets of the fault injection](https://k6.io/docs/javascript-api/xk6-disruptor/explanations/how-xk6-disruptor-works/). In order to ensure the execution of a test does not disrupt the target application beyond the parameters defined the fault injection and neither does it have side-effects, it is critical to ensure the agent can recover from situations such as the cancellation of the test.
+
+     Follow-up issues:
+     - [Handle interruption in the xk6-disruptor agent and clean-up before exiting](https://github.com/grafana/xk6-disruptor/issues/115)
+     - [xk6-disruptor-agent does not terminate if test is cancelled](https://github.com/grafana/xk6-disruptor/issues/82)
+ 
+ 3. Add fault injection capabilities for other protocols
+
+    Presently the disruptor only supports fault injection for HTTP and gRPC protocols, the two more common protocols for communication between microservices. However, these microservice rely on infrastructure services such a cache servers, databases, message queues, and event streaming server to operate. Therefore we will explore the implementation of protocol level fault injection for other the most common protocols used in modern applications.
+
+    Follow-up issues:
+    -   [Add fault injection capabilities for Kafka protocol](https://github.com/grafana/xk6-disruptor/issues/151)
+    -   [Add fault injection capabilities for Redis protocol](https://github.com/grafana/xk6-disruptor/issues/152)
+    -   [Add fault injection capabilities for MySQL protocol](https://github.com/grafana/xk6-disruptor/issues/153)
+
+    
+## Mid-term
+
+These are goals we expect to achieve in 6-12 months (Q1/2024-Q2/2024).
 
 1. Expand the catalog of faults for Pod and Service disruptors
 
@@ -26,54 +66,15 @@ These are goals we expect to achieve in the next 3-6 months (Q4/2022-Q1/2023).
 
       A NodeDisruptor targets a set of nodes, selected or excluded by labels, annotations and state, and support the injection of node-level faults, such a resource exhaustion and network disruption.
 
-3. Improve API
+      Follow-up issues:
+      - [Implement NodeDisruptor](https://github.com/grafana/xk6-disruptor/issues/156)
 
-    The main tenet of xk6-disruptor is to offer the best developer experience. In this regard, we will continue improving the API, providing more simplicity and convenience (making the general use cases easier) and extensibility (making complex use cases possible).
+   - External dependency disruptor
 
-    - Add more criteria for Pod selection
+      It is a common use case to test the effect of known patterns of behavior in external dependencies (services that are not under the control of the organization). Using the xk6-disruptor, this could be accomplished by implementing a Dependency Disruptor, which instead of disrupting a service (or a group of pods), disrupts the requests these pods make to other services.
 
-        Presently the pod selector only supports labels. It would be convenient to also select or exclude Pods based on annotations or their state (for example, exclude pods that are in Terminated state)
-
-    - Minimize the boiler-plate configuration for injecting faults
-
-        Even when the xk6-disruptor has a lean API for selecting targets and defining the faults, the execution of the fault injection code requires some additional configuration. For example, defining scenarios for executing the fault injection. If a test does not have scenarios, this is considerable overhead. We want to explore alternatives such as helper classes for generating the required configuration using some sound defaults which could be easily overridden.
-
-        Follow-up issues:
-        - https://github.com/grafana/xk6-disruptor/issues/54
-
-    - Improve validations in the API
-
-        Presently the API in Go code does not validate the parameter passed from the test script. This introduces several issues, including the difficulty for users to detect when they misspell arguments. We plan to address this issue by creating an API layer between the test code (JavaScript) and the extension implementation (Go) that will validate the parameters passed to any function.
-
-        Follow-up issues:
-        - https://github.com/grafana/xk6-disruptor/issues/45
-
-## Mid-term
-
-These are goals we expect to achieve in 6-12 months (Q2/2023-Q3/2023).
-
-1. Add fault injection capabilities for other protocols
-
-   Presently the disruptor only supports fault injection for HTTP protocol. However, many microservice applications use gRPC. Additionally, the ability to inject faults in database connections (e.g., Redis, MySQL) is relevant for many use cases.
-   Therefore, we plan to research available multi-protocol proxies and study how they could be incorporated in the architecture of the disruptor agent.
-
-   Follow-up issues:
-   - [Implement fault injection for grpc services](https://github.com/grafana/xk6-disruptor/issues/121)
-
-2. Implement disruption for outgoing requests
-
-   It is a common use case to test the effect of known patterns of behavior in external dependencies (services that are not under the control of the organization). Using the xk6-disruptor, this could be accomplished by implementing a Dependency Disruptor, which instead of disrupting a service (or a group of pods), disrupts the requests these pods make to other services. This could be implemented using a similar approach used by the disruptor: inject a transparent proxy but in this case for outgoing requests.
-
-   Follow up issues:
-   - https://github.com/grafana/xk6-disruptor/issues/53
-
-
-3. Implement interface between xk6-disruptor extension and the disruptor agent using grpc
-
-   Presently, this interface is implemented by executing commands in the agent's container. This is a handy option because it does not require the agent to be accessible outside the Kubernetes cluster (exec command uses Kubernetes API server as a gateway) and will probably stay as a default communication mechanism. However, it has some important limitations in terms of error handling and execution of asynchronous tasks. gRPC would offer a more robust foundation for extension/agent communication. It could still be used by tests running inside the Kubernetes cluster, for example, using the [k6-operator](https://github.com/grafana/k6-operator).
-
-   Follow-up issues:
-   - https://github.com/grafana/xk6-disruptor/issues/52
+      Follow up issues:
+     - [Dependency disruptor](https://github.com/grafana/xk6-disruptor/issues/53)
 
 
 ## Non-goals
