@@ -111,7 +111,7 @@ func Test_PodDisruptor(t *testing.T) {
 					return
 				}
 
-				targets, _ := disruptor.Targets()
+				targets, _ := disruptor.Targets(context.TODO())
 				if len(targets) == 0 {
 					t.Errorf("No pods matched the selector")
 					return
@@ -119,7 +119,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectHTTPFaults(tc.fault, 60 * time.Second, tc.options)
+					err := disruptor.InjectHTTPFaults(context.TODO(), tc.fault, 60 * time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return
@@ -221,7 +221,7 @@ func Test_PodDisruptor(t *testing.T) {
 					return
 				}
 
-				targets, _ := disruptor.Targets()
+				targets, _ := disruptor.Targets(context.TODO())
 				if len(targets) == 0 {
 					t.Errorf("No pods matched the selector")
 					return
@@ -229,7 +229,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectGrpcFaults(tc.fault, 60 * time.Second, tc.options)
+					err := disruptor.InjectGrpcFaults(context.TODO(), tc.fault, 60 * time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return

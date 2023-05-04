@@ -1,15 +1,18 @@
 package disruptors
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // ProtocolFaultInjector defines the methods for injecting protocol faults
 type ProtocolFaultInjector interface {
 	// InjectHTTPFault injects faults in the HTTP requests sent to the disruptor's targets
 	// for the specified duration
-	InjectHTTPFaults(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) error
+	InjectHTTPFaults(ctx context.Context, fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) error
 	// InjectGrpcFault injects faults in the grpc requests sent to the disruptor's targets
 	// for the specified duration
-	InjectGrpcFaults(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) error
+	InjectGrpcFaults(ctx context.Context, fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) error
 }
 
 // HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod

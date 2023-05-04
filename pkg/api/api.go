@@ -2,6 +2,7 @@
 // allowing for validations and type conversions when needed
 //
 // The implementation of the JS API follows the design described in
+// https://github.com/grafana/xk6-disruptor/blob/fix-context-usage/docs/01-development/design-docs/002-js-api-implementation.md
 package api
 
 import (
@@ -39,15 +40,16 @@ func buildObject(rt *goja.Runtime, value interface{}) (*goja.Object, error) {
 	return obj, nil
 }
 
-// jsDisruptor implements the JS interface for PodDisruptor
+// jsDisruptor implements the JS interface for Disruptor
 type jsDisruptor struct {
-	rt *goja.Runtime
+	ctx context.Context // this context controls ths object's lifecycle
+	rt  *goja.Runtime
 	disruptors.Disruptor
 }
 
 // Targets is a proxy method. Validates parameters and delegates to the PodDisruptor method
 func (p *jsDisruptor) Targets() goja.Value {
-	targets, err := p.Disruptor.Targets()
+	targets, err := p.Disruptor.Targets(p.ctx)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error getting kubernetes config path: %w", err))
 	}
@@ -55,9 +57,10 @@ func (p *jsDisruptor) Targets() goja.Value {
 	return p.rt.ToValue(targets)
 }
 
-// jsProtocolFaultInjector implements the JS interface for PodDisruptor
+// jsProtocolFaultInjector implements the JS interface for jsProtocolFaultInjector
 type jsProtocolFaultInjector struct {
-	rt *goja.Runtime
+	ctx context.Context // this context controls ths object's lifecycle
+	rt  *goja.Runtime
 	disruptors.ProtocolFaultInjector
 }
 
@@ -87,7 +90,7 @@ func (p *jsProtocolFaultInjector) InjectHTTPFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.ProtocolFaultInjector.InjectHTTPFaults(fault, duration, opts)
+	err = p.ProtocolFaultInjector.InjectHTTPFaults(p.ctx, fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
@@ -119,7 +122,7 @@ func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...goja.Value) {
 		}
 	}
 
-	err = p.ProtocolFaultInjector.InjectGrpcFaults(fault, duration, opts)
+	err = p.ProtocolFaultInjector.InjectGrpcFaults(p.ctx, fault, duration, opts)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
 	}
@@ -131,13 +134,19 @@ type jsPodDisruptor struct {
 }
 
 // buildJsPodDisruptor builds a goja object that implements the PodDisruptor API
-func buildJsPodDisruptor(rt *goja.Runtime, disruptor disruptors.PodDisruptor) (*goja.Object, error) {
+func buildJsPodDisruptor(
+	ctx context.Context,
+	rt *goja.Runtime,
+	disruptor disruptors.PodDisruptor,
+) (*goja.Object, error) {
 	d := &jsPodDisruptor{
 		jsDisruptor: jsDisruptor{
+			ctx:       ctx,
 			rt:        rt,
 			Disruptor: disruptor,
 		},
 		jsProtocolFaultInjector: jsProtocolFaultInjector{
+			ctx:                   ctx,
 			rt:                    rt,
 			ProtocolFaultInjector: disruptor,
 		},
@@ -152,13 +161,19 @@ type jsServiceDisruptor struct {
 }
 
 // buildJsServiceDisruptor builds a goja object that implements the ServiceDisruptor API
-func buildJsServiceDisruptor(rt *goja.Runtime, disruptor disruptors.ServiceDisruptor) (*goja.Object, error) {
+func buildJsServiceDisruptor(
+	ctx context.Context,
+	rt *goja.Runtime,
+	disruptor disruptors.ServiceDisruptor,
+) (*goja.Object, error) {
 	d := &jsServiceDisruptor{
 		jsDisruptor: jsDisruptor{
+			ctx:       ctx,
 			rt:        rt,
 			Disruptor: disruptor,
 		},
 		jsProtocolFaultInjector: jsProtocolFaultInjector{
+			ctx:                   ctx,
 			rt:                    rt,
 			ProtocolFaultInjector: disruptor,
 		},
@@ -168,6 +183,7 @@ func buildJsServiceDisruptor(rt *goja.Runtime, disruptor disruptors.ServiceDisru
 }
 
 // NewPodDisruptor creates an instance of a PodDisruptor
+// The context passed to this constructor is expected to control the lifecycle of the PodDisruptor
 func NewPodDisruptor(
 	ctx context.Context,
 	rt *goja.Runtime,
@@ -198,7 +214,7 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("error creating PodDisruptor: %w", err)
 	}
 
-	obj, err := buildJsPodDisruptor(rt, disruptor)
+	obj, err := buildJsPodDisruptor(ctx, rt, disruptor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating PodDisruptor: %w", err)
 	}
@@ -207,6 +223,7 @@ func NewPodDisruptor(
 }
 
 // NewServiceDisruptor creates an instance of a ServiceDisruptor and returns it as a goja object
+// The context passed to this constructor is expected to control the lifecycle of the ServiceDisruptor
 func NewServiceDisruptor(
 	ctx context.Context,
 	rt *goja.Runtime,
@@ -243,7 +260,7 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}
 
-	obj, err := buildJsServiceDisruptor(rt, disruptor)
+	obj, err := buildJsServiceDisruptor(ctx, rt, disruptor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating ServiceDisruptor: %w", err)
 	}

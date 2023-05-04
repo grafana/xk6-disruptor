@@ -28,7 +28,6 @@ type PodDisruptorOptions struct {
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
 type podDisruptor struct {
-	ctx        context.Context
 	controller AgentController
 }
 
@@ -85,41 +84,42 @@ func NewPodDisruptor(
 		targets,
 		options.InjectTimeout,
 	)
-	err = controller.InjectDisruptorAgent()
+	err = controller.InjectDisruptorAgent(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &podDisruptor{
-		ctx:        ctx,
 		controller: controller,
 	}, nil
 }
 
 // Targets retrieves the list of target pods for the given PodSelector
-func (d *podDisruptor) Targets() ([]string, error) {
-	return d.controller.Targets()
+func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
+	return d.controller.Targets(ctx)
 }
 
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
 func (d *podDisruptor) InjectHTTPFaults(
+	ctx context.Context,
 	fault HTTPFault,
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
-	err := d.controller.ExecCommand(cmd)
+	err := d.controller.ExecCommand(ctx, cmd)
 	return err
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
 func (d *podDisruptor) InjectGrpcFaults(
+	ctx context.Context,
 	fault GrpcFault,
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
 	cmd := buildGrpcFaultCmd(fault, duration, options)
-	err := d.controller.ExecCommand(cmd)
+	err := d.controller.ExecCommand(ctx, cmd)
 	return err
 }

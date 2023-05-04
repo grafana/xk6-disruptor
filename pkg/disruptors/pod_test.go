@@ -16,20 +16,20 @@ type fakeAgentController struct {
 	executor  *process.FakeExecutor
 }
 
-func (f *fakeAgentController) Targets() ([]string, error) {
+func (f *fakeAgentController) Targets(ctx context.Context) ([]string, error) {
 	return f.targets, nil
 }
 
-func (f *fakeAgentController) InjectDisruptorAgent() error {
+func (f *fakeAgentController) InjectDisruptorAgent(ctx context.Context) error {
 	return nil
 }
 
-func (f *fakeAgentController) ExecCommand(cmd []string) error {
+func (f *fakeAgentController) ExecCommand(ctx context.Context, cmd []string) error {
 	_, err := f.executor.Exec(cmd[0], cmd[1:]...)
 	return err
 }
 
-func (f *fakeAgentController) Visit(visitor func(string) []string) error {
+func (f *fakeAgentController) Visit(ctx context.Context, visitor func(string) []string) error {
 	for _, t := range f.targets {
 		cmd := visitor(t)
 		_, err := f.executor.Exec(cmd[0], cmd[1:]...)
@@ -40,9 +40,8 @@ func (f *fakeAgentController) Visit(visitor func(string) []string) error {
 	return nil
 }
 
-func newPodDisruptorForTesting(ctx context.Context, controller AgentController) PodDisruptor {
+func newPodDisruptorForTesting(controller AgentController) PodDisruptor {
 	return &podDisruptor{
-		ctx:        ctx,
 		controller: controller,
 	}
 }
@@ -177,9 +176,9 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(context.TODO(), controller)
+			d := newPodDisruptorForTesting(controller)
 
-			err := d.InjectHTTPFaults(tc.fault, tc.duration, tc.opts)
+			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
@@ -334,9 +333,9 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(context.TODO(), controller)
+			d := newPodDisruptorForTesting(controller)
 
-			err := d.InjectGrpcFaults(tc.fault, tc.duration, tc.opts)
+			err := d.InjectGrpcFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
