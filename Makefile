@@ -33,7 +33,8 @@ e2e-agent: agent-image
 e2e-kubernetes:
 	go test -tags e2e ./e2e/kubernetes/...
 
-e2e: e2e-cluster e2e-kubernetes e2e-agent e2e-disruptors
+e2e:
+	go test -tags e2e ./e2e/...
 
 format:
 	go fmt ./...
