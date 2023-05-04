@@ -83,7 +83,7 @@ func Test_InjectAgent(t *testing.T) {
 				tc.timeout,
 			)
 
-			err := controller.InjectDisruptorAgent()
+			err := controller.InjectDisruptorAgent(context.TODO())
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -188,7 +188,7 @@ func Test_ExecCommand(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			err := controller.ExecCommand(tc.command)
+			err := controller.ExecCommand(context.TODO(), tc.command)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return

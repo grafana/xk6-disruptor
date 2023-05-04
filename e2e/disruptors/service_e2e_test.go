@@ -58,7 +58,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 			return
 		}
 
-		targets, _ := disruptor.Targets()
+		targets, _ := disruptor.Targets(context.TODO())
 		if len(targets) == 0 {
 			t.Errorf("No pods matched the selector")
 			return
@@ -72,7 +72,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 				ErrorCode: 500,
 			}
 			httpOptions := disruptors.HTTPDisruptionOptions{}
-			err := disruptor.InjectHTTPFaults(fault, 10 * time.Second, httpOptions)
+			err := disruptor.InjectHTTPFaults(context.TODO(), fault, 10 * time.Second, httpOptions)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}

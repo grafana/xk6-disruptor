@@ -16,18 +16,17 @@ import (
 // AgentController defines the interface for controlling agents in a set of targets
 type AgentController interface {
 	// InjectDisruptorAgent injects the Disruptor agent in the target pods
-	InjectDisruptorAgent() error
+	InjectDisruptorAgent(ctx context.Context) error
 	// ExecCommand executes a command in the targets of the AgentController and reports any error
-	ExecCommand(cmd []string) error
+	ExecCommand(ctx context.Context, cmd []string) error
 	// Targets returns the list of targets for the controller
-	Targets() ([]string, error)
+	Targets(ctx context.Context) ([]string, error)
 	// Visit allows executing a different command on each target returned by a visiting function
-	Visit(func(target string) []string) error
+	Visit(ctx context.Context, visitor func(target string) []string) error
 }
 
 // AgentController controls de agents in a set of target pods
 type agentController struct {
-	ctx       context.Context
 	helper    helpers.PodHelper
 	namespace string
 	targets   []string
@@ -35,7 +34,7 @@ type agentController struct {
 }
 
 // InjectDisruptorAgent injects the Disruptor agent in the target pods
-func (c *agentController) InjectDisruptorAgent() error {
+func (c *agentController) InjectDisruptorAgent(ctx context.Context) error {
 	var (
 		rootUser     = int64(0)
 		rootGroup    = int64(0)
@@ -70,7 +69,7 @@ func (c *agentController) InjectDisruptorAgent() error {
 			defer wg.Done()
 
 			err := c.helper.AttachEphemeralContainer(
-				c.ctx,
+				ctx,
 				podName,
 				agentContainer,
 				helpers.AttachOptions{
@@ -95,15 +94,15 @@ func (c *agentController) InjectDisruptorAgent() error {
 }
 
 // ExecCommand executes a command in the targets of the AgentController and reports any error
-func (c *agentController) ExecCommand(cmd []string) error {
+func (c *agentController) ExecCommand(ctx context.Context, cmd []string) error {
 	// visit each target with the same command
-	return c.Visit(func(string) []string {
+	return c.Visit(ctx, func(string) []string {
 		return cmd
 	})
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *agentController) Visit(visitor func(string) []string) error {
+func (c *agentController) Visit(ctx context.Context, visitor func(string) []string) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
 	errors := make(chan error, len(c.targets))
@@ -133,7 +132,7 @@ func (c *agentController) Visit(visitor func(string) []string) error {
 }
 
 // Targets retrieves the list of target pods for the given PodSelector
-func (c *agentController) Targets() ([]string, error) {
+func (c *agentController) Targets(ctx context.Context) ([]string, error) {
 	return c.targets, nil
 }
 
@@ -152,7 +151,6 @@ func NewAgentController(
 		timeout = 0
 	}
 	return &agentController{
-		ctx:       ctx,
 		helper:    helper,
 		namespace: namespace,
 		targets:   targets,

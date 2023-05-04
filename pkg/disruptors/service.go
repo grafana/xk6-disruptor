@@ -24,7 +24,6 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
-	ctx        context.Context
 	service    string
 	namespace  string
 	options    ServiceDisruptorOptions
@@ -59,13 +58,12 @@ func NewServiceDisruptor(
 		options.InjectTimeout,
 	)
 
-	err = controller.InjectDisruptorAgent()
+	err = controller.InjectDisruptorAgent(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &serviceDisruptor{
-		ctx:        ctx,
 		service:    service,
 		namespace:  namespace,
 		options:    options,
@@ -75,18 +73,19 @@ func NewServiceDisruptor(
 }
 
 func (d *serviceDisruptor) InjectHTTPFaults(
+	ctx context.Context,
 	fault HTTPFault,
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	targets, err := d.helper.MapPort(d.ctx, d.service, fault.Port)
+	targets, err := d.helper.MapPort(ctx, d.service, fault.Port)
 	if err != nil {
 		return fmt.Errorf("error getting target for fault injection: %w", err)
 	}
 
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err = d.controller.Visit(func(pod string) []string {
+	err = d.controller.Visit(ctx, func(pod string) []string {
 		// copy fault to change target port for the pod
 		podFault := fault
 		podFault.Port = targets[pod]
@@ -98,18 +97,19 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
+	ctx context.Context,
 	fault GrpcFault,
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	targets, err := d.helper.MapPort(d.ctx, d.service, fault.Port)
+	targets, err := d.helper.MapPort(ctx, d.service, fault.Port)
 	if err != nil {
 		return fmt.Errorf("error getting target for fault injection: %w", err)
 	}
 
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err = d.controller.Visit(func(pod string) []string {
+	err = d.controller.Visit(ctx, func(pod string) []string {
 		podFault := fault
 		podFault.Port = targets[pod]
 		cmd := buildGrpcFaultCmd(fault, duration, options)
@@ -119,6 +119,6 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	return err
 }
 
-func (d *serviceDisruptor) Targets() ([]string, error) {
-	return d.controller.Targets()
+func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {
+	return d.controller.Targets(ctx)
 }
