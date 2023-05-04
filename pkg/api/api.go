@@ -2,6 +2,7 @@
 // allowing for validations and type conversions when needed
 //
 // The implementation of the JS API follows the design described in
+// https://github.com/grafana/xk6-disruptor/blob/fix-context-usage/docs/01-development/design-docs/002-js-api-implementation.md
 package api
 
 import (
