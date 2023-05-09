@@ -87,20 +87,16 @@ func Test_ServiceDisruptor(t *testing.T) {
 			}
 		}()
 
-		err = checks.CheckHTTPService(
-			k8s,
-			cluster.Ingress(),
-			checks.HTTPCheck{
-				Namespace:    namespace,
-				Service:      "httpbin",
-				Port:         80,
-				Method:       "GET",
-				Path:         "/status/200",
-				Body:         []byte{},
-				Delay:        2 * time.Second,
-				ExpectedCode: 500,
-			},
-		)
+		check := checks.HTTPCheck{
+			Service:      "httpbin",
+			Port:         80,
+			Method:       "GET",
+			Path:         "/status/200",
+			Body:         []byte{},
+			Delay:        2 * time.Second,
+			ExpectedCode: 500,
+		}
+		err = check.Verify(k8s, cluster.Ingress(), namespace)
 		if err != nil {
 			t.Errorf("failed to access service: %v", err)
 			return

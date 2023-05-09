@@ -44,13 +44,10 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			title     string
-			fault     disruptors.HTTPFault
-			options   disruptors.HTTPDisruptionOptions
-			path      string
-			method    string
-			body      []byte
-			checkCode int
+			title   string
+			fault   disruptors.HTTPFault
+			options disruptors.HTTPDisruptionOptions
+			check   checks.Check
 		}{
 			{
 				title: "Inject Http error 500",
@@ -62,10 +59,12 @@ func Test_PodDisruptor(t *testing.T) {
 				options: disruptors.HTTPDisruptionOptions{
 					ProxyPort: 8080,
 				},
-				method:    "GET",
-				path:      "/status/200",
-				body:      []byte{},
-				checkCode: 500,
+				check: checks.HTTPCheck{
+					Method:       "GET",
+					Path:         "/status/200",
+					Body:         []byte{},
+					ExpectedCode: 500,
+				},
 			},
 		}
 
@@ -125,20 +124,7 @@ func Test_PodDisruptor(t *testing.T) {
 					}
 				}()
 
-				err = checks.CheckHTTPService(
-					k8s,
-					cluster.Ingress(),
-					checks.HTTPCheck{
-						Namespace:    namespace,
-						Service:      "httpbin",
-						Port:         80,
-						Method:       tc.method,
-						Path:         tc.path,
-						Body:         tc.body,
-						Delay:        2 * time.Second,
-						ExpectedCode: tc.checkCode,
-					},
-				)
+				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
 				if err != nil {
 					t.Errorf("failed to access service: %v", err)
 					return
@@ -155,15 +141,12 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			title     string
-			fault     disruptors.GrpcFault
-			options   disruptors.GrpcDisruptionOptions
-			host      string
-			port      int
-			service   string
-			method    string
-			request   []byte
-			checkCode int
+			title   string
+			fault   disruptors.GrpcFault
+			options disruptors.GrpcDisruptionOptions
+			host    string
+			port    int
+			check   checks.Check
 		}{
 			{
 				title: "Inject Grpc error",
@@ -176,10 +159,13 @@ func Test_PodDisruptor(t *testing.T) {
 				options: disruptors.GrpcDisruptionOptions{
 					ProxyPort: 3000,
 				},
-				service:   "grpcbin.GRPCBin",
-				method:    "Empty",
-				request:   []byte("{}"),
-				checkCode: 14,
+				check: checks.GrpcCheck{
+					Service:        "grpcbin.GRPCBin",
+					Method:         "Empty",
+					Request:        []byte("{}"),
+					ExpectedStatus: 14,
+					Delay:          10 * time.Second,
+				},
 			},
 		}
 
@@ -237,18 +223,7 @@ func Test_PodDisruptor(t *testing.T) {
 					}
 				}()
 
-				err = checks.CheckGrpcService(
-					k8s,
-					cluster.Ingress(),
-
-					checks.GrpcServiceCheck{
-						Delay:          10 * time.Second,
-						Service:        tc.service,
-						Method:         tc.method,
-						Request:        tc.request,
-						ExpectedStatus: int32(tc.checkCode),
-					},
-				)
+				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
 				if err != nil {
 					t.Errorf("failed to access service: %v", err)
 					return

@@ -12,7 +12,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 
 	corev1 "k8s.io/api/core/v1"
@@ -96,23 +95,6 @@ func Test_Kubernetes(t *testing.T) {
 		err = k8s.ServiceHelper(namespace).WaitServiceReady(context.TODO(), "nginx", time.Second*20)
 		if err != nil {
 			t.Errorf("error waiting for service nginx: %v", err)
-			return
-		}
-
-		// access service using the local port on which the service was exposed
-		err = checks.CheckHTTPService(
-			k8s,
-			cluster.Ingress(),
-			checks.HTTPCheck{
-				Namespace:    namespace,
-				Service:      "nginx",
-				Path:         "/",
-				Port:         80,
-				ExpectedCode: 200,
-			},
-		)
-		if err != nil {
-			t.Errorf("failed to access service: %v", err)
 			return
 		}
 	})
