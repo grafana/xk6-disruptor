@@ -18,6 +18,8 @@ type IngressBuilder interface {
 	WithPath(path string) IngressBuilder
 	// WithAnnotations add annotations to the Ingress
 	WithAnnotation(key, value string) IngressBuilder
+	// WithAddress sets the ingress loadbalancer address
+	WithAddress(addr string) IngressBuilder
 	// Build returns the Ingress
 	Build() *networking.Ingress
 }
@@ -31,6 +33,7 @@ type ingressBuilder struct {
 	host        string
 	path        string
 	annotations map[string]string
+	addresses   []networking.IngressLoadBalancerIngress
 }
 
 // NewIngressBuilder creates a new IngressBuilder for a given serviceBackend
@@ -66,6 +69,11 @@ func (b *ingressBuilder) WithPath(path string) IngressBuilder {
 
 func (b *ingressBuilder) WithHost(host string) IngressBuilder {
 	b.host = host
+	return b
+}
+
+func (b *ingressBuilder) WithAddress(addr string) IngressBuilder {
+	b.addresses = append(b.addresses, networking.IngressLoadBalancerIngress{Hostname: addr})
 	return b
 }
 
@@ -106,6 +114,11 @@ func (b *ingressBuilder) Build() *networking.Ingress {
 						},
 					},
 				},
+			},
+		},
+		Status: networking.IngressStatus{
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: b.addresses,
 			},
 		},
 	}

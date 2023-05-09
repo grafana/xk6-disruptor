@@ -19,6 +19,8 @@ import (
 type ServiceHelper interface {
 	// WaitServiceReady waits for the given service to have at least one endpoint available
 	WaitServiceReady(ctx context.Context, service string, timeout time.Duration) error
+	// WaitIngressReady waits for the given service to have a load balancer address assigned
+	WaitIngressReady(ctx context.Context, ingress string, timeout time.Duration) error
 	// GetServiceProxy returns a client for making HTTP requests to the service using api server's proxy
 	GetServiceProxy(service string, port int) (ServiceClient, error)
 	// MapPort return a map of pod, port pairs for a service port
@@ -60,6 +62,22 @@ func (h *serviceHelper) WaitServiceReady(ctx context.Context, service string, ti
 		}
 
 		return false, nil
+	})
+}
+
+func (h *serviceHelper) WaitIngressReady(ctx context.Context, name string, timeout time.Duration) error {
+	return utils.Retry(timeout, time.Second, func() (bool, error) {
+		ingress, err := h.client.NetworkingV1().Ingresses(h.namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, fmt.Errorf("failed to access service: %w", err)
+		}
+
+		hasAddress := len(ingress.Status.LoadBalancer.Ingress) > 0
+
+		return hasAddress, nil
 	})
 }
 

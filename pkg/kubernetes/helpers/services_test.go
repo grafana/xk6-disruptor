@@ -11,6 +11,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/assertions"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	corev1 "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
@@ -148,6 +149,104 @@ func Test_WaitServiceReady(t *testing.T) {
 			h := NewServiceHelper(client, nil, "default")
 
 			err := h.WaitServiceReady(context.TODO(), "service", tc.timeout)
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if tc.expectError && err == nil {
+				t.Error("expected an error but none returned")
+				return
+			}
+			// error expected and returned, it is ok
+			if tc.expectError && err != nil {
+				return
+			}
+		})
+	}
+}
+
+func Test_WaitIngressReady(t *testing.T) {
+	t.Parallel()
+
+	type TestCase struct {
+		test        string
+		delay       time.Duration
+		ingress     *networking.Ingress
+		expectError bool
+		timeout     time.Duration
+	}
+
+	testCases := []TestCase{
+		{
+			test:        "ingress not created",
+			ingress:     nil,
+			delay:       time.Second * 0,
+			expectError: true,
+			timeout:     time.Second * 5,
+		},
+		{
+			test: "ingress ready",
+			ingress: builders.NewIngressBuilder("ingress", intstr.FromInt(80)).
+				WithAddress("loadbalancer").
+				Build(),
+			delay:       time.Second * 0,
+			expectError: false,
+			timeout:     time.Second * 5,
+		},
+		{
+			test:        "wait for ingress to be ready",
+			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).Build(),
+			delay:       time.Second * 2,
+			expectError: false,
+			timeout:     time.Second * 5,
+		},
+		{
+			test:        "timeout waiting",
+			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).Build(),
+			delay:       time.Second * 10,
+			expectError: true,
+			timeout:     time.Second * 5,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.test, func(t *testing.T) {
+			t.Parallel()
+			client := fake.NewSimpleClientset()
+
+			if tc.ingress != nil {
+				_, err := client.NetworkingV1().
+					Ingresses("default").
+					Create(context.TODO(), tc.ingress, metav1.CreateOptions{})
+				if err != nil {
+					t.Errorf("error updating ingress: %v", err)
+				}
+			}
+
+			// update ingress with address
+			go func(tc TestCase) {
+				if tc.ingress == nil {
+					return
+				}
+				time.Sleep(tc.delay)
+				updated := tc.ingress.DeepCopy()
+				updated.Status.LoadBalancer.Ingress = []networking.IngressLoadBalancerIngress{
+					{
+						Hostname: "loadbalancer",
+					},
+				}
+				_, err := client.NetworkingV1().
+					Ingresses("default").
+					Update(context.TODO(), updated, metav1.UpdateOptions{})
+				if err != nil {
+					t.Errorf("error updating ingress: %v", err)
+				}
+			}(tc)
+
+			h := NewServiceHelper(client, nil, "default")
+
+			err := h.WaitIngressReady(context.TODO(), "ingress", tc.timeout)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

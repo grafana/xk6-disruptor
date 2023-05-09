@@ -20,12 +20,19 @@ import (
 )
 
 func Test_Kubernetes(t *testing.T) {
-	cluster, err := fixtures.BuildCluster("e2e-kubernetes")
+	cluster, err := fixtures.BuildE2eCluster(
+		fixtures.DefaultE2eClusterConfig(),
+		fixtures.WithName("e2e-kubernetes"),
+		fixtures.WithIngressPort(30081),
+	)
 	if err != nil {
-		t.Errorf("failed to create cluster config: %v", err)
+		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
-	defer cluster.Delete()
+
+	t.Cleanup(func() {
+		_ = cluster.Delete()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -93,9 +100,10 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// access service using the local port on which the service was exposed
-		err = checks.CheckService(
+		err = checks.CheckHTTPService(
 			k8s,
-			checks.ServiceCheck{
+			cluster.Ingress(),
+			checks.HTTPCheck{
 				Namespace:    namespace,
 				Service:      "nginx",
 				Path:         "/",
@@ -170,7 +178,7 @@ func Test_Kubernetes(t *testing.T) {
 			"paused",
 			ephemeral,
 			helpers.AttachOptions{
-				Timeout: 15*time.Second,
+				Timeout: 15 * time.Second,
 			},
 		)
 

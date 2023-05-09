@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var injectHTTP500 = []string{
@@ -106,15 +106,13 @@ func buildGrpcbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.P
 }
 
 func Test_Agent(t *testing.T) {
-	// we need to access the grpc service using a nodeport because
-	// we cannot use a service proxy as with http services
-	grpcPort := cluster.NodePort{
-		NodePort: 30000,
-		HostPort: 30000,
-	}
-	cluster, err := fixtures.BuildCluster("e2e-xk6-agent", grpcPort)
+	cluster, err := fixtures.BuildE2eCluster(
+		fixtures.DefaultE2eClusterConfig(),
+		fixtures.WithName("e2e-xk6-agent"),
+		fixtures.WithIngressPort(30080),
+	)
 	if err != nil {
-		t.Errorf("failed to create cluster config: %v", err)
+		t.Errorf("failed to create e2e cluster: %v", err)
 		return
 	}
 
@@ -132,24 +130,28 @@ func Test_Agent(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			// description of the test
 			title string
-			// command to pass to disruptor agent running in the target pod
-			cmd []string
-			// Function that checks the test conditions
+			cmd   []string
 			check func(k8s kubernetes.Kubernetes, ns string) error
 		}{
 			{
 				title: "Inject HTTP 500",
 				cmd:   injectHTTP500,
 				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					err = fixtures.ExposeService(k8s, ns, fixtures.BuildHttpbinService(ns), 20*time.Second)
+					err = fixtures.ExposeService(
+						k8s,
+						ns,
+						fixtures.BuildHttpbinService(ns),
+						intstr.FromInt(80),
+						20*time.Second,
+					)
 					if err != nil {
 						return fmt.Errorf("failed to create service: %v", err)
 					}
-					return checks.CheckService(
+					return checks.CheckHTTPService(
 						k8s,
-						checks.ServiceCheck{
+						cluster.Ingress(),
+						checks.HTTPCheck{
 							Namespace:    ns,
 							Service:      "httpbin",
 							Port:         80,
@@ -216,20 +218,20 @@ func Test_Agent(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			// description of the test
 			title string
-			// command to pass to disruptor agent running in the target pod
-			cmd []string
-			// Function that checks the test conditions
+			cmd   []string
 			check func(k8s kubernetes.Kubernetes, ns string) error
 		}{
 			{
 				title: "Inject Grpc Internal error",
 				cmd:   injectGrpcInternal,
 				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					err = fixtures.ExposeService(k8s,
+					svc := fixtures.BuildGrpcbinService(ns)
+					err := fixtures.ExposeService(
+						k8s,
 						ns,
-						fixtures.BuildGrpcbinService(ns, uint(grpcPort.NodePort)),
+						svc,
+						intstr.FromInt(9000),
 						20*time.Second,
 					)
 					if err != nil {
@@ -237,10 +239,10 @@ func Test_Agent(t *testing.T) {
 					}
 					return checks.CheckGrpcService(
 						k8s,
+						cluster.Ingress(),
 						checks.GrpcServiceCheck{
-							Host:           "localhost",
-							Port:           int(grpcPort.HostPort),
-							Service:        "grpcbin.GRPCBin",
+							Service:        svc.Name,
+							GrpcService:    "grpcbin.GRPCBin",
 							Method:         "Empty",
 							Request:        []byte("{}"),
 							ExpectedStatus: 14, // grpc status Internal

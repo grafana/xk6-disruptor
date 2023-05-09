@@ -73,7 +73,7 @@ func BuildHttpbinService(namespace string) *corev1.Service {
 }
 
 // BuildGrpcbinService returns a Service definition that exposes grpcbin pods at the node port 30000
-func BuildGrpcbinService(namespace string, nodePort uint) *corev1.Service {
+func BuildGrpcbinService(namespace string) *corev1.Service {
 	return builders.NewServiceBuilder("grpcbin").
 		WithNamespace(namespace).
 		WithSelector(
@@ -81,13 +81,13 @@ func BuildGrpcbinService(namespace string, nodePort uint) *corev1.Service {
 				"app": "grpcbin",
 			},
 		).
-		WithServiceType(corev1.ServiceTypeNodePort).
+		WithServiceType(corev1.ServiceTypeClusterIP).
+		WithAnnotation("projectcontour.io/upstream-protocol.h2c", "9000").
 		WithPorts(
 			[]corev1.ServicePort{
 				{
-					Name:     "grpc",
-					Port:     9000,
-					NodePort: int32(nodePort),
+					Name: "grpc",
+					Port: 9000,
 				},
 			},
 		).
@@ -166,9 +166,16 @@ func BuildNginxService(namespace string) *corev1.Service {
 		Build()
 }
 
-// ExposeService exposes a service in the given namespace and waits for it to be ready
-func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, timeout time.Duration) error {
-	_, err := k8s.Client().CoreV1().Services(ns).Create(
+// ExposeService creates a service and waits for it to be ready before exposing as an ingress.
+// The ingress routes request that specify the service's name as host to this service.
+func ExposeService(
+	k8s kubernetes.Kubernetes,
+	namespace string,
+	svc *corev1.Service,
+	port intstr.IntOrString,
+	timeout time.Duration,
+) error {
+	_, err := k8s.Client().CoreV1().Services(namespace).Create(
 		context.TODO(),
 		svc,
 		metav1.CreateOptions{},
@@ -178,9 +185,29 @@ func ExposeService(k8s kubernetes.Kubernetes, ns string, svc *corev1.Service, ti
 	}
 
 	// wait for the service to be ready for accepting requests
-	err = k8s.ServiceHelper(ns).WaitServiceReady(context.TODO(), svc.Name, timeout)
+	err = k8s.ServiceHelper(namespace).WaitServiceReady(context.TODO(), svc.Name, timeout)
 	if err != nil {
 		return fmt.Errorf("error waiting for service %s: %w", svc.Name, err)
+	}
+
+	ingress := builders.NewIngressBuilder(svc.Name, port).
+		WithNamespace(namespace).
+		WithHost(svc.Name).
+		Build()
+
+	_, err = k8s.Client().NetworkingV1().Ingresses(namespace).Create(
+		context.TODO(),
+		ingress,
+		metav1.CreateOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create ingress %s: %w", ingress.Name, err)
+	}
+
+	// wait for the ingress to be ready for accepting requests
+	err = k8s.ServiceHelper(namespace).WaitServiceReady(context.TODO(), svc.Name, timeout)
+	if err != nil {
+		return fmt.Errorf("error waiting for ingress %s: %w", ingress.Name, err)
 	}
 
 	return nil
@@ -218,6 +245,7 @@ func DeployApp(
 	ns string,
 	pod *corev1.Pod,
 	svc *corev1.Service,
+	port intstr.IntOrString,
 	timeout time.Duration,
 ) error {
 	start := time.Now()
@@ -227,6 +255,6 @@ func DeployApp(
 	}
 
 	timeLeft := timeout - time.Since(start)
-	return ExposeService(k8s, ns, svc, timeLeft)
+	return ExposeService(k8s, ns, svc, port, timeLeft)
 }
 
