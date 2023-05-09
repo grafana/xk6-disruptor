@@ -14,14 +14,18 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Check defines an interface for verifying conditions in a test
+type Check interface {
+	// Verify asserts is the check is satisfied or some error occurs
+	Verify(k8s kubernetes.Kubernetes, ingress string, namespace string) error
+}
+
 // HTTPCheck defines the operation and conditions to check in the access to a service
 // TODO: add support for passing headers to the request
 // TODO: add checks for expected response body
 type HTTPCheck struct {
 	// Service name
 	Service string
-	// Namespace
-	Namespace string
 	// Port to access the service (default 80)
 	Port int
 	// Request Method (default GET)
@@ -36,12 +40,10 @@ type HTTPCheck struct {
 	Delay time.Duration
 }
 
-// GrpcServiceCheck defines the operation and conditions to check in the access to a service
-type GrpcServiceCheck struct {
+// GrpcCheck defines the operation and conditions to check in the access to a service
+type GrpcCheck struct {
 	// Service name
 	Service string
-	// Namespace
-	Namespace string
 	// Port to access the service (default 3000)
 	Port int
 	// Grpc service to invoke
@@ -56,8 +58,8 @@ type GrpcServiceCheck struct {
 	Delay time.Duration
 }
 
-// CheckHTTPService verifies a http request returns the expected result
-func CheckHTTPService(k kubernetes.Kubernetes, ingress string, c HTTPCheck) error {
+// Verify verifies a HTTPCheck
+func (c HTTPCheck) Verify(k kubernetes.Kubernetes, ingress string, namespace string) error {
 	time.Sleep(c.Delay)
 
 	request, err := http.NewRequest(c.Method, ingress, bytes.NewReader(c.Body))
@@ -81,8 +83,8 @@ func CheckHTTPService(k kubernetes.Kubernetes, ingress string, c HTTPCheck) erro
 	return nil
 }
 
-// CheckGrpcService verifies a request to a grpc service returns the expected result
-func CheckGrpcService(k kubernetes.Kubernetes, ingress string, c GrpcServiceCheck) error {
+// Verify verifies a GrpcServiceCheck
+func (c GrpcCheck) Verify(k kubernetes.Kubernetes, ingress string, namespace string) error {
 	time.Sleep(c.Delay)
 
 	client, err := dynamic.NewClientWithDialOptions(

@@ -5,7 +5,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -132,53 +131,16 @@ func Test_Agent(t *testing.T) {
 		testCases := []struct {
 			title string
 			cmd   []string
-			check func(k8s kubernetes.Kubernetes, ns string) error
+			check checks.Check
 		}{
 			{
 				title: "Inject HTTP 500",
 				cmd:   injectHTTP500,
-				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					err = fixtures.ExposeService(
-						k8s,
-						ns,
-						fixtures.BuildHttpbinService(ns),
-						intstr.FromInt(80),
-						20*time.Second,
-					)
-					if err != nil {
-						return fmt.Errorf("failed to create service: %v", err)
-					}
-					return checks.CheckHTTPService(
-						k8s,
-						cluster.Ingress(),
-						checks.HTTPCheck{
-							Namespace:    ns,
-							Service:      "httpbin",
-							Port:         80,
-							Path:         "/status/200",
-							ExpectedCode: 500,
-						},
-					)
-				},
-			},
-			{
-				title: "Prevent execution of multiple commands",
-				cmd:   injectHTTP500,
-				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					_, stderr, err := k8s.PodHelper(ns).Exec(
-						"httpbin",
-						"xk6-disruptor-agent",
-						injectHTTP500,
-						[]byte{},
-					)
-					if err == nil {
-						return fmt.Errorf("command should had failed")
-					}
-
-					if !strings.Contains(string(stderr), "command is already in execution") {
-						return fmt.Errorf("unexpected error: %s: ", string(stderr))
-					}
-					return nil
+				check: checks.HTTPCheck{
+					Service:      "httpbin",
+					Port:         80,
+					Path:         "/status/200",
+					ExpectedCode: 500,
 				},
 			},
 		}
@@ -194,18 +156,20 @@ func Test_Agent(t *testing.T) {
 				}
 				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-				err = fixtures.RunPod(
+				err = fixtures.DeployApp(
 					k8s,
 					namespace,
 					buildHttpbinPodWithDisruptorAgent(namespace, tc.cmd),
+					fixtures.BuildHttpbinService(namespace),
+					intstr.FromInt(80),
 					30*time.Second,
 				)
 				if err != nil {
-					t.Errorf("failed to create pod: %v", err)
+					t.Errorf("failed to deploy service: %v", err)
 					return
 				}
 
-				err = tc.check(k8s, namespace)
+				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
 				if err != nil {
 					t.Errorf("failed : %v", err)
 					return
@@ -214,40 +178,24 @@ func Test_Agent(t *testing.T) {
 		}
 	})
 
-	t.Run("Test GRPC fault injection", func(t *testing.T) {
+	t.Run("Test GRPC Fault Injection", func(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
 			title string
+			pod   *corev1.Pod
 			cmd   []string
-			check func(k8s kubernetes.Kubernetes, ns string) error
+			check checks.Check
 		}{
 			{
 				title: "Inject Grpc Internal error",
 				cmd:   injectGrpcInternal,
-				check: func(k8s kubernetes.Kubernetes, ns string) error {
-					svc := fixtures.BuildGrpcbinService(ns)
-					err := fixtures.ExposeService(
-						k8s,
-						ns,
-						svc,
-						intstr.FromInt(9000),
-						20*time.Second,
-					)
-					if err != nil {
-						return fmt.Errorf("failed to create service: %v", err)
-					}
-					return checks.CheckGrpcService(
-						k8s,
-						cluster.Ingress(),
-						checks.GrpcServiceCheck{
-							Service:        svc.Name,
-							GrpcService:    "grpcbin.GRPCBin",
-							Method:         "Empty",
-							Request:        []byte("{}"),
-							ExpectedStatus: 14, // grpc status Internal
-						},
-					)
+				check: checks.GrpcCheck{
+					Service:        "grpcbin",
+					GrpcService:    "grpcbin.GRPCBin",
+					Method:         "Empty",
+					Request:        []byte("{}"),
+					ExpectedStatus: 14, // grpc status Internal
 				},
 			},
 		}
@@ -263,23 +211,60 @@ func Test_Agent(t *testing.T) {
 				}
 				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-				err = fixtures.RunPod(
+				err = fixtures.DeployApp(
 					k8s,
 					namespace,
 					buildGrpcbinPodWithDisruptorAgent(namespace, tc.cmd),
-					30*time.Second,
+					fixtures.BuildGrpcbinService(namespace),
+					intstr.FromInt(9000),
+					20*time.Second,
 				)
 				if err != nil {
-					t.Errorf("failed to create pod: %v", err)
+					t.Errorf("failed to deploy service: %v", err)
 					return
 				}
 
-				err = tc.check(k8s, namespace)
+				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
 				if err != nil {
 					t.Errorf("failed : %v", err)
 					return
 				}
 			})
+		}
+	})
+
+	t.Run("Prevent execution of multiple commands", func(t *testing.T) {
+		t.Parallel()
+
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		if err != nil {
+			t.Errorf("error creating test namespace: %v", err)
+			return
+		}
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+
+		err = fixtures.RunPod(
+			k8s,
+			namespace,
+			buildHttpbinPodWithDisruptorAgent(namespace, injectHTTP500),
+			30*time.Second,
+		)
+		if err != nil {
+			t.Errorf("failed to create pod: %v", err)
+			return
+		}
+		_, stderr, err := k8s.PodHelper(namespace).Exec(
+			"httpbin",
+			"xk6-disruptor-agent",
+			injectHTTP500,
+			[]byte{},
+		)
+		if err == nil {
+			t.Errorf("command should had failed")
+		}
+
+		if !strings.Contains(string(stderr), "command is already in execution") {
+			t.Errorf("unexpected error: %s: ", string(stderr))
 		}
 	})
 }
