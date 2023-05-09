@@ -9,6 +9,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -17,12 +18,19 @@ import (
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
-	cluster, err := fixtures.BuildCluster("e2e-service-disruptor")
+	cluster, err := fixtures.BuildE2eCluster(
+		fixtures.DefaultE2eClusterConfig(),
+		fixtures.WithName("e2e-service-disruptor"),
+		fixtures.WithIngressPort(30083),
+	)
 	if err != nil {
-		t.Errorf("failed to create cluster config: %v", err)
+		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
-	defer cluster.Delete()
+
+	t.Cleanup(func() {
+		_ = cluster.Delete()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -44,6 +52,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 			namespace,
 			fixtures.BuildHttpbinPod(namespace),
 			svc,
+			intstr.FromInt(80),
 			20*time.Second,
 		)
 		if err != nil {
@@ -67,20 +76,21 @@ func Test_ServiceDisruptor(t *testing.T) {
 		// apply disruption in a go-routine as it is a blocking function
 		go func() {
 			fault := disruptors.HTTPFault{
-				Port: 80,
+				Port:      80,
 				ErrorRate: 1.0,
 				ErrorCode: 500,
 			}
 			httpOptions := disruptors.HTTPDisruptionOptions{}
-			err := disruptor.InjectHTTPFaults(context.TODO(), fault, 10 * time.Second, httpOptions)
+			err := disruptor.InjectHTTPFaults(context.TODO(), fault, 10*time.Second, httpOptions)
 			if err != nil {
 				t.Errorf("error injecting fault: %v", err)
 			}
 		}()
 
-		err = checks.CheckService(
+		err = checks.CheckHTTPService(
 			k8s,
-			checks.ServiceCheck{
+			cluster.Ingress(),
+			checks.HTTPCheck{
 				Namespace:    namespace,
 				Service:      "httpbin",
 				Port:         80,

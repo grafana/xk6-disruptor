@@ -9,10 +9,10 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
@@ -20,27 +20,25 @@ import (
 func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
 
-	// we need to access the grpc service using a nodeport because
-	// we cannot use a service proxy as with http services
-	grpcPort := cluster.NodePort{
-		NodePort: 30000,
-		HostPort: 30000,
-	}
-	cluster, err := fixtures.BuildCluster("e2e-pod-disruptor", grpcPort)
+	cluster, err := fixtures.BuildE2eCluster(
+		fixtures.DefaultE2eClusterConfig(),
+		fixtures.WithName("e2e-pod-disruptor"),
+		fixtures.WithIngressPort(30082),
+	)
 	if err != nil {
-		t.Errorf("failed to create cluster config: %v", err)
+		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
+
+	t.Cleanup(func() {
+		_ = cluster.Delete()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
 	}
-
-	t.Cleanup(func() {
-		cluster.Delete()
-	})
 
 	t.Run("Test Http fault injection", func(t *testing.T) {
 		t.Parallel()
@@ -88,6 +86,7 @@ func Test_PodDisruptor(t *testing.T) {
 					namespace,
 					fixtures.BuildHttpbinPod(namespace),
 					fixtures.BuildHttpbinService(namespace),
+					intstr.FromInt(80),
 					30*time.Second,
 				)
 				if err != nil {
@@ -119,16 +118,17 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectHTTPFaults(context.TODO(), tc.fault, 60 * time.Second, tc.options)
+					err := disruptor.InjectHTTPFaults(context.TODO(), tc.fault, 60*time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return
 					}
 				}()
 
-				err = checks.CheckService(
+				err = checks.CheckHTTPService(
 					k8s,
-					checks.ServiceCheck{
+					cluster.Ingress(),
+					checks.HTTPCheck{
 						Namespace:    namespace,
 						Service:      "httpbin",
 						Port:         80,
@@ -150,7 +150,7 @@ func Test_PodDisruptor(t *testing.T) {
 	// Test Fault injection in Grpc service.
 	// We must use a NodePort to access the service, so to prevent port collision between
 	// tests, we will deploy one service to expose the pods created for each
-	// test. Tests cannot be therefore executed in parallel. 
+	// test. Tests cannot be therefore executed in parallel.
 	t.Run("Test Grpc fault injection", func(t *testing.T) {
 		t.Parallel()
 
@@ -168,10 +168,10 @@ func Test_PodDisruptor(t *testing.T) {
 			{
 				title: "Inject Grpc error",
 				fault: disruptors.GrpcFault{
-					Port:      9000,
-					ErrorRate: 1.0,
+					Port:       9000,
+					ErrorRate:  1.0,
 					StatusCode: 14,
-					Exclude: "grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
+					Exclude:    "grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
 				},
 				options: disruptors.GrpcDisruptionOptions{
 					ProxyPort: 3000,
@@ -197,7 +197,8 @@ func Test_PodDisruptor(t *testing.T) {
 					k8s,
 					namespace,
 					fixtures.BuildGrpcpbinPod(namespace),
-					fixtures.BuildGrpcbinService(namespace, uint(grpcPort.NodePort)),
+					fixtures.BuildGrpcbinService(namespace),
+					intstr.FromInt(9000),
 					30*time.Second,
 				)
 				if err != nil {
@@ -229,7 +230,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
-					err := disruptor.InjectGrpcFaults(context.TODO(), tc.fault, 60 * time.Second, tc.options)
+					err := disruptor.InjectGrpcFaults(context.TODO(), tc.fault, 60*time.Second, tc.options)
 					if err != nil {
 						t.Logf("failed to setup disruptor: %v", err)
 						return
@@ -238,10 +239,10 @@ func Test_PodDisruptor(t *testing.T) {
 
 				err = checks.CheckGrpcService(
 					k8s,
+					cluster.Ingress(),
+
 					checks.GrpcServiceCheck{
-						Delay: 		10*time.Second,
-						Host:           "localhost",
-						Port:           int(grpcPort.HostPort),
+						Delay:          10 * time.Second,
 						Service:        tc.service,
 						Method:         tc.method,
 						Request:        tc.request,

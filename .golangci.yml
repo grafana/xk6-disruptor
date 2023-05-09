@@ -97,4 +97,5 @@ linters:
     - wsl
     - containedctx
     - usestdlibvars
+    - nosprintfhostport
   fast: false

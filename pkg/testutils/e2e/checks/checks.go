@@ -14,10 +14,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ServiceCheck defines the operation and conditions to check in the access to a service
+// HTTPCheck defines the operation and conditions to check in the access to a service
 // TODO: add support for passing headers to the request
 // TODO: add checks for expected response body
-type ServiceCheck struct {
+type HTTPCheck struct {
 	// Service name
 	Service string
 	// Namespace
@@ -38,12 +38,14 @@ type ServiceCheck struct {
 
 // GrpcServiceCheck defines the operation and conditions to check in the access to a service
 type GrpcServiceCheck struct {
-	// Host to connect to the grpc service (default localhost)
-	Host string
+	// Service name
+	Service string
+	// Namespace
+	Namespace string
 	// Port to access the service (default 3000)
 	Port int
 	// Grpc service to invoke
-	Service string
+	GrpcService string
 	// Method to invoke
 	Method string
 	// Request message
@@ -54,33 +56,20 @@ type GrpcServiceCheck struct {
 	Delay time.Duration
 }
 
-// CheckService verifies a request to a service returns the expected result
-func CheckService(k8s kubernetes.Kubernetes, c ServiceCheck) error {
+// CheckHTTPService verifies a http request returns the expected result
+func CheckHTTPService(k kubernetes.Kubernetes, ingress string, c HTTPCheck) error {
 	time.Sleep(c.Delay)
 
-	namespace := c.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	port := c.Port
-	if port == 0 {
-		port = 80
-	}
-
-	serviceClient, err := k8s.ServiceHelper(namespace).GetServiceProxy(c.Service, port)
+	url := fmt.Sprintf("http://%s", ingress)
+	request, err := http.NewRequest(c.Method, url, bytes.NewReader(c.Body))
 	if err != nil {
 		return err
 	}
+	request.Host = c.Service
 
-	request, err := http.NewRequest(c.Method, c.Path, bytes.NewReader(c.Body))
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return err
-	}
-
-	resp, err := serviceClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("failed to access service at %s: %w", c.Service, err)
+		return fmt.Errorf("failed request to service %s: %w", c.Service, err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -94,32 +83,22 @@ func CheckService(k8s kubernetes.Kubernetes, c ServiceCheck) error {
 }
 
 // CheckGrpcService verifies a request to a grpc service returns the expected result
-func CheckGrpcService(k8s kubernetes.Kubernetes, c GrpcServiceCheck) error {
+func CheckGrpcService(k kubernetes.Kubernetes, ingress string, c GrpcServiceCheck) error {
 	time.Sleep(c.Delay)
 
-	port := c.Port
-	if port == 0 {
-		port = 3000
-	}
-
-	host := c.Host
-	if host == "" {
-		host = "localhost"
-	}
-
-	target := fmt.Sprintf("%s:%d", host, port)
 	client, err := dynamic.NewClientWithDialOptions(
-		target,
-		c.Service,
+		ingress,
+		c.GrpcService,
 		grpc.WithInsecure(),
+		grpc.WithAuthority(c.Service),
 	)
 	if err != nil {
-		return fmt.Errorf("error creating client for service %s on %s: %w", c.Service, target, err)
+		return fmt.Errorf("error creating client for service %s: %w", c.Service, err)
 	}
 
 	err = client.Connect(context.TODO())
 	if err != nil {
-		return fmt.Errorf("error connecting to service %s on %s: %w", c.Service, target, err)
+		return fmt.Errorf("error connecting to service %s: %w", c.Service, err)
 	}
 
 	input := [][]byte{}
