@@ -1,4 +1,3 @@
-// Package fixtures implements fixtures for e2e tests
 package fixtures
 
 import (
@@ -7,7 +6,6 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
@@ -232,20 +230,3 @@ func DeployApp(
 	return ExposeService(k8s, ns, svc, timeLeft)
 }
 
-// BuildCluster builds a cluster with the xk6-disruptor-agent image preloaded and
-// the given node ports exposed
-func BuildCluster(name string, ports ...cluster.NodePort) (*cluster.Cluster, error) {
-	config, err := cluster.NewConfig(
-		name,
-		cluster.Options{
-			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
-			Wait:      time.Second * 60,
-			NodePorts: ports,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster config: %w", err)
-	}
-
-	return config.Create()
-}
