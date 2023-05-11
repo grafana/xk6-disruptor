@@ -123,7 +123,7 @@ func Test_Agent(t *testing.T) {
 		return
 	}
 
-	t.Run("Test HTTP Fault Injection", func(t *testing.T) {
+	t.Run("Test Fault Injection", func(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
@@ -145,51 +145,6 @@ func Test_Agent(t *testing.T) {
 					ExpectedCode: 500,
 				},
 			},
-		}
-
-		for _, tc := range testCases {
-			tc := tc
-			t.Run(tc.title, func(t *testing.T) {
-				t.Parallel()
-				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
-				if err != nil {
-					t.Errorf("error creating test namespace: %v", err)
-					return
-				}
-				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
-
-				err = fixtures.DeployApp(
-					k8s,
-					namespace,
-					tc.pod,
-					tc.svc,
-					intstr.FromInt(tc.port),
-					30*time.Second,
-				)
-				if err != nil {
-					t.Errorf("failed to deploy service: %v", err)
-					return
-				}
-
-				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
-				if err != nil {
-					t.Errorf("failed : %v", err)
-					return
-				}
-			})
-		}
-	})
-
-	t.Run("Test GRPC Fault Injection", func(t *testing.T) {
-		t.Parallel()
-
-		testCases := []struct {
-			title string
-			pod   *corev1.Pod
-			svc   *corev1.Service
-			port  int
-			check checks.Check
-		}{
 			{
 				title: "Inject Grpc Internal error",
 				pod:   buildGrpcbinPodWithDisruptorAgent(injectGrpcInternal),
