@@ -14,7 +14,7 @@ import (
 )
 
 // BuildHttpbinPod returns the definition for deploying Httpbin as a Pod
-func BuildHttpbinPod(namespace string) *corev1.Pod {
+func BuildHttpbinPod() *corev1.Pod {
 	c := *builders.NewContainerBuilder("httpbin").
 		WithImage("kennethreitz/httpbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -22,7 +22,6 @@ func BuildHttpbinPod(namespace string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "httpbin",
@@ -33,7 +32,7 @@ func BuildHttpbinPod(namespace string) *corev1.Pod {
 }
 
 // BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
-func BuildGrpcpbinPod(namespace string) *corev1.Pod {
+func BuildGrpcpbinPod() *corev1.Pod {
 	c := *builders.NewContainerBuilder("grpcbin").
 		WithImage("moul/grpcbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -41,7 +40,6 @@ func BuildGrpcpbinPod(namespace string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("grpcbin").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "grpcbin",
@@ -52,9 +50,8 @@ func BuildGrpcpbinPod(namespace string) *corev1.Pod {
 }
 
 // BuildHttpbinService returns a Service definition that exposes httpbin pods
-func BuildHttpbinService(namespace string) *corev1.Service {
+func BuildHttpbinService() *corev1.Service {
 	return builders.NewServiceBuilder("httpbin").
-		WithNamespace(namespace).
 		WithSelector(
 			map[string]string{
 				"app": "httpbin",
@@ -73,9 +70,8 @@ func BuildHttpbinService(namespace string) *corev1.Service {
 }
 
 // BuildGrpcbinService returns a Service definition that exposes grpcbin pods at the node port 30000
-func BuildGrpcbinService(namespace string) *corev1.Service {
+func BuildGrpcbinService() *corev1.Service {
 	return builders.NewServiceBuilder("grpcbin").
-		WithNamespace(namespace).
 		WithSelector(
 			map[string]string{
 				"app": "grpcbin",
@@ -95,7 +91,7 @@ func BuildGrpcbinService(namespace string) *corev1.Service {
 }
 
 // BuildBusyBoxPod returns the definition of a Pod that runs busybox and waits 5min before completing
-func BuildBusyBoxPod(namespace string) *corev1.Pod {
+func BuildBusyBoxPod() *corev1.Pod {
 	c := *builders.NewContainerBuilder("busybox").
 		WithImage("busybox").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -103,7 +99,6 @@ func BuildBusyBoxPod(namespace string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("busybox").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "busybox",
@@ -115,20 +110,19 @@ func BuildBusyBoxPod(namespace string) *corev1.Pod {
 
 // BuildPausedPod returns the definition of a Pod that runs the paused image in a container
 // creating a "no-op" dummy Pod.
-func BuildPausedPod(namespace string) *corev1.Pod {
+func BuildPausedPod() *corev1.Pod {
 	c := *builders.NewContainerBuilder("paused").
 		WithImage("k8s.gcr.io/pause").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		Build()
 
 	return builders.NewPodBuilder("paused").
-		WithNamespace(namespace).
 		WithContainer(c).
 		Build()
 }
 
 // BuildNginxPod returns the definition of a Pod that runs Nginx
-func BuildNginxPod(namespace string) *corev1.Pod {
+func BuildNginxPod() *corev1.Pod {
 	c := *builders.NewContainerBuilder("busybox").
 		WithImage("nginx").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -136,7 +130,6 @@ func BuildNginxPod(namespace string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("nginx").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "nginx",
@@ -147,9 +140,8 @@ func BuildNginxPod(namespace string) *corev1.Pod {
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
-func BuildNginxService(namespace string) *corev1.Service {
+func BuildNginxService() *corev1.Service {
 	return builders.NewServiceBuilder("nginx").
-		WithNamespace(namespace).
 		WithSelector(
 			map[string]string{
 				"app": "nginx",
@@ -257,4 +249,3 @@ func DeployApp(
 	timeLeft := timeout - time.Since(start)
 	return ExposeService(k8s, ns, svc, port, timeLeft)
 }
-

@@ -50,7 +50,6 @@ func DefaultServicePorts() []corev1.ServicePort {
 func NewServiceBuilder(name string) ServiceBuilder {
 	return &serviceBuilder{
 		name:        name,
-		namespace:   metav1.NamespaceDefault,
 		serviceType: corev1.ServiceTypeNodePort,
 		ports:       DefaultServicePorts(),
 		selector:    map[string]string{},
@@ -121,9 +120,8 @@ type endpointsBuilder struct {
 // NewEndPointsBuilder creates a new EndpointsBuilder for a given service
 func NewEndPointsBuilder(service string) EndpointsBuilder {
 	return &endpointsBuilder{
-		service:   service,
-		namespace: metav1.NamespaceDefault,
-		subsets:   []corev1.EndpointSubset{},
+		service: service,
+		subsets: []corev1.EndpointSubset{},
 	}
 }
 

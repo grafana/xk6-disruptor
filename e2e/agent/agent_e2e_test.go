@@ -55,7 +55,7 @@ var injectGrpcInternal = []string{
 }
 
 // deploy pod with [httpbin] and the xk6-disruptor as sidekick container
-func buildHttpbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.Pod {
+func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 	httpbin := builders.NewContainerBuilder("httpbin").
 		WithImage("kennethreitz/httpbin").
 		WithPort("http", 80).
@@ -68,7 +68,6 @@ func buildHttpbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.P
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "httpbin",
@@ -80,7 +79,7 @@ func buildHttpbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.P
 }
 
 // deploy pod with grpcbin and the xk6-disruptor as sidekick container
-func buildGrpcbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.Pod {
+func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 	grpcbin := builders.NewContainerBuilder("grpcbin").
 		WithImage("moul/grpcbin").
 		WithPort("grpc", 9000).
@@ -93,7 +92,6 @@ func buildGrpcbinPodWithDisruptorAgent(namespace string, cmd []string) *corev1.P
 		Build()
 
 	return builders.NewPodBuilder("grpcbin").
-		WithNamespace(namespace).
 		WithLabels(
 			map[string]string{
 				"app": "grpcbin",
@@ -130,12 +128,16 @@ func Test_Agent(t *testing.T) {
 
 		testCases := []struct {
 			title string
-			cmd   []string
+			pod   *corev1.Pod
+			svc   *corev1.Service
+			port  int
 			check checks.Check
 		}{
 			{
 				title: "Inject HTTP 500",
-				cmd:   injectHTTP500,
+				pod:   buildHttpbinPodWithDisruptorAgent(injectHTTP500),
+				svc:   fixtures.BuildHttpbinService(),
+				port:  80,
 				check: checks.HTTPCheck{
 					Service:      "httpbin",
 					Port:         80,
@@ -159,9 +161,9 @@ func Test_Agent(t *testing.T) {
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					buildHttpbinPodWithDisruptorAgent(namespace, tc.cmd),
-					fixtures.BuildHttpbinService(namespace),
-					intstr.FromInt(80),
+					tc.pod,
+					tc.svc,
+					intstr.FromInt(tc.port),
 					30*time.Second,
 				)
 				if err != nil {
@@ -184,12 +186,15 @@ func Test_Agent(t *testing.T) {
 		testCases := []struct {
 			title string
 			pod   *corev1.Pod
-			cmd   []string
+			svc   *corev1.Service
+			port  int
 			check checks.Check
 		}{
 			{
 				title: "Inject Grpc Internal error",
-				cmd:   injectGrpcInternal,
+				pod:   buildGrpcbinPodWithDisruptorAgent(injectGrpcInternal),
+				svc:   fixtures.BuildGrpcbinService(),
+				port:  9000,
 				check: checks.GrpcCheck{
 					Service:        "grpcbin",
 					GrpcService:    "grpcbin.GRPCBin",
@@ -214,10 +219,10 @@ func Test_Agent(t *testing.T) {
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					buildGrpcbinPodWithDisruptorAgent(namespace, tc.cmd),
-					fixtures.BuildGrpcbinService(namespace),
-					intstr.FromInt(9000),
-					20*time.Second,
+					tc.pod,
+					tc.svc,
+					intstr.FromInt(tc.port),
+					30*time.Second,
 				)
 				if err != nil {
 					t.Errorf("failed to deploy service: %v", err)
@@ -246,7 +251,7 @@ func Test_Agent(t *testing.T) {
 		err = fixtures.RunPod(
 			k8s,
 			namespace,
-			buildHttpbinPodWithDisruptorAgent(namespace, injectHTTP500),
+			buildHttpbinPodWithDisruptorAgent(injectHTTP500),
 			30*time.Second,
 		)
 		if err != nil {

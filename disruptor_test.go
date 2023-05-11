@@ -125,7 +125,10 @@ func Test_ServiceDisruptor(t *testing.T) {
 		WithNamespace("default").
 		WithLabels(labels).
 		Build()
-	svc := builders.NewServiceBuilder("app-service").WithSelector(labels).Build()
+	svc := builders.NewServiceBuilder("app-service").
+		WithNamespace("default").
+		WithSelector(labels).
+		Build()
 	endpoints := builders.NewEndPointsBuilder("app-service").
 		WithSubset([]corev1.EndpointPort{{Name: "http", Port: 80}}, []string{"app-pod"}).
 		Build()

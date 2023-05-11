@@ -73,7 +73,7 @@ func Test_Kubernetes(t *testing.T) {
 		// are testing here.
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxPod(namespace),
+			fixtures.BuildNginxPod(),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -83,7 +83,7 @@ func Test_Kubernetes(t *testing.T) {
 
 		_, err = k8s.Client().CoreV1().Services(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxService(namespace),
+			fixtures.BuildNginxService(),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -107,7 +107,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(namespace), 10*time.Second)
+		err = fixtures.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(), 10*time.Second)
 		if err != nil {
 			t.Errorf("error creating pod: %v", err)
 			return
@@ -139,7 +139,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, namespace, fixtures.BuildPausedPod(namespace), 10*time.Second)
+		err = fixtures.RunPod(k8s, namespace, fixtures.BuildPausedPod(), 10*time.Second)
 		if err != nil {
 			t.Errorf("error running pod %v: ", err)
 			return
