@@ -46,11 +46,11 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}
 		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		svc := fixtures.BuildHttpbinService(namespace)
+		svc := fixtures.BuildHttpbinService()
 		err = fixtures.DeployApp(
 			k8s,
 			namespace,
-			fixtures.BuildHttpbinPod(namespace),
+			fixtures.BuildHttpbinPod(),
 			svc,
 			intstr.FromInt(80),
 			20*time.Second,

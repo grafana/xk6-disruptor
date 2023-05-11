@@ -41,7 +41,6 @@ func NewIngressBuilder(service string, port intstr.IntOrString) IngressBuilder {
 	return &ingressBuilder{
 		service:     service,
 		port:        port,
-		namespace:   metav1.NamespaceDefault,
 		annotations: map[string]string{},
 		path:        "/",
 	}

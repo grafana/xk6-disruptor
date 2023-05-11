@@ -83,8 +83,8 @@ func Test_PodDisruptor(t *testing.T) {
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					fixtures.BuildHttpbinPod(namespace),
-					fixtures.BuildHttpbinService(namespace),
+					fixtures.BuildHttpbinPod(),
+					fixtures.BuildHttpbinService(),
 					intstr.FromInt(80),
 					30*time.Second,
 				)
@@ -182,8 +182,8 @@ func Test_PodDisruptor(t *testing.T) {
 				err = fixtures.DeployApp(
 					k8s,
 					namespace,
-					fixtures.BuildGrpcpbinPod(namespace),
-					fixtures.BuildGrpcbinService(namespace),
+					fixtures.BuildGrpcpbinPod(),
+					fixtures.BuildGrpcbinService(),
 					intstr.FromInt(9000),
 					30*time.Second,
 				)
