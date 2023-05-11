@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	kind "sigs.k8s.io/kind/pkg/cluster"
@@ -61,6 +60,8 @@ type Options struct {
 	Workers int
 	// Kubernetes version
 	Version string
+	// Path to Kubeconfig
+	Kubeconfig string
 }
 
 // Config contains the configuration for creating a cluster
@@ -121,20 +122,12 @@ func (c *Config) Render() (string, error) {
 
 // Cluster an active test cluster
 type Cluster struct {
-	// configuration used for creating the cluster
-	config *Config
 	//  path to the Kubeconfig
 	kubeconfig string
 	// kind cluster provider
 	provider kind.Provider
-	// mutex for concurrent modifications to cluster
-	mtx sync.Mutex
 	// name of the cluster
 	name string
-	// allocated node ports
-	allocatedPorts map[NodePort]bool
-	// available node ports exposed by the cluster
-	availablePorts []NodePort
 }
 
 // try to bind to host port to check availability
@@ -204,13 +197,11 @@ func pullImages(images []string) error {
 func (c *Config) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster
-	ports := []NodePort{}
 	for _, np := range c.options.NodePorts {
 		err := checkHostPort(np.HostPort)
 		if err != nil {
 			return nil, err
 		}
-		ports = append(ports, np)
 	}
 
 	provider := kind.NewProvider()
@@ -259,19 +250,19 @@ func (c *Config) Create() (*Cluster, error) {
 		}
 	}
 
-	configPath := filepath.Join(os.TempDir(), c.name)
-	err = provider.ExportKubeConfig(c.name, configPath, false)
+	kubeconfig := c.options.Kubeconfig
+	if kubeconfig == "" {
+		kubeconfig = filepath.Join(os.TempDir(), c.name)
+	}
+	err = provider.ExportKubeConfig(c.name, kubeconfig, false)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Cluster{
-		name:           c.name,
-		config:         c,
-		kubeconfig:     configPath,
-		provider:       *provider,
-		allocatedPorts: map[NodePort]bool{},
-		availablePorts: ports,
+		name:       c.name,
+		kubeconfig: kubeconfig,
+		provider:   *provider,
 	}, nil
 }
 
@@ -288,30 +279,34 @@ func (c *Cluster) Kubeconfig() string {
 	return c.kubeconfig
 }
 
-// AllocatePort reserves a port from the pool of ports exposed by the cluster
-// to ensure it is not been used by other service
-func (c *Cluster) AllocatePort() NodePort {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	if len(c.availablePorts) == 0 {
-		return NodePort{}
-	}
-
-	port := c.availablePorts[0]
-	c.availablePorts = c.availablePorts[1:]
-	c.allocatedPorts[port] = true
-	return port
+// Name returns the name of the cluster
+func (c *Cluster) Name() string {
+	return c.name
 }
 
-// ReleasePort makes available a Port previously allocated by AllocatePort
-func (c *Cluster) ReleasePort(p NodePort) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	_, assigned := c.allocatedPorts[p]
-	if assigned {
-		delete(c.allocatedPorts, p)
-		c.availablePorts = append(c.availablePorts, p)
+// GetCluster returns an existing cluster
+func GetCluster(name string, kubeconfig string) (*Cluster, error) {
+	if name == "" || kubeconfig == "" {
+		return nil, fmt.Errorf("cluster name and kubeconfig path are required")
 	}
+
+	provider := kind.NewProvider()
+
+	clusters, err := provider.List()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving list of clusters %w", err)
+	}
+	if !strings.Contains(strings.Join(clusters, ","), name) {
+		return nil, fmt.Errorf("cluster does not exits %s", name)
+	}
+
+	if _, err = os.Stat(kubeconfig); os.IsNotExist(err) {
+		return nil, fmt.Errorf("kubeconfig does not exits %s", kubeconfig)
+	}
+
+	return &Cluster{
+		name:       name,
+		kubeconfig: kubeconfig,
+		provider:   *provider,
+	}, nil
 }

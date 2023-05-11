@@ -153,25 +153,6 @@ func Test_PortAllocation(t *testing.T) {
 	}
 	// delete cluster
 	defer cluster.Delete()
-
-	firstNodePort := cluster.AllocatePort()
-	if firstNodePort.HostPort == 0 {
-		t.Errorf("should have allocated a node port")
-		return
-	}
-
-	secondNodePort := cluster.AllocatePort()
-	if secondNodePort.HostPort != 0 {
-		t.Errorf("should have failed allocating node port")
-		return
-	}
-
-	cluster.ReleasePort(firstNodePort)
-	secondNodePort = cluster.AllocatePort()
-	if secondNodePort.HostPort == 0 {
-		t.Errorf("should have allocated a node port")
-		return
-	}
 }
 
 func Test_KubernetesVersion(t *testing.T) {
@@ -216,6 +197,41 @@ func Test_InvalidKubernetesVersion(t *testing.T) {
 	if err == nil {
 		t.Errorf("Should have failed creating cluster")
 		cluster.Delete()
+		return
+	}
+}
+
+// FIXME: this is a very basic test. Check for error conditions and ensure
+// returned cluster is functional.
+func Test_GetCluster(t *testing.T) {
+	// create cluster with  configuration
+	config, err := cluster.NewConfig(
+		"e2e-preexisting-cluster",
+		cluster.Options{
+			Wait: time.Second * 60,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	c, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+
+	cluster, err := cluster.GetCluster(c.Name(), c.Kubeconfig())
+	if err != nil {
+		t.Errorf("failed to get cluster: %v", err)
+		return
+	}
+
+	// delete cluster
+	cluster.Delete()
+	if err != nil {
+		t.Errorf("failed to delete cluster: %v", err)
 		return
 	}
 }
