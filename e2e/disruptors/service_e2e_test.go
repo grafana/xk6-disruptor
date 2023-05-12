@@ -15,14 +15,16 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
-	cluster, err := fixtures.BuildE2eCluster(
-		fixtures.DefaultE2eClusterConfig(),
-		fixtures.WithName("e2e-service-disruptor"),
-		fixtures.WithIngressPort(30083),
+	cluster, err := cluster.BuildE2eCluster(
+		cluster.DefaultE2eClusterConfig(),
+		cluster.WithName("e2e-service-disruptor"),
+		cluster.WithIngressPort(30083),
 	)
 	if err != nil {
 		t.Errorf("failed to create cluster: %v", err)
@@ -88,7 +90,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 				}
 				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-				err = fixtures.DeployApp(
+				err = deploy.ExposeApp(
 					k8s,
 					namespace,
 					tc.pod,

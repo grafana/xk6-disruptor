@@ -1,4 +1,5 @@
-package fixtures
+// Package cluster offers helpers for setting a cluster for e2e testing
+package cluster
 
 import (
 	"context"
