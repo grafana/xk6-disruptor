@@ -10,6 +10,8 @@ import (
 type IngressBuilder interface {
 	// WithNamespace sets the namespace for the ingres
 	WithNamespace(namespace string) IngressBuilder
+	// WithDefaultNamespace sets the namespace to the default
+	WithDefaultNamespace() IngressBuilder
 	// WithClass sets the ingress class
 	WithClass(class string) IngressBuilder
 	// WithHost sets the host for the ingress rule
@@ -50,6 +52,12 @@ func (b *ingressBuilder) WithNamespace(namespace string) IngressBuilder {
 	b.namespace = namespace
 	return b
 }
+
+func (b *ingressBuilder) WithDefaultNamespace() IngressBuilder {
+	b.namespace = metav1.NamespaceDefault
+	return b
+}
+
 
 func (b *ingressBuilder) WithClass(class string) IngressBuilder {
 	b.class = &class

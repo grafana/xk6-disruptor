@@ -3,11 +3,16 @@ package fixtures
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fetch"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // PostInstall defines a function that runs after the cluster is created
@@ -23,6 +28,7 @@ type E2eClusterConfig struct {
 	PostInstall []PostInstall
 	Reuse       bool
 	Wait        time.Duration
+	Kubeconfig  string
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -103,6 +109,7 @@ func DefaultE2eClusterConfig() E2eClusterConfig {
 		IngressAddr: "localhost",
 		IngressPort: 30080,
 		Reuse:       true,
+		Kubeconfig:  path.Join(os.TempDir(),"e2e-tests"),
 		Wait:        60 * time.Second,
 		PostInstall: []PostInstall{
 			InstallContourIngress,
@@ -145,12 +152,41 @@ func WithWait(timeout time.Duration) E2eClusterOption {
 	}
 }
 
+// WithKubeconfig sets the path for the kubeconfig
+func WithKubeconfig(kubeconfig string) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Kubeconfig = kubeconfig
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster *cluster.Cluster
 	ingress string
 	name    string
 }
+
+
+// creates a configmap in the cluster with the configuration
+func createConfigMap(ctx context.Context, kubeconfig string, config E2eClusterConfig) error {
+	k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	ingress := fmt.Sprintf("%s:%d", config.IngressAddr, config.IngressPort)
+
+	cfm := builders.NewConfigMapBuilder(config.Name).
+		WithDefaultNamespace().
+		WithData("ingress", ingress).
+		WithData("count", "1").
+		Build()
+
+	_, err = k8s.Client().CoreV1().ConfigMaps("default").Create(ctx, cfm, metav1.CreateOptions{})
+	return err
+}
+
 
 // BuildE2eCluster builds a cluster for e2e tests
 func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCluster, error) {
@@ -160,6 +196,20 @@ func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCl
 		e2eConfig, err = option(e2eConfig)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	// Try to retrieve existing cluster, if fail, continue creating it
+	// FIXME: we assume the ingress the same than in the passed e2e config.
+	// We should retrieve the ingress from the config map
+	if e2eConfig.Reuse {
+		c, err := cluster.GetCluster(e2eConfig.Name, e2eConfig.Kubeconfig)
+
+		if err == nil {
+			return &e2eCluster{
+				cluster: c,
+				ingress: fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort),
+			}, nil
 		}
 	}
 
@@ -174,6 +224,7 @@ func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCl
 					NodePort: 80,
 				},
 			},
+			Kubeconfig: e2eConfig.Kubeconfig,
 		},
 	)
 	if err != nil {
@@ -183,6 +234,13 @@ func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCl
 	c, err := config.Create()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cluster: %w", err)
+	}
+
+
+	err = createConfigMap(context.TODO(), c.Kubeconfig(), e2eConfig)
+	if err != nil {
+		_ = c.Delete()
+		return nil, fmt.Errorf("failed to create ConfigMap for cluster %s: %w", e2eConfig.Name, err)
 	}
 
 	ingress := fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort)
