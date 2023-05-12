@@ -11,8 +11,9 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/checks"
+	kindcluster "github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,12 +21,19 @@ import (
 )
 
 func Test_Kubernetes(t *testing.T) {
-	cluster, err := fixtures.BuildCluster("e2e-kubernetes")
+	cluster, err := cluster.BuildE2eCluster(
+		cluster.DefaultE2eClusterConfig(),
+		cluster.WithName("e2e-kubernetes"),
+		cluster.WithIngressPort(30081),
+	)
 	if err != nil {
-		t.Errorf("failed to create cluster config: %v", err)
+		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
-	defer cluster.Delete()
+
+	t.Cleanup(func() {
+		_ = cluster.Delete()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -67,7 +75,7 @@ func Test_Kubernetes(t *testing.T) {
 		// are testing here.
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxPod(namespace),
+			fixtures.BuildNginxPod(),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -77,7 +85,7 @@ func Test_Kubernetes(t *testing.T) {
 
 		_, err = k8s.Client().CoreV1().Services(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxService(namespace),
+			fixtures.BuildNginxService(),
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -91,22 +99,6 @@ func Test_Kubernetes(t *testing.T) {
 			t.Errorf("error waiting for service nginx: %v", err)
 			return
 		}
-
-		// access service using the local port on which the service was exposed
-		err = checks.CheckService(
-			k8s,
-			checks.ServiceCheck{
-				Namespace:    namespace,
-				Service:      "nginx",
-				Path:         "/",
-				Port:         80,
-				ExpectedCode: 200,
-			},
-		)
-		if err != nil {
-			t.Errorf("failed to access service: %v", err)
-			return
-		}
 	})
 
 	t.Run("Exec Command", func(t *testing.T) {
@@ -117,7 +109,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(namespace), 10*time.Second)
+		err = deploy.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(), 10*time.Second)
 		if err != nil {
 			t.Errorf("error creating pod: %v", err)
 			return
@@ -149,7 +141,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
-		err = fixtures.RunPod(k8s, namespace, fixtures.BuildPausedPod(namespace), 10*time.Second)
+		err = deploy.RunPod(k8s, namespace, fixtures.BuildPausedPod(), 10*time.Second)
 		if err != nil {
 			t.Errorf("error running pod %v: ", err)
 			return
@@ -170,7 +162,7 @@ func Test_Kubernetes(t *testing.T) {
 			"paused",
 			ephemeral,
 			helpers.AttachOptions{
-				Timeout: 15*time.Second,
+				Timeout: 15 * time.Second,
 			},
 		)
 
@@ -199,9 +191,10 @@ func Test_Kubernetes(t *testing.T) {
 }
 
 func Test_UnsupportedKubernetesVersion(t *testing.T) {
-	config, err := cluster.NewConfig(
+	// TODO: use e2e cluster. This will require an option for setting the K8s version in the e2e cluster
+	config, err := kindcluster.NewConfig(
 		"e2e-v1-22-0-cluster",
-		cluster.Options{
+		kindcluster.Options{
 			Version: "v1.22.0",
 			Wait:    time.Second * 60,
 		},

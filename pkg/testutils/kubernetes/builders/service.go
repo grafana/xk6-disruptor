@@ -21,6 +21,8 @@ type ServiceBuilder interface {
 	WithSelector(labels map[string]string) ServiceBuilder
 	// WithServiceType sets the type of the service (default is NodePort)
 	WithServiceType(t corev1.ServiceType) ServiceBuilder
+	// WithAnnotation adds an annotation to the service
+	WithAnnotation(key string, value string) ServiceBuilder
 }
 
 // serviceBuilder defines the attributes for building a service
@@ -30,6 +32,7 @@ type serviceBuilder struct {
 	serviceType corev1.ServiceType
 	ports       []corev1.ServicePort
 	selector    map[string]string
+	annotations map[string]string
 }
 
 // DefaultServicePorts returns an array of ServicePort with default values
@@ -47,10 +50,10 @@ func DefaultServicePorts() []corev1.ServicePort {
 func NewServiceBuilder(name string) ServiceBuilder {
 	return &serviceBuilder{
 		name:        name,
-		namespace:   metav1.NamespaceDefault,
 		serviceType: corev1.ServiceTypeNodePort,
 		ports:       DefaultServicePorts(),
 		selector:    map[string]string{},
+		annotations: map[string]string{},
 	}
 }
 
@@ -74,6 +77,11 @@ func (s *serviceBuilder) WithSelector(labels map[string]string) ServiceBuilder {
 	return s
 }
 
+func (s *serviceBuilder) WithAnnotation(key string, value string) ServiceBuilder {
+	s.annotations[key] = value
+	return s
+}
+
 func (s *serviceBuilder) Build() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -81,8 +89,9 @@ func (s *serviceBuilder) Build() *corev1.Service {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.name,
-			Namespace: s.namespace,
+			Name:        s.name,
+			Namespace:   s.namespace,
+			Annotations: s.annotations,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: s.selector,
@@ -111,9 +120,8 @@ type endpointsBuilder struct {
 // NewEndPointsBuilder creates a new EndpointsBuilder for a given service
 func NewEndPointsBuilder(service string) EndpointsBuilder {
 	return &endpointsBuilder{
-		service:   service,
-		namespace: metav1.NamespaceDefault,
-		subsets:   []corev1.EndpointSubset{},
+		service: service,
+		subsets: []corev1.EndpointSubset{},
 	}
 }
 
