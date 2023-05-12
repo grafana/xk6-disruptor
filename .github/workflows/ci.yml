@@ -22,7 +22,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
       - name: Build with xk6
         run: |
           go install go.k6.io/xk6/cmd/xk6@latest
@@ -39,7 +39,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
       - name: Run unit tests
         run: go test -v -cover -race ./...
 
@@ -51,7 +51,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
       - name: Set golangci-lint environment
         run: |
           LINT_VERSION=$(head -n 1 "${GITHUB_WORKSPACE}/.golangci.yml" | tr -d '# ')
