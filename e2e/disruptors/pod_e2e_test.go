@@ -67,13 +67,15 @@ func Test_PodDisruptor(t *testing.T) {
 						ProxyPort: 8080,
 					}
 
-					return d.InjectHTTPFaults(context.TODO(), fault, 30*time.Second, options)
+					return d.InjectHTTPFaults(context.TODO(), fault, 10*time.Second, options)
 				},
 				check: checks.HTTPCheck{
+					Service:      "httpbin",
 					Method:       "GET",
 					Path:         "/status/200",
 					Body:         []byte{},
 					ExpectedCode: 500,
+					Delay:        5 * time.Second,
 				},
 			},
 			{
@@ -92,14 +94,15 @@ func Test_PodDisruptor(t *testing.T) {
 						ProxyPort: 3000,
 					}
 
-					return d.InjectGrpcFaults(context.TODO(), fault, 30*time.Second, options)
+					return d.InjectGrpcFaults(context.TODO(), fault, 10*time.Second, options)
 				},
 				check: checks.GrpcCheck{
-					Service:        "grpcbin.GRPCBin",
+					Service:        "grpcbin",
+					GrpcService:    "grpcbin.GRPCBin",
 					Method:         "Empty",
 					Request:        []byte("{}"),
 					ExpectedStatus: 14,
-					Delay:          10 * time.Second,
+					Delay:          5 * time.Second,
 				},
 			},
 		}

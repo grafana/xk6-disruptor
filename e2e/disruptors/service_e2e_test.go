@@ -70,8 +70,8 @@ func Test_ServiceDisruptor(t *testing.T) {
 					Method:       "GET",
 					Path:         "/status/200",
 					Body:         []byte{},
-					Delay:        2 * time.Second,
 					ExpectedCode: 500,
+					Delay:        5 * time.Second,
 				},
 			},
 		}
