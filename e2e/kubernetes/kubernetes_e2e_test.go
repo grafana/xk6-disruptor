@@ -61,6 +61,38 @@ func Test_Kubernetes(t *testing.T) {
 		}
 	})
 
+	// Test Wait Pod Running
+	t.Run("Wait Pod is Running", func(t *testing.T) {
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		if err != nil {
+			t.Errorf("error creating test namespace: %v", err)
+			return
+		}
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+
+		// Deploy nginx
+		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
+			context.TODO(),
+			fixtures.BuildNginxPod(),
+			metav1.CreateOptions{},
+		)
+		if err != nil {
+			t.Errorf("failed to create pod: %v", err)
+			return
+		}
+
+		// wait for the service to be ready for accepting requests
+		running, err := k8s.PodHelper(namespace).WaitPodRunning(context.TODO(), "nginx", time.Second*20)
+		if err != nil {
+			t.Errorf("error waiting for pod %v", err)
+			return
+		}
+		if !running {
+			t.Errorf("timeout expired waiting for pod ready")
+			return
+		}
+	})
+
 	// Test Wait Service Ready helper
 	t.Run("Wait Service Ready", func(t *testing.T) {
 		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
