@@ -89,7 +89,15 @@ The e2e tests are built and executed using the `e2e` target in the Makefile:
 $ make e2e
 ```
 
-In order to facilitate the development of e2e tests, some helper functions have been created in the [pkg/testutils/e2e/fixtures](pkg/testutils/e2e/fixtures) package for creating test resources, including a test cluster, and in [pkg/testutils/e2e/checks](pkg/testutils/e2e/checks) package for verifying conditions during the test. We strongly encourage to keep adding reusable functions to these helper packages instead of implementing fixtures and validations for each test, unless strictly necessarily.
+In order to facilitate the development of e2e tests, diverse helper functions have been created, organized in the following packages:
+
+* [pkg/testutils/e2e/cluster](pkg/testutils/e2e/cluster) functions for creating test clusters
+* [pkg/testutils/e2e/fixtures](pkg/testutils/e2e/fixtures) functions for creating test resources
+* [pkg/testutils/e2e/checks](pkg/testutils/e2e/checks) functions for verifying conditions during the test
+
+We strongly encourage to keep adding reusable functions to these helper packages instead of implementing fixtures and validations for each test, unless strictly necessarily.
+
+Also, you should create the resources for each test in a different namespace to isolate parallel tests and facilitate the teardown. 
 
 The following example shows the structure of a e2e test that creates a cluster and then executes tests using this infrastructure:
 
@@ -100,26 +108,71 @@ The following example shows the structure of a e2e test that creates a cluster a
 package package-to-test
 
 import (
-
 	"testing"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 )
 
 // Test_E2E function creates the resources for the tests and executes the test functions
 func Test_E2E(t *testing.T) {
 
-        // create cluster
-        cluster, err := fixtures.BuildCluster("e2e-test")
+	// create cluster
+	cluster, err := cluster.BuildE2eCluster(
+		cluster.DefaultE2eClusterConfig(),
+		cluster.WithName("e2e-test"),
+	)
         if err != nil {
 	        t.Errorf("failed to create cluster: %v", err)
 	        return
         }
-	      defer cluster.Delete()
 
-	      // Execute test on resources
-	      t.Run("Test", func(t *testing.T){
-                // execute test
-	      })
+	// delete cluster when all sub-tests end
+	t.Cleanup(func() {
+		_ = cluster.Delete()
+	})
+
+	// get kubernetes client
+	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	if err != nil {
+		t.Errorf("error creating kubernetes client: %v", err)
+		return
+	}
+
+	// Execute test on cluster
+	t.Run("Test", func(t *testing.T){
+		// create namespace for test
+		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test")
+		if err != nil {
+			t.Errorf("error creating test namespace: %v", err)
+			return
+		}
+		// delete test resources when test ends
+		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+
+		// create test resources using k8s fixtures
+
+		// execute test
+	})
 }
 ```
-> Some e2e tests require ports exposed from the test cluster to the host where the test is running. This may cause interference between tests that make a test fail with the following message `failed to create cluster: host port is not available 32080`. If this happens deleting any remaining test cluster and retrying the failed test alone will generally solve this issue.
+
+### Accessing services from an e2e test
+
+By default, the e2e clusters are configured to run an ingress controller to allow the access to services deployed in the cluster from the e2e tests.
+
+To allow accessing the ingress, the e2e cluster requires a port to be exposed to the host where the test is running. By default his port is `30080`.
+
+This may cause interference between tests that make a test fail with the following message `failed to create cluster: host port is not available 30080`.
+
+If this happens deleting any remaining test cluster and retrying the failed test alone will generally solve this issue.
+
+The port to be exposed by the test cluster can be changed using the `WithIngressPort` option:
+
+```go
+	cluster, err := cluster.BuildE2eCluster(
+		cluster.DefaultE2eClusterConfig(),
+		cluster.WithName("e2e-test"),
+		cluster.WithIngressPort(30083),
+	)
+```
