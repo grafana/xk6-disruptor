@@ -20,6 +20,7 @@ func main() {
 	cpuProfile := false
 	var cpuProfileFileName string
 	memProfile := false
+	memProfileRate := 1
 	var memProfileFileName string
 	var memProfileFile *os.File
 	trace := false
@@ -61,7 +62,7 @@ func main() {
 					return fmt.Errorf("error creating memory profiling file %q: %w", memProfileFileName, err)
 				}
 
-				runtime.MemProfileRate = 1.
+				runtime.MemProfileRate = memProfileRate
 			}
 
 			// trace program execution
@@ -106,6 +107,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&memProfile, "mem-profile", false, "profile agent memory")
 	rootCmd.PersistentFlags().StringVar(&memProfileFileName, "mem-profile-file", "mem.pprof",
 		"memory profiling output file")
+	rootCmd.PersistentFlags().IntVar(&memProfileRate, "mem-profile-rate", 1, "memory profiling rate")
 	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false, "trace agent execution")
 	rootCmd.PersistentFlags().StringVar(&traceFileName, "trace-file", "trace.out", "tracing output file")
 
