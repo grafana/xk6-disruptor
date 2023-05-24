@@ -92,7 +92,8 @@ xk6-disruptor-agent [arguments for fault injection]
 
 In order to facilitate debugging `xk6-disruptor-agent` offers options for generating execution traces:
 * `--trace`: generate traces. The `--trace-file` option allows specifying the output file for traces (default `trace.out`)
-* `--profile`: generate profiling information. The `--profile-file` option allows specifying the output file for profile information (default `profile.pb.gz`)
+* `--cpu-profile`: generate CPU profiling information. The `--cpu-profile-file` option allows specifying the output file for profile information (default `cpu.pprof`)
+* `--mem-profile`: generate memory profiling information. The `--mem-profile-file` option allows specifying the output file for profile information (default `mem.pprof`)
 
 In order to analyze those files you have to copy them from the target pod to your local machine. For example, for copying the `trace.out` file:
 ```bash
