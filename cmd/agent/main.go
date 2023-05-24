@@ -45,7 +45,7 @@ func main() {
 				var profileFile *os.File
 				profileFile, err = os.Create(cpuProfileFileName)
 				if err != nil {
-					return fmt.Errorf("error creating CPU profiling file %s: %w", cpuProfileFileName, err)
+					return fmt.Errorf("error creating CPU profiling file %q: %w", cpuProfileFileName, err)
 				}
 
 				err = pprof.StartCPUProfile(profileFile)
@@ -58,7 +58,7 @@ func main() {
 			if memProfile {
 				memProfileFile, err = os.Create(memProfileFileName)
 				if err != nil {
-					return fmt.Errorf("error creating memory profiling file %s: %w", memProfileFileName, err)
+					return fmt.Errorf("error creating memory profiling file %q: %w", memProfileFileName, err)
 				}
 
 				runtime.MemProfileRate = 1.
@@ -68,7 +68,7 @@ func main() {
 			if trace {
 				traceFile, err = os.Create(traceFileName)
 				if err != nil {
-					return fmt.Errorf("failed to create trace output file %s: %w", traceFileName, err)
+					return fmt.Errorf("failed to create trace output file %q: %w", traceFileName, err)
 				}
 
 				if err := runtimetrace.Start(traceFile); err != nil {
@@ -86,7 +86,7 @@ func main() {
 			if memProfile {
 				err := pprof.Lookup("heap").WriteTo(memProfileFile, 0)
 				if err != nil {
-					return fmt.Errorf("failed to write memory profile to file %s: %w", memProfileFileName, err)
+					return fmt.Errorf("failed to write memory profile to file %q: %w", memProfileFileName, err)
 				}
 			}
 			if trace {
