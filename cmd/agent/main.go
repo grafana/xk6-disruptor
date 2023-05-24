@@ -4,6 +4,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"runtime/pprof"
+	runtimetrace "runtime/trace"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
 	"github.com/grafana/xk6-disruptor/pkg/utils/process"
@@ -12,7 +15,18 @@ import (
 
 const lockFile = "/var/run/xk6-disruptor"
 
+//nolint:funlen,gocognit
 func main() {
+	cpuProfile := false
+	var cpuProfileFileName string
+	memProfile := false
+	memProfileRate := 1
+	var memProfileFileName string
+	var memProfileFile *os.File
+	trace := false
+	var traceFileName string
+	var traceFile *os.File
+
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
 		Short: "Inject disruptions in a system",
@@ -27,14 +41,75 @@ func main() {
 				return fmt.Errorf("another disruptor command is already in execution")
 			}
 
+			// cpu profiling
+			if cpuProfile {
+				var profileFile *os.File
+				profileFile, err = os.Create(cpuProfileFileName)
+				if err != nil {
+					return fmt.Errorf("error creating CPU profiling file %q: %w", cpuProfileFileName, err)
+				}
+
+				err = pprof.StartCPUProfile(profileFile)
+				if err != nil {
+					return fmt.Errorf("failed to start CPU profiling: %w", err)
+				}
+			}
+
+			// memory profiling
+			if memProfile {
+				memProfileFile, err = os.Create(memProfileFileName)
+				if err != nil {
+					return fmt.Errorf("error creating memory profiling file %q: %w", memProfileFileName, err)
+				}
+
+				runtime.MemProfileRate = memProfileRate
+			}
+
+			// trace program execution
+			if trace {
+				traceFile, err = os.Create(traceFileName)
+				if err != nil {
+					return fmt.Errorf("failed to create trace output file %q: %w", traceFileName, err)
+				}
+
+				if err := runtimetrace.Start(traceFile); err != nil {
+					return fmt.Errorf("failed to start trace: %w", err)
+				}
+			}
+
 			return nil
 		},
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			_ = process.Unlock(lockFile)
+			if cpuProfile {
+				pprof.StopCPUProfile()
+			}
+			if memProfile {
+				err := pprof.Lookup("heap").WriteTo(memProfileFile, 0)
+				if err != nil {
+					return fmt.Errorf("failed to write memory profile to file %q: %w", memProfileFileName, err)
+				}
+			}
+			if trace {
+				runtimetrace.Stop()
+				_ = traceFile.Close()
+			}
+
+			return nil
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+
+	rootCmd.PersistentFlags().BoolVar(&cpuProfile, "cpu-profile", false, "profile agent execution")
+	rootCmd.PersistentFlags().StringVar(&cpuProfileFileName, "cpu-profile-file", "cpu.pprof",
+		"cpu profiling output file")
+	rootCmd.PersistentFlags().BoolVar(&memProfile, "mem-profile", false, "profile agent memory")
+	rootCmd.PersistentFlags().StringVar(&memProfileFileName, "mem-profile-file", "mem.pprof",
+		"memory profiling output file")
+	rootCmd.PersistentFlags().IntVar(&memProfileRate, "mem-profile-rate", 1, "memory profiling rate")
+	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false, "trace agent execution")
+	rootCmd.PersistentFlags().StringVar(&traceFileName, "trace-file", "trace.out", "tracing output file")
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
 	rootCmd.AddCommand(commands.BuildGrpcCmd())

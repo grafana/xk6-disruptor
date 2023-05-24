@@ -72,6 +72,34 @@ If using `minikube` the following command loads the image into the cluster:
 minikube image load ghcr.io/grafana/xk6-disruptor-agent:latest
 ```
 
+### Debugging the disruptor agent
+
+The disruptor agent is the responsible for injecting faults in the targets (e.g. pods). The agent is injected into the targets by the xk6-disruptor extension as an ephemeral container with the name `xk6-agent`.
+
+You can debug the agent by running it manually at a target.
+
+First enter the agent's container using an interactive console:
+
+```bash
+kubectl exec -it <target pod> -c xk6-agent -- sh
+```
+
+Once you get the prompt, you can inject faults by running the `xk6-disruptor-agent` command:
+
+```bash
+xk6-disruptor-agent [arguments for fault injection]
+```
+
+In order to facilitate debugging `xk6-disruptor-agent` offers options for generating execution traces:
+* `--trace`: generate traces. The `--trace-file` option allows specifying the output file for traces (default `trace.out`)
+* `--cpu-profile`: generate CPU profiling information. The `--cpu-profile-file` option allows specifying the output file for profile information (default `cpu.pprof`)
+* `--mem-profile`: generate memory profiling information. By default, it sets the [memory profile rate](https://pkg.go.dev/runtime#pkg-variables) to `1`, which will profile every allocation. This rate can be controlled using the `--mem-profile-rate` option. The `--mem-profile-file` option allows specifying the output file for profile information (default `mem.pprof`)
+
+In order to analyze those files you have to copy them from the target pod to your local machine. For example, for copying the `trace.out` file:
+```bash
+kubectl cp <target pod>:trace.out -c xk6-agent trace.out
+```
+
 ### e2e tests
 
 End to end tests are meant to test the components of the project in a test environment without mocks.
