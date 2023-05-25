@@ -112,7 +112,9 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&traceFileName, "trace-file", "trace.out", "tracing output file")
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
+	rootCmd.AddCommand(commands.BuildHTTPProxyCmd())
 	rootCmd.AddCommand(commands.BuildGrpcCmd())
+	rootCmd.AddCommand(commands.BuildGrpcProxyCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

@@ -61,18 +61,6 @@ func NewDisruptor(
 	config DisruptorConfig,
 	proxy Proxy,
 ) (Disruptor, error) {
-	if config.RedirectPort == 0 {
-		return nil, fmt.Errorf("redirect port must be valid tcp port")
-	}
-
-	if config.TargetPort == 0 {
-		return nil, fmt.Errorf("target port must be valid tcp port")
-	}
-
-	if config.Iface == "" {
-		return nil, fmt.Errorf("disruption must specify an interface")
-	}
-
 	if proxy == nil {
 		return nil, fmt.Errorf("proxy cannot be null")
 	}
@@ -111,8 +99,8 @@ func (d *disruptor) Apply(duration time.Duration) error {
 	}
 
 	// On termination, restore traffic and stop proxy
+	// Ignore errors when stopping. Nothing to do
 	defer func() {
-		// ignore errors when stopping. Nothing to do
 		_ = d.redirector.Stop()
 		_ = d.proxy.Stop()
 	}()
