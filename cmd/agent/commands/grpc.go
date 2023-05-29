@@ -16,14 +16,18 @@ func BuildGrpcCmd() *cobra.Command {
 	var port uint
 	var target uint
 	var iface string
+	upstreamHost := "localhost"
+	transparent := true
+
 	cmd := &cobra.Command{
 		Use:   "grpc",
 		Short: "grpc disruptor",
-		Long: "Disrupts grpc request by introducing delays and errors." +
-			" Requires NET_ADMIM capabilities for setting iptable rules.",
+		Long: "Disrupts http request by introducing delays and errors." +
+			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
+			" iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddress := fmt.Sprintf(":%d", port)
-			upstreamAddress := fmt.Sprintf(":%d", target)
+			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
 			proxy, err := grpc.NewProxy(
 				grpc.ProxyConfig{
 					ListenAddress:   listenAddress,
@@ -31,6 +35,12 @@ func BuildGrpcCmd() *cobra.Command {
 				}, disruption)
 			if err != nil {
 				return err
+			}
+
+			// run as a regular proxy
+			if !transparent {
+				// TODO: pass a context with a timeout using the duration argument
+				return proxy.Start()
 			}
 
 			disruptor, err := protocol.NewDisruptor(
@@ -59,6 +69,7 @@ func BuildGrpcCmd() *cobra.Command {
 	cmd.Flags().UintVarP(&target, "target", "t", 80, "port the proxy will redirect request to")
 	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
 		" to be excluded from disruption")
+	cmd.Flags().BoolVar(&transparent, "transparent", true, "run as transparent proxy")
 
 	return cmd
 }
