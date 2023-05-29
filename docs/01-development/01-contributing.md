@@ -92,11 +92,19 @@ Once you get the prompt, you can inject faults by running the `xk6-disruptor-age
 xk6-disruptor-agent [arguments for fault injection]
 ```
 
+### Running locally
+
+It is possible to run the agent locally in your machine using the following command:
+
+```bash
+xk6-disruptor-agent [arguments for fault injection]
+```
+
+This is useful for debugging and also to facilitate [CPU and memory profiling](#tracing-and-profiling)
+
 ### Running as a proxy
 
-When debugging issues with the protocol disruptor it is also possible to run the agent locally in your machine as a proxy that redirects the traffic to an upstream destination, using k6 to generate a test load to the agent.
-
-This approach is particularly useful for debugging issues with the protocols or profiling the agent to find memory leaks.
+When debugging issues with protocols, you can run the agent in your local machine as a proxy that redirects the traffic to an upstream destination.
 
 For running the protocol fault injection as a (non-transparent) proxy use the `--transparent=false` option:
 
