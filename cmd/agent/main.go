@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"runtime"
 	"runtime/pprof"
 	runtimetrace "runtime/trace"
@@ -13,7 +14,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const lockFile = "/var/run/xk6-disruptor"
+const lockFile = "xk6-disruptor"
+
+// returns the path to the lock file
+func getLockPath() string {
+	// get runtime directory for user
+	lockDir := os.Getenv("XDG_RUNTIME_DIR")
+	if lockDir == "" {
+		lockDir = os.TempDir()
+	}
+
+	return path.Join(lockDir, lockFile)
+}
+
+// ensure only one instance of the agent runs
+func lockExecution() error {
+	acquired, err := process.Lock(getLockPath())
+	if err != nil {
+		return fmt.Errorf("failed to create lock file %q: %w", getLockPath(), err)
+	}
+	if !acquired {
+		return fmt.Errorf("another disruptor command is already in execution")
+	}
+
+	return nil
+}
 
 //nolint:funlen,gocognit
 func main() {
@@ -33,12 +58,9 @@ func main() {
 		Long: "A command for injecting disruptions in a target system.\n" +
 			"It can run as stand-alone process or in a container",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			acquired, err := process.Lock(lockFile)
+			err := lockExecution()
 			if err != nil {
-				return fmt.Errorf("error creating lock file: %w", err)
-			}
-			if !acquired {
-				return fmt.Errorf("another disruptor command is already in execution")
+				return err
 			}
 
 			// cpu profiling
@@ -80,7 +102,7 @@ func main() {
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			_ = process.Unlock(lockFile)
+			_ = process.Unlock(getLockPath())
 			if cpuProfile {
 				pprof.StopCPUProfile()
 			}
