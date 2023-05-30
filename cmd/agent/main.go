@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	goruntime "runtime"
-	"runtime/pprof"
-	runtimetrace "runtime/trace"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
@@ -40,17 +37,9 @@ func lockExecution() error {
 	return nil
 }
 
-//nolint:funlen,gocognit
 func main() {
-	cpuProfile := false
-	var cpuProfileFileName string
-	memProfile := false
-	memProfileRate := 1
-	var memProfileFileName string
-	var memProfileFile *os.File
-	trace := false
-	var traceFileName string
-	var traceFile *os.File
+	profilerConfig := runtime.ProfilerConfig{}
+	var profiler runtime.Profiler
 
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
@@ -63,58 +52,24 @@ func main() {
 				return err
 			}
 
-			// cpu profiling
-			if cpuProfile {
-				var profileFile *os.File
-				profileFile, err = os.Create(cpuProfileFileName)
-				if err != nil {
-					return fmt.Errorf("error creating CPU profiling file %q: %w", cpuProfileFileName, err)
-				}
-
-				err = pprof.StartCPUProfile(profileFile)
-				if err != nil {
-					return fmt.Errorf("failed to start CPU profiling: %w", err)
-				}
+			profiler, err = runtime.NewProfiler(profilerConfig)
+			if err != nil {
+				return fmt.Errorf("could not create profiler %w", err)
 			}
 
-			// memory profiling
-			if memProfile {
-				memProfileFile, err = os.Create(memProfileFileName)
-				if err != nil {
-					return fmt.Errorf("error creating memory profiling file %q: %w", memProfileFileName, err)
-				}
-
-				goruntime.MemProfileRate = memProfileRate
-			}
-
-			// trace program execution
-			if trace {
-				traceFile, err = os.Create(traceFileName)
-				if err != nil {
-					return fmt.Errorf("failed to create trace output file %q: %w", traceFileName, err)
-				}
-
-				if err := runtimetrace.Start(traceFile); err != nil {
-					return fmt.Errorf("failed to start trace: %w", err)
-				}
+			err = profiler.Start()
+			if err != nil {
+				return fmt.Errorf("could not start profiler %w", err)
 			}
 
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			_ = runtime.Unlock(getLockPath())
-			if cpuProfile {
-				pprof.StopCPUProfile()
-			}
-			if memProfile {
-				err := pprof.Lookup("heap").WriteTo(memProfileFile, 0)
-				if err != nil {
-					return fmt.Errorf("failed to write memory profile to file %q: %w", memProfileFileName, err)
-				}
-			}
-			if trace {
-				runtimetrace.Stop()
-				_ = traceFile.Close()
+
+			err := profiler.Stop()
+			if err != nil {
+				return fmt.Errorf("could not stop profiler %w", err)
 			}
 
 			return nil
@@ -123,15 +78,15 @@ func main() {
 		SilenceErrors: true,
 	}
 
-	rootCmd.PersistentFlags().BoolVar(&cpuProfile, "cpu-profile", false, "profile agent execution")
-	rootCmd.PersistentFlags().StringVar(&cpuProfileFileName, "cpu-profile-file", "cpu.pprof",
+	rootCmd.PersistentFlags().BoolVar(&profilerConfig.CPUProfile, "cpu-profile", false, "profile agent execution")
+	rootCmd.PersistentFlags().StringVar(&profilerConfig.CPUProfileFileName, "cpu-profile-file", "cpu.pprof",
 		"cpu profiling output file")
-	rootCmd.PersistentFlags().BoolVar(&memProfile, "mem-profile", false, "profile agent memory")
-	rootCmd.PersistentFlags().StringVar(&memProfileFileName, "mem-profile-file", "mem.pprof",
+	rootCmd.PersistentFlags().BoolVar(&profilerConfig.MemProfile, "mem-profile", false, "profile agent memory")
+	rootCmd.PersistentFlags().StringVar(&profilerConfig.MemProfileFileName, "mem-profile-file", "mem.pprof",
 		"memory profiling output file")
-	rootCmd.PersistentFlags().IntVar(&memProfileRate, "mem-profile-rate", 1, "memory profiling rate")
-	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false, "trace agent execution")
-	rootCmd.PersistentFlags().StringVar(&traceFileName, "trace-file", "trace.out", "tracing output file")
+	rootCmd.PersistentFlags().IntVar(&profilerConfig.MemProfileRate, "mem-profile-rate", 1, "memory profiling rate")
+	rootCmd.PersistentFlags().BoolVar(&profilerConfig.Trace, "trace", false, "trace agent execution")
+	rootCmd.PersistentFlags().StringVar(&profilerConfig.TraceFileName, "trace-file", "trace.out", "tracing output file")
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
 	rootCmd.AddCommand(commands.BuildGrpcCmd())
