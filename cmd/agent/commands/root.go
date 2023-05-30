@@ -2,42 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"os"
-	"path"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
-const lockFile = "/var/run/xk6-disruptor"
-
-// returns the path to the lock file
-func getLockPath() string {
-	// get runtime directory for user
-	lockDir := os.Getenv("XDG_RUNTIME_DIR")
-	if lockDir == "" {
-		lockDir = os.TempDir()
-	}
-
-	return path.Join(lockDir, lockFile)
-}
-
-// ensure only one instance of the agent runs
-func lockExecution() error {
-	acquired, err := runtime.Lock(getLockPath())
-	if err != nil {
-		return fmt.Errorf("failed to create lock file %q: %w", getLockPath(), err)
-	}
-	if !acquired {
-		return fmt.Errorf("another disruptor command is already in execution")
-	}
-
-	return nil
-}
-
-
-// BuildRootCmd builds the root command for the agent with all the persistent flags
-func BuildRootCmd() *cobra.Command {
+// BuildRootCmd builds the root command for the agent with all the persistent flags.
+// It also initializes/terminates the profiling if requested.
+func BuildRootCmd(env runtime.Environment) *cobra.Command {
 	profilerConfig := runtime.ProfilerConfig{}
 	var profiler runtime.Profiler
 
@@ -47,7 +19,7 @@ func BuildRootCmd() *cobra.Command {
 		Long: "A command for injecting disruptions in a target system.\n" +
 			"It can run as stand-alone process or in a container",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			err := lockExecution()
+			err := env.Process().Lock()
 			if err != nil {
 				return err
 			}
@@ -65,8 +37,10 @@ func BuildRootCmd() *cobra.Command {
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			_ = runtime.Unlock(getLockPath())
-			
+			defer func() {
+				_ = env.Process().Unlock()
+			}()
+
 			err := profiler.Stop()
 			if err != nil {
 				return fmt.Errorf("could not stop profiler %w", err)

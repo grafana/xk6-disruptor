@@ -6,10 +6,11 @@ import (
 	"os"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 func main() {
-	rootCmd := commands.BuildRootCmd()
+	rootCmd := commands.BuildRootCmd(runtime.DefaultEnvironment())
 
 	rootCmd.AddCommand(commands.BuildHTTPCmd())
 	rootCmd.AddCommand(commands.BuildGrpcCmd())
