@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
-	"github.com/grafana/xk6-disruptor/pkg/utils/process"
 )
 
 type fakeAgentController struct {
 	namespace string
 	targets   []string
-	executor  *process.FakeExecutor
+	executor  *runtime.FakeExecutor
 }
 
 func (f *fakeAgentController) Targets(ctx context.Context) ([]string, error) {
@@ -168,7 +168,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := process.NewFakeExecutor([]byte{}, tc.cmdError)
+			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,
@@ -325,7 +325,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := process.NewFakeExecutor([]byte{}, tc.cmdError)
+			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,

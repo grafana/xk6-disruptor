@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"runtime"
+	goruntime "runtime"
 	"runtime/pprof"
 	runtimetrace "runtime/trace"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
-	"github.com/grafana/xk6-disruptor/pkg/utils/process"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func getLockPath() string {
 
 // ensure only one instance of the agent runs
 func lockExecution() error {
-	acquired, err := process.Lock(getLockPath())
+	acquired, err := runtime.Lock(getLockPath())
 	if err != nil {
 		return fmt.Errorf("failed to create lock file %q: %w", getLockPath(), err)
 	}
@@ -84,7 +84,7 @@ func main() {
 					return fmt.Errorf("error creating memory profiling file %q: %w", memProfileFileName, err)
 				}
 
-				runtime.MemProfileRate = memProfileRate
+				goruntime.MemProfileRate = memProfileRate
 			}
 
 			// trace program execution
@@ -102,7 +102,7 @@ func main() {
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			_ = process.Unlock(getLockPath())
+			_ = runtime.Unlock(getLockPath())
 			if cpuProfile {
 				pprof.StopCPUProfile()
 			}

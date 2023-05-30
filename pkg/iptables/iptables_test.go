@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/grafana/xk6-disruptor/pkg/utils/process"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 func Test_validateTrafficRedirect(t *testing.T) {
@@ -174,7 +174,7 @@ func Test_Commands(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := process.NewFakeExecutor(tc.fakeOutput, tc.fakeError)
+			executor := runtime.NewFakeExecutor(tc.fakeOutput, tc.fakeError)
 			config := TrafficRedirectorConfig{
 				Executor: executor,
 			}

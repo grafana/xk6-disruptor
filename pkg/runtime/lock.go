@@ -1,4 +1,4 @@
-package process
+package runtime
 
 import (
 	"fmt"
@@ -7,9 +7,8 @@ import (
 	"syscall"
 )
 
-// Lock creates a lock file owned by the invoking process.
-// If the lock exists, it checks if a valid lock from a live process other than itself.
-// Returns false if the lockfile is already own by a live process
+// Lock tries to acquire an execution lock for the given file.
+// Returns true if lock is acquired.
 func Lock(path string) (bool, error) {
 	tempLock, err := createTempLock(path)
 	if err != nil {
@@ -38,7 +37,7 @@ func Lock(path string) (bool, error) {
 
 	err = os.Link(tempLock, path)
 
-	// some other process already own the file, let's check this is a legit lock
+	// some other process already own the lock, let's check this is a legit lock
 	if os.IsExist(err) {
 		owner, errOwner := getOwner(path)
 		if errOwner != nil {
@@ -70,9 +69,8 @@ func Lock(path string) (bool, error) {
 	return true, nil
 }
 
-// Unlock releases the ownership of a lock file.
+// Unlock releases the ownership of a lock.
 // Returns an error if the invoking process is not the current owner
-// or the file does not exists
 func Unlock(path string) error {
 	owner, err := getOwner(path)
 	if err != nil {
