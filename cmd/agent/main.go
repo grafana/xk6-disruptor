@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	rootCmd := commands.BuildRootCmd(runtime.DefaultEnvironment())
+	env := runtime.DefaultEnvironment()
+	rootCmd := commands.BuildRootCmd(env)
 
-	rootCmd.AddCommand(commands.BuildHTTPCmd())
-	rootCmd.AddCommand(commands.BuildGrpcCmd())
+	rootCmd.AddCommand(commands.BuildHTTPCmd(env))
+	rootCmd.AddCommand(commands.BuildGrpcCmd(env))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

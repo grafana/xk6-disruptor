@@ -44,8 +44,8 @@ type TrafficRedirectorConfig struct {
 	Executor runtime.Executor
 }
 
-// Creating instances passing a TrafficRedirectorConfig
-func newTrafficRedirectorWithConfig(
+// NewTrafficRedirectorWithConfig creates instances of traffic redirector using a TrafficRedirectorConfig
+func NewTrafficRedirectorWithConfig(
 	tr *TrafficRedirectionSpec,
 	config TrafficRedirectorConfig,
 ) (TrafficRedirector, error) {
@@ -76,7 +76,7 @@ func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error)
 	config := TrafficRedirectorConfig{
 		Executor: runtime.DefaultExecutor(),
 	}
-	return newTrafficRedirectorWithConfig(tf, config)
+	return NewTrafficRedirectorWithConfig(tf, config)
 }
 
 // delete iptables rules for redirection

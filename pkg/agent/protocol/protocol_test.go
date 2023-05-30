@@ -104,6 +104,7 @@ func Test_Validations(t *testing.T) {
 			t.Parallel()
 
 			_, err := NewDisruptor(
+				nil, // TODO: pass a fake executor
 				tc.config,
 				tc.proxy,
 			)

@@ -178,7 +178,7 @@ func Test_Commands(t *testing.T) {
 			config := TrafficRedirectorConfig{
 				Executor: executor,
 			}
-			redirector, err := newTrafficRedirectorWithConfig(&tc.redirect, config)
+			redirector, err := NewTrafficRedirectorWithConfig(&tc.redirect, config)
 			if err != nil {
 				t.Errorf("failed creating traffic redirector with error %v", err)
 				return
