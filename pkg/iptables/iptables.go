@@ -54,7 +54,11 @@ func newTrafficRedirectorWithConfig(
 	}
 
 	if tr.DestinationPort == tr.RedirectPort {
-		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be different")
+		return nil, fmt.Errorf(
+			"the DestinationPort (%d) and RedirectPort (%d) must be different",
+			tr.DestinationPort,
+			tr.RedirectPort,
+		)
 	}
 
 	if tr.Iface == "" {
