@@ -23,25 +23,15 @@ type Process interface {
 type process struct {
 	name string
 	lock string
-}
-
-func getLockDir() string {
-	// get runtime directory for user
-	lockDir := os.Getenv("XDG_RUNTIME_DIR")
-	if lockDir == "" {
-		lockDir = os.TempDir()
-	}
-
-	return lockDir
+	env  map[string]string
 }
 
 // DefaultProcess create a new Process for the currently running process.
 // When the process exits, the onExit function is executed.
-func DefaultProcess() Process {
-	name := filepath.Base(os.Args[0])
+func DefaultProcess(args []string, env map[string]string) Process {
 	return &process{
-		name: name,
-		lock: filepath.Join(getLockDir(), name),
+		name: filepath.Base(args[0]),
+		env:  env,
 	}
 }
 
@@ -49,7 +39,21 @@ func (p *process) Name() string {
 	return p.name
 }
 
+func (p *process) getLockDir() string {
+	// get runtime directory for user
+	lockDir := p.env["XDG_RUNTIME_DIR"]
+	if lockDir == "" {
+		lockDir = os.TempDir()
+	}
+
+	return lockDir
+}
+
 func (p *process) Lock() error {
+	if p.lock == "" {
+		p.lock = filepath.Join(p.getLockDir(), p.name)
+	}
+
 	acquired, err := Lock(p.lock)
 	if err != nil {
 		return fmt.Errorf("failed to acquire lock file for process %q: %w", p.name, err)

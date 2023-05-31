@@ -1,6 +1,11 @@
 // Package runtime abstracts the execution environment of a process
 package runtime
 
+import (
+	"os"
+	"strings"
+)
+
 // Environment abstracts the execution environment of a process.
 // It allows introduction mocks for testing.
 type Environment interface {
@@ -16,11 +21,22 @@ type environment struct {
 	process  Process
 }
 
+// returns a map with the environment variables
+func getEnv() map[string]string {
+	env := map[string]string{}
+	for _, e := range os.Environ() {
+		k, v, _ := strings.Cut(e, "=")
+		env[k] = v
+	}
+
+	return env
+}
+
 // DefaultEnvironment returns the default execution environment
 func DefaultEnvironment() Environment {
 	return environment{
 		executor: DefaultExecutor(),
-		process:  DefaultProcess(),
+		process:  DefaultProcess(os.Args, getEnv()),
 	}
 }
 
