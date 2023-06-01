@@ -42,7 +42,7 @@ func buildObject(rt *goja.Runtime, value interface{}) (*goja.Object, error) {
 
 // jsDisruptor implements the JS interface for Disruptor
 type jsDisruptor struct {
-	ctx context.Context // this context controls ths object's lifecycle
+	ctx context.Context // this context controls the object's lifecycle
 	rt  *goja.Runtime
 	disruptors.Disruptor
 }
@@ -59,7 +59,7 @@ func (p *jsDisruptor) Targets() goja.Value {
 
 // jsProtocolFaultInjector implements the JS interface for jsProtocolFaultInjector
 type jsProtocolFaultInjector struct {
-	ctx context.Context // this context controls ths object's lifecycle
+	ctx context.Context // this context controls the object's lifecycle
 	rt  *goja.Runtime
 	disruptors.ProtocolFaultInjector
 }

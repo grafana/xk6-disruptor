@@ -26,7 +26,7 @@ type PodDisruptorOptions struct {
 	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
-// podDisruptor is an instance of a PodDisruptor initialized with a list ot target pods
+// podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
 type podDisruptor struct {
 	controller AgentController
 }
@@ -60,7 +60,7 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("namespace, select and exclude attributes in pod selector cannot all be empty")
 	}
 
-	// ensure selector nd controller use default namespace if none specified
+	// ensure selector and controller use default namespace if none specified
 	namespace := selector.Namespace
 	if selector.Namespace == "" {
 		selector.Namespace = metav1.NamespaceDefault

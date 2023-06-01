@@ -30,7 +30,7 @@ func Test_Conversions(t *testing.T) {
 		expectError bool
 	}{
 		{
-			description: "Sting conversion",
+			description: "String conversion",
 			value:       "string",
 			target:      new(string),
 			expected:    "string",
