@@ -68,7 +68,8 @@ type PodFilter struct {
 type AttachOptions struct {
 	// timeout for waiting until container is ready.
 	Timeout time.Duration
-	// If container exists, ignore and return
+	// IgnoreIfExists causes AttachEphemeralContainer to return successfully if the ephemeral container already exists
+	// when set to true. If set to false, it will exit with an error if the container already exists.
 	IgnoreIfExists bool
 }
 
