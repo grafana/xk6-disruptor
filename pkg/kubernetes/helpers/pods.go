@@ -239,7 +239,7 @@ func (h *podHelper) AttachEphemeralContainer(
 		h.namespace,
 		podName,
 		options.Timeout,
-		checkEphemeralContainerState,
+		checkEphemeralContainerIsRunning,
 	)
 	if err != nil {
 		return fmt.Errorf("waiting for ephemeral container of %q to start: %w", pod.Name, err)
@@ -250,7 +250,7 @@ func (h *podHelper) AttachEphemeralContainer(
 	return nil
 }
 
-func checkEphemeralContainerState(pod *corev1.Pod) (bool, error) {
+func checkEphemeralContainerIsRunning(pod *corev1.Pod) (bool, error) {
 	if pod.Status.EphemeralContainerStatuses != nil {
 		for _, cs := range pod.Status.EphemeralContainerStatuses {
 			if cs.State.Running != nil {
