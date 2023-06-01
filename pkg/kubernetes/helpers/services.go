@@ -153,7 +153,7 @@ func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, 
 		return nil, err
 	}
 
-	names := []string{}
+	names := make([]string, 0, len(pods.Items))
 	for _, p := range pods.Items {
 		names = append(names, p.Name)
 	}
