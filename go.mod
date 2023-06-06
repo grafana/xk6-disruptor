@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/dop251/goja v0.0.0-20230128084908-78b980256d04
+	github.com/google/go-cmp v0.5.9
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
 	go.k6.io/k6 v0.42.1-0.20230130080633-582ec4d3940c
@@ -16,7 +17,6 @@ require (
 require (
 	github.com/bufbuild/protocompile v0.4.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 )
