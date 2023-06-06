@@ -99,6 +99,7 @@ type httpHandler struct {
 
 func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var statusCode int
+	headers := http.Header{}
 	body := io.NopCloser(strings.NewReader(h.disruption.ErrorBody))
 
 	excluded := contains(h.disruption.Excluded, req.URL.Path)
@@ -118,6 +119,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		headers = originServerResponse.Header
 		statusCode = originServerResponse.StatusCode
 		body = originServerResponse.Body
 
@@ -136,7 +138,11 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// return response to the client
-	// TODO: return headers
+	for key, values := range headers {
+		for _, value := range values {
+			rw.Header().Add(key, value)
+		}
+	}
 	rw.WriteHeader(statusCode)
 
 	// ignore errors writing body, nothing to do.
