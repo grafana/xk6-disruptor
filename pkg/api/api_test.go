@@ -207,7 +207,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -229,7 +229,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -246,7 +246,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -263,7 +263,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -292,7 +292,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -314,7 +314,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -331,7 +331,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -353,7 +353,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 

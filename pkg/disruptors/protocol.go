@@ -45,8 +45,8 @@ type HTTPFault struct {
 	ErrorCode uint `js:"errorCode"`
 	// Body to be returned when an error is injected
 	ErrorBody string `js:"errorBody"`
-	// Comma-separated list of url paths to be excluded from disruptions
-	Exclude string
+	// List of url paths to be excluded from disruptions
+	Exclude []string `js:"exclude"`
 }
 
 // GrpcFault specifies a fault to be injected in grpc requests
@@ -64,5 +64,5 @@ type GrpcFault struct {
 	// Status message to be returned in requests selected to return an error
 	StatusMessage string `js:"statusMessage"`
 	// List of grpc services to be excluded from disruptions
-	Exclude string `js:"exclude"`
+	Exclude []string `js:"exclude"`
 }
