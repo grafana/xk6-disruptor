@@ -9,13 +9,16 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // fakeHTTPClient mocks the execution of a request returning the predefines
 // status and body
 type fakeHTTPClient struct {
-	status int
-	body   []byte
+	status  int
+	headers http.Header
+	body    []byte
 }
 
 func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -25,6 +28,7 @@ func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		ProtoMinor:    1,
 		StatusCode:    f.status,
 		Status:        http.StatusText(f.status),
+		Header:        f.headers,
 		Body:          io.NopCloser(strings.NewReader(string(f.body))),
 		ContentLength: int64(len(f.body)),
 	}
@@ -188,15 +192,17 @@ func Test_ProxyHandler(t *testing.T) {
 	t.Parallel()
 
 	type TestCase struct {
-		title          string
-		disruption     Disruption
-		config         ProxyConfig
-		method         string
-		path           string
-		statusCode     int
-		body           []byte
-		expectedStatus int
-		expectedBody   []byte
+		title           string
+		disruption      Disruption
+		config          ProxyConfig
+		method          string
+		path            string
+		statusCode      int
+		headers         http.Header
+		body            []byte
+		expectedStatus  int
+		expectedHeaders http.Header
+		expectedBody    []byte
 	}
 
 	testCases := []TestCase{
@@ -296,6 +302,66 @@ func Test_ProxyHandler(t *testing.T) {
 			expectedStatus: 500,
 			expectedBody:   []byte("{\"error\": 500, \"message\":\"internal server error\"}"),
 		},
+		{
+			title: "Headers are preserved when endpoint is skipped",
+			disruption: Disruption{
+				Excluded: []string{"/excluded"},
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
+			},
+			path:       "/excluded",
+			statusCode: 200,
+			headers: http.Header{
+				"X-Test-Header": []string{"A-Test"},
+			},
+			body:           []byte("content body"),
+			expectedStatus: 200,
+			expectedHeaders: http.Header{
+				"X-Test-Header": []string{"A-Test"},
+			},
+			expectedBody: []byte("content body"),
+		},
+		{
+			title: "Headers are preserved when errors are not injected",
+			disruption: Disruption{
+				ErrorRate: 0,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
+			},
+			statusCode: 200,
+			headers: http.Header{
+				"X-Test-Header": []string{"A-Test"},
+			},
+			body:           []byte("content body"),
+			expectedStatus: 200,
+			expectedHeaders: http.Header{
+				"X-Test-Header": []string{"A-Test"},
+			},
+			expectedBody: []byte("content body"),
+		},
+		{
+			title: "Headers are discarded when errors are injected",
+			disruption: Disruption{
+				ErrorRate: 1.0,
+				ErrorCode: 500,
+			},
+			config: ProxyConfig{
+				ListenAddress:   ":9080",
+				UpstreamAddress: "http://127.0.0.1:8080",
+			},
+			statusCode: 200,
+			headers: http.Header{
+				"X-Test-Header": []string{"A-Test"},
+			},
+			body:            []byte("content body"),
+			expectedStatus:  500,
+			expectedHeaders: http.Header{},
+			expectedBody:    nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -305,8 +371,9 @@ func Test_ProxyHandler(t *testing.T) {
 			t.Parallel()
 
 			client := &fakeHTTPClient{
-				body:   tc.body,
-				status: tc.expectedStatus,
+				body:    tc.body,
+				status:  tc.expectedStatus,
+				headers: tc.headers,
 			}
 
 			upstreamURL, err := url.Parse(tc.config.UpstreamAddress)
@@ -329,6 +396,14 @@ func Test_ProxyHandler(t *testing.T) {
 			if tc.expectedStatus != resp.StatusCode {
 				t.Errorf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
 				return
+			}
+
+			// Compare headers only if either expected or returned have items.
+			// We have to check for length explicitly as otherwise a nil map would not be equal to an empty map.
+			if len(tc.headers) > 0 || len(tc.expectedHeaders) > 0 {
+				if diff := cmp.Diff(tc.expectedHeaders, resp.Header); diff != "" {
+					t.Errorf("Expected headers did not match returned:\n%s", diff)
+				}
 			}
 
 			var body bytes.Buffer
