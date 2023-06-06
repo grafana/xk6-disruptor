@@ -284,6 +284,17 @@ func Test_JsPodDisruptor(t *testing.T) {
 			expectError: true,
 		},
 		{
+			description: "inject HTTP Fault with exclude as a string",
+			script: `
+			const fault = {
+				exclude: "foo,bar",
+			}
+
+			d.injectHTTPFaults(fault, "1s")
+			`,
+			expectError: false,
+		},
+		{
 			description: "inject Grpc Fault with full arguments",
 			script: `
 			const fault = {
