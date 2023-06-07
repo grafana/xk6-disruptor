@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -74,7 +75,7 @@ func Test_Lock(t *testing.T) {
 			t.Parallel()
 
 			// create file name for test lock file
-			testLock := fmt.Sprintf("%s/test-lockfile.%d", tmpDir, i)
+			testLock := filepath.Join(tmpDir, fmt.Sprintf("test-lockfile.%d", i))
 			defer func() {
 				_ = os.Remove(testLock)
 			}()
@@ -155,7 +156,7 @@ func Test_Unlock(t *testing.T) {
 			t.Parallel()
 
 			// create file name for test lock file
-			testLock := fmt.Sprintf("%s/test-lockfile.%d", tmpDir, i)
+			testLock := filepath.Join(tmpDir, fmt.Sprintf("test-lockfile.%d", i))
 			defer func() {
 				_ = os.Remove(testLock)
 			}()
