@@ -109,7 +109,7 @@ function package() {
       fi
 
       (
-       # nfpm does not support variable subsitution in paths so we must run in the build directory
+       # nfpm does not support variable substitution in paths so we must run in the build directory
        pushd $BUILD
 
        export PKG_VERSION=$version

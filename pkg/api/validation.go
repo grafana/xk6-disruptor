@@ -36,7 +36,7 @@ func IsCompatible(actual interface{}, expected interface{}) error {
 // Note that the field names are expected to match except for the case of the initial letter
 // e.g  'fieldName' will match 'FieldName' in the struct, but 'field_name' will not.
 //
-// TODO: use the tags in the struct to find out any field name mapping. This wil require
+// TODO: use the tags in the struct to find out any field name mapping. This will require
 // iterating from the struct to the actual value. This will not detect spurious fields in the
 // actual value
 func ValidateStruct(actual interface{}, expected interface{}) error {

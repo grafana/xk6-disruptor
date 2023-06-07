@@ -62,3 +62,11 @@ jobs:
         with:
           version: ${{ env.LINT_VERSION }}
 
+  codespell:
+    name: Codespell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Codespell test
+        uses: codespell-project/actions-codespell@master
