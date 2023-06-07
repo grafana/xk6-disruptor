@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"io"
 	"os"
 	goruntime "runtime"
 	"runtime/pprof"
@@ -22,22 +23,25 @@ type ProfilerConfig struct {
 // Profiler defines the methods to control execution profiling
 type Profiler interface {
 	// Start initiates the tracing. If already active, has no effect
-	Start() error
-	// Stop terminates the tracing. If not started, has no effect
-	Stop() error
+	Start(ProfilerConfig) (io.Closer, error)
 }
 
 // profiler maintains the configuration state of the profiler
 type profiler struct {
 	ProfilerConfig
-	active         bool
 	cpuProfileFile *os.File
 	memProfileFile *os.File
 	traceFile      *os.File
 }
 
-// NewProfiler creates a Profiler instance
-func NewProfiler(config ProfilerConfig) (Profiler, error) {
+// DefaultProfiler creates a Profiler instance
+func DefaultProfiler() Profiler {
+	return &profiler{}
+}
+
+func (p *profiler) Start(config ProfilerConfig) (io.Closer, error) {
+	var err error
+
 	if config.MemProfile {
 		if config.MemProfileRate < 0 {
 			return nil, fmt.Errorf("memory rate must be non-negative: %d", config.MemProfileRate)
@@ -46,11 +50,29 @@ func NewProfiler(config ProfilerConfig) (Profiler, error) {
 		if config.MemProfileFileName == "" {
 			return nil, fmt.Errorf("memory profile file name cannot be empty")
 		}
+
+		p.memProfileFile, err = os.Create(p.MemProfileFileName)
+
+		if err != nil {
+			return nil, fmt.Errorf("error creating memory profiling file %q: %w", p.MemProfileFileName, err)
+		}
+
+		goruntime.MemProfileRate = p.MemProfileRate
 	}
 
 	if config.CPUProfile {
 		if config.CPUProfileFileName == "" {
 			return nil, fmt.Errorf("CPU profile file name cannot be empty")
+		}
+
+		p.cpuProfileFile, err = os.Create(p.CPUProfileFileName)
+		if err != nil {
+			return nil, fmt.Errorf("error creating CPU profiling file %q: %w", p.CPUProfileFileName, err)
+		}
+
+		err = pprof.StartCPUProfile(p.cpuProfileFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start CPU profiling: %w", err)
 		}
 	}
 
@@ -58,63 +80,21 @@ func NewProfiler(config ProfilerConfig) (Profiler, error) {
 		if config.TraceFileName == "" {
 			return nil, fmt.Errorf("trace output file name cannot be empty")
 		}
-	}
 
-	return &profiler{
-		ProfilerConfig: config,
-		active:         false,
-	}, nil
-}
-
-func (p *profiler) Start() error {
-	if p.active {
-		return nil
-	}
-
-	var err error
-	// cpu profiling
-	if p.CPUProfile {
-		p.cpuProfileFile, err = os.Create(p.CPUProfileFileName)
-		if err != nil {
-			return fmt.Errorf("error creating CPU profiling file %q: %w", p.CPUProfileFileName, err)
-		}
-
-		err = pprof.StartCPUProfile(p.cpuProfileFile)
-		if err != nil {
-			return fmt.Errorf("failed to start CPU profiling: %w", err)
-		}
-	}
-
-	// memory profiling
-	if p.MemProfile {
-		p.memProfileFile, err = os.Create(p.MemProfileFileName)
-		if err != nil {
-			return fmt.Errorf("error creating memory profiling file %q: %w", p.MemProfileFileName, err)
-		}
-
-		goruntime.MemProfileRate = p.MemProfileRate
-	}
-
-	// trace program execution
-	if p.Trace {
 		p.traceFile, err = os.Create(p.TraceFileName)
 		if err != nil {
-			return fmt.Errorf("failed to create trace output file %q: %w", p.TraceFileName, err)
+			return nil, fmt.Errorf("failed to create trace output file %q: %w", p.TraceFileName, err)
 		}
 
 		if err := trace.Start(p.traceFile); err != nil {
-			return fmt.Errorf("failed to start trace: %w", err)
+			return nil, fmt.Errorf("failed to start trace: %w", err)
 		}
 	}
 
-	return nil
+	return p, nil
 }
 
-func (p *profiler) Stop() error {
-	if !p.active {
-		return nil
-	}
-
+func (p *profiler) Close() error {
 	if p.CPUProfile {
 		pprof.StopCPUProfile()
 	}

@@ -15,8 +15,6 @@ type Process interface {
 	Lock() error
 	// Unlock releases the execution lock
 	Unlock() error
-	// Profiler returns the process profiler
-	Profiler(ProfilerConfig) (Profiler, error)
 }
 
 // process maintains the state of the process
@@ -67,8 +65,4 @@ func (p *process) Lock() error {
 
 func (p *process) Unlock() error {
 	return Unlock(p.lock)
-}
-
-func (p *process) Profiler(config ProfilerConfig) (Profiler, error) {
-	return NewProfiler(config)
 }

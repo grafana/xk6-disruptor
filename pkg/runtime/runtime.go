@@ -13,12 +13,15 @@ type Environment interface {
 	Executor() Executor
 	// Lock returns an interface for managing the process execution
 	Process() Process
+	// Profiler return an execution profiler
+	Profiler() Profiler
 }
 
 // environment keeps the state of the execution environment
 type environment struct {
 	executor Executor
 	process  Process
+	profiler Profiler
 }
 
 // returns a map with the environment variables
@@ -34,16 +37,21 @@ func getEnv() map[string]string {
 
 // DefaultEnvironment returns the default execution environment
 func DefaultEnvironment() Environment {
-	return environment{
+	return &environment{
 		executor: DefaultExecutor(),
 		process:  DefaultProcess(os.Args, getEnv()),
+		profiler: DefaultProfiler(),
 	}
 }
 
-func (e environment) Executor() Executor {
+func (e *environment) Executor() Executor {
 	return e.executor
 }
 
-func (e environment) Process() Process {
+func (e *environment) Process() Process {
 	return e.process
+}
+
+func (e *environment) Profiler() Profiler {
+	return e.profiler
 }

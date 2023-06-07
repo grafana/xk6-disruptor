@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
@@ -11,7 +12,7 @@ import (
 // It also initializes/terminates the profiling if requested.
 func BuildRootCmd(env runtime.Environment) *cobra.Command {
 	profilerConfig := runtime.ProfilerConfig{}
-	var profiler runtime.Profiler
+	var profiler io.Closer
 
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
@@ -24,14 +25,9 @@ func BuildRootCmd(env runtime.Environment) *cobra.Command {
 				return err
 			}
 
-			profiler, err = runtime.NewProfiler(profilerConfig)
+			profiler, err = env.Profiler().Start(profilerConfig)
 			if err != nil {
 				return fmt.Errorf("could not create profiler %w", err)
-			}
-
-			err = profiler.Start()
-			if err != nil {
-				return fmt.Errorf("could not start profiler %w", err)
 			}
 
 			return nil
@@ -41,7 +37,7 @@ func BuildRootCmd(env runtime.Environment) *cobra.Command {
 				_ = env.Process().Unlock()
 			}()
 
-			err := profiler.Stop()
+			err := profiler.Close()
 			if err != nil {
 				return fmt.Errorf("could not stop profiler %w", err)
 			}
