@@ -13,6 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DefaultTargetPort defines default target port if not specified in Fault
+const DefaultTargetPort = 80
+
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
 	Disruptor
@@ -29,6 +32,8 @@ type PodDisruptorOptions struct {
 // podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
 type podDisruptor struct {
 	controller AgentController
+	podFilter  helpers.PodFilter
+	podHelper  helpers.PodHelper
 }
 
 // PodSelector defines the criteria for selecting a pod for disruption
@@ -91,6 +96,8 @@ func NewPodDisruptor(
 
 	return &podDisruptor{
 		controller: controller,
+		podFilter:  filter,
+		podHelper:  helper,
 	}, nil
 }
 
@@ -108,7 +115,12 @@ func (d *podDisruptor) InjectHTTPFaults(
 ) error {
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
-	err := d.controller.ExecCommand(ctx, cmd)
+	err := d.validatePort(ctx, fault.Port)
+	if err != nil {
+		return fmt.Errorf("validate fault port: %w", err)
+	}
+
+	err = d.controller.ExecCommand(ctx, cmd)
 	return err
 }
 
@@ -120,6 +132,20 @@ func (d *podDisruptor) InjectGrpcFaults(
 	options GrpcDisruptionOptions,
 ) error {
 	cmd := buildGrpcFaultCmd(fault, duration, options)
-	err := d.controller.ExecCommand(ctx, cmd)
+
+	err := d.validatePort(ctx, fault.Port)
+	if err != nil {
+		return fmt.Errorf("validate fault port: %w", err)
+	}
+
+	err = d.controller.ExecCommand(ctx, cmd)
 	return err
+}
+
+func (d *podDisruptor) validatePort(ctx context.Context, port uint) error {
+	if port == 0 {
+		port = DefaultTargetPort
+	}
+
+	return d.podHelper.ValidatePort(ctx, d.podFilter, port)
 }

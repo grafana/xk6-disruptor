@@ -6,8 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+
+	corev1 "k8s.io/api/core/v1"
+	kruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 type fakeAgentController struct {
@@ -40,9 +47,14 @@ func (f *fakeAgentController) Visit(ctx context.Context, visitor func(string) []
 	return nil
 }
 
-func newPodDisruptorForTesting(controller AgentController) PodDisruptor {
+func newPodDisruptorForTesting(controller AgentController, podHelper helpers.PodHelper, podSelector PodSelector) PodDisruptor {
 	return &podDisruptor{
 		controller: controller,
+		podFilter: helpers.PodFilter{
+			Select:  podSelector.Select.Labels,
+			Exclude: podSelector.Exclude.Labels,
+		},
+		podHelper: podHelper,
 	}
 }
 
@@ -161,6 +173,22 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			opts:        HTTPDisruptionOptions{},
 			duration:    60 * time.Second,
 		},
+		{
+			title: "Container port not found",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			targets:     []string{"my-app-pod"},
+			expectError: true,
+			fault:       HTTPFault{Port: 8080},
+			opts:        HTTPDisruptionOptions{},
+			duration:    60,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -176,7 +204,21 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(controller)
+			objs := []kruntime.Object{}
+
+			for _, target := range tc.targets {
+				obj := builders.NewPodBuilder(target).
+					WithLabels(tc.selector.Select.Labels).
+					WithNamespace(tc.selector.Namespace).
+					WithContainer(defaultContainer()).
+					Build()
+				objs = append(objs, obj)
+			}
+
+			client := fake.NewSimpleClientset(objs...)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
 
 			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
 
@@ -318,6 +360,22 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			expectError: true,
 			cmdError:    fmt.Errorf("error executing command"),
 		},
+		{
+			title:   "Container port not found",
+			targets: []string{"my-app-pod"},
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			expectError: true,
+			fault:       GrpcFault{Port: 8080},
+			opts:        GrpcDisruptionOptions{},
+			duration:    60,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -333,7 +391,21 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				executor:  executor,
 			}
 
-			d := newPodDisruptorForTesting(controller)
+			objs := []kruntime.Object{}
+
+			for _, target := range tc.targets {
+				obj := builders.NewPodBuilder(target).
+					WithLabels(tc.selector.Select.Labels).
+					WithNamespace(tc.selector.Namespace).
+					WithContainer(defaultContainer()).
+					Build()
+				objs = append(objs, obj)
+			}
+
+			client := fake.NewSimpleClientset(objs...)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
 
 			err := d.InjectGrpcFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
 
@@ -347,7 +419,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			}
 
 			if !tc.expectError && err != nil {
-				t.Errorf("unexpected error : %v", err)
+				t.Errorf("unexpected error: %v", err)
 				return
 			}
 
@@ -356,5 +428,18 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
 			}
 		})
+	}
+}
+
+func defaultContainer() corev1.Container {
+	return corev1.Container{
+		Name:    "busybox",
+		Image:   "busybox",
+		Command: []string{"sh", "-c", "sleep 300"},
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: 80,
+			},
+		},
 	}
 }
