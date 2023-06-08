@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 // Disruptor defines the interface agent
@@ -43,21 +44,10 @@ type disruptor struct {
 	redirector iptables.TrafficRedirector
 }
 
-// NewDefaultDisruptor creates a Disruptor with valid default configuration.
-func NewDefaultDisruptor(proxy Proxy) (Disruptor, error) {
-	return NewDisruptor(
-		DisruptorConfig{
-			RedirectPort: 8080,
-			TargetPort:   80,
-			Iface:        "eth0",
-		},
-		proxy,
-	)
-}
-
 // NewDisruptor creates a new instance of a Disruptor that applies a disruptions to a target
 // The configuration controls how the disruptor operates.
 func NewDisruptor(
+	executor runtime.Executor,
 	config DisruptorConfig,
 	proxy Proxy,
 ) (Disruptor, error) {
@@ -77,13 +67,16 @@ func NewDisruptor(
 		return nil, fmt.Errorf("proxy cannot be null")
 	}
 
+	trCfg := iptables.TrafficRedirectorConfig{
+		Executor: executor,
+	}
 	// Redirect traffic to the proxy
-	tr := iptables.TrafficRedirectionSpec{
+	tr := &iptables.TrafficRedirectionSpec{
 		Iface:           config.Iface,
 		DestinationPort: config.TargetPort,
 		RedirectPort:    config.RedirectPort,
 	}
-	redirector, err := iptables.NewTrafficRedirector(&tr)
+	redirector, err := iptables.NewTrafficRedirectorWithConfig(tr, trCfg)
 	if err != nil {
 		return nil, err
 	}

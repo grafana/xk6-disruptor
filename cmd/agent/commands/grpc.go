@@ -6,11 +6,12 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
 // BuildGrpcCmd returns a cobra command with the specification of the grpc command
-func BuildGrpcCmd() *cobra.Command {
+func BuildGrpcCmd(env runtime.Environment) *cobra.Command {
 	disruption := grpc.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -44,6 +45,7 @@ func BuildGrpcCmd() *cobra.Command {
 			}
 
 			disruptor, err := protocol.NewDisruptor(
+				env.Executor(),
 				protocol.DisruptorConfig{
 					TargetPort:   target,
 					RedirectPort: port,

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/grafana/xk6-disruptor/pkg/utils/process"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 const redirectCommand = "%s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
@@ -36,16 +36,16 @@ type TrafficRedirector interface {
 // trafficRedirect defines an instance of a TrafficRedirector
 type redirector struct {
 	*TrafficRedirectionSpec
-	executor process.Executor
+	executor runtime.Executor
 }
 
 // TrafficRedirectorConfig defines the options for creating a TrafficRedirector
 type TrafficRedirectorConfig struct {
-	Executor process.Executor
+	Executor runtime.Executor
 }
 
-// Creating instances passing a TrafficRedirectorConfig
-func newTrafficRedirectorWithConfig(
+// NewTrafficRedirectorWithConfig creates instances of traffic redirector using a TrafficRedirectorConfig
+func NewTrafficRedirectorWithConfig(
 	tr *TrafficRedirectionSpec,
 	config TrafficRedirectorConfig,
 ) (TrafficRedirector, error) {
@@ -74,9 +74,9 @@ func newTrafficRedirectorWithConfig(
 // NewTrafficRedirector creates an instance of a TrafficRedirector with default configuration
 func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error) {
 	config := TrafficRedirectorConfig{
-		Executor: process.DefaultExecutor(),
+		Executor: runtime.DefaultExecutor(),
 	}
-	return newTrafficRedirectorWithConfig(tf, config)
+	return NewTrafficRedirectorWithConfig(tf, config)
 }
 
 // delete iptables rules for redirection

@@ -1,13 +1,10 @@
-// Package process offers abstractions for the execution of processes
-package process
+package runtime
 
 import (
 	"os/exec"
 )
 
 // Executor offers methods for running processes
-// It facilitates the testing of components that execute processes by providing
-// mock implementations.
 type Executor interface {
 	// Exec executes a process and waits for its completion, returning
 	// the combined stdout and stdout
