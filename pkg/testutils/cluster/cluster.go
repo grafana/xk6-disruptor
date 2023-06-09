@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	kind "sigs.k8s.io/kind/pkg/cluster"
@@ -127,14 +126,8 @@ type Cluster struct {
 	kubeconfig string
 	// kind cluster provider
 	provider kind.Provider
-	// mutex for concurrent modifications to cluster
-	mtx sync.Mutex
 	// name of the cluster
 	name string
-	// allocated node ports
-	allocatedPorts map[NodePort]bool
-	// available node ports exposed by the cluster
-	availablePorts []NodePort
 }
 
 // try to bind to host port to check availability
@@ -204,13 +197,11 @@ func pullImages(images []string) error {
 func (c *Config) Create() (*Cluster, error) {
 	// before creating cluster check host ports are available
 	// to avoid weird kind error creating cluster
-	ports := []NodePort{}
 	for _, np := range c.options.NodePorts {
 		err := checkHostPort(np.HostPort)
 		if err != nil {
 			return nil, err
 		}
-		ports = append(ports, np)
 	}
 
 	provider := kind.NewProvider()
@@ -266,12 +257,10 @@ func (c *Config) Create() (*Cluster, error) {
 	}
 
 	return &Cluster{
-		name:           c.name,
-		config:         c,
-		kubeconfig:     configPath,
-		provider:       *provider,
-		allocatedPorts: map[NodePort]bool{},
-		availablePorts: ports,
+		name:       c.name,
+		config:     c,
+		kubeconfig: configPath,
+		provider:   *provider,
 	}, nil
 }
 
@@ -286,32 +275,4 @@ func (c *Cluster) Delete() error {
 // Kubeconfig returns the path to the kubeconfig for the test cluster
 func (c *Cluster) Kubeconfig() string {
 	return c.kubeconfig
-}
-
-// AllocatePort reserves a port from the pool of ports exposed by the cluster
-// to ensure it is not been used by other service
-func (c *Cluster) AllocatePort() NodePort {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	if len(c.availablePorts) == 0 {
-		return NodePort{}
-	}
-
-	port := c.availablePorts[0]
-	c.availablePorts = c.availablePorts[1:]
-	c.allocatedPorts[port] = true
-	return port
-}
-
-// ReleasePort makes available a Port previously allocated by AllocatePort
-func (c *Cluster) ReleasePort(p NodePort) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-
-	_, assigned := c.allocatedPorts[p]
-	if assigned {
-		delete(c.allocatedPorts, p)
-		c.availablePorts = append(c.availablePorts, p)
-	}
 }
