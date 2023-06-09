@@ -4,6 +4,17 @@ This document describes how you can contribute to the xk6-disruptor project.
 
 For proposing significant changes (breaking changes in the API, significant refactoring, implementation of complex features) we suggest creating a [design proposal document](./design-docs/README.md) before starting the implementation, to ensure consensus and avoid reworking on aspects on which there is not agreement.
 
+## Release process
+
+The [ci has actions](/.github/workflows/publish.yml) that automate the release process. This process starts automatically when a new tag is pushed with the semver of the new release:
+
+```bash
+git tag <semver>
+git push origin <semver>
+```
+
+Before creating the release tag, the release notes for the new version must be added to the [releases](/releases/) directory and merged into main by means of a pull requests.
+
 ## Build locally
 
 As contributor, you will need to build locally the disruptor extension with your changes.
