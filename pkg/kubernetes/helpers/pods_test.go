@@ -440,3 +440,74 @@ func Test_ListPods(t *testing.T) {
 		})
 	}
 }
+
+func Test_ValidatePort(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		namespace   string
+		pods        []*corev1.Pod
+		targetPort  uint
+		expectError bool
+	}{
+		{
+			title:     "Pods listen to the specified port",
+			namespace: "testns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("test-pod-1").
+					WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 8080}}}).
+					WithNamespace("testns").
+					Build(),
+				builders.NewPodBuilder("test-pod-2").
+					WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 8080}}}).
+					WithNamespace("testns").
+					Build(),
+			},
+			targetPort:  8080,
+			expectError: false,
+		},
+		{
+			title:     "One pod doesn't listen to the specified port",
+			namespace: "testns",
+			pods: []*corev1.Pod{
+				builders.NewPodBuilder("test-pod-1").
+					WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 8080}}}).
+					WithNamespace("testns").
+					Build(),
+				builders.NewPodBuilder("test-pod-2").
+					WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 9090}}}).
+					WithNamespace("testns").
+					Build(),
+			},
+			targetPort:  8080,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			pods := []runtime.Object{}
+			for _, p := range tc.pods {
+				pods = append(pods, p)
+			}
+
+			client := fake.NewSimpleClientset(pods...)
+
+			helper := NewPodHelper(client, nil, tc.namespace)
+			err := helper.ValidatePort(context.TODO(), PodFilter{}, tc.targetPort)
+
+			if err != nil && !tc.expectError {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+		})
+	}
+}
