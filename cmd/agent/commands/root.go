@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
@@ -50,7 +51,7 @@ func BuildRootCmd(env runtime.Environment) *RootCommand {
 }
 
 // Do executes the RootCommand
-func (r *RootCommand) Do() error {
+func (r *RootCommand) Do(ctx context.Context) error {
 	if err := r.env.Process().Lock(); err != nil {
 		return fmt.Errorf("could not acquire process lock %w", err)
 	}
@@ -66,6 +67,13 @@ func (r *RootCommand) Do() error {
 	defer func() {
 		_ = profiler.Close()
 	}()
+
+	// set context for command
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// pass context to subcommands
+	r.cmd.SetContext(ctx)
 
 	return r.cmd.Execute()
 }

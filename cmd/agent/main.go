@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,7 +12,8 @@ import (
 
 func main() {
 	env := runtime.DefaultEnvironment()
-	if err := commands.BuildRootCmd(env).Do(); err != nil {
+	ctx := context.Background()
+	if err := commands.BuildRootCmd(env).Do(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
