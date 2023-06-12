@@ -11,12 +11,7 @@ import (
 
 func main() {
 	env := runtime.DefaultEnvironment()
-	rootCmd := commands.BuildRootCmd(env)
-
-	rootCmd.AddCommand(commands.BuildHTTPCmd(env))
-	rootCmd.AddCommand(commands.BuildGrpcCmd(env))
-
-	if err := rootCmd.Execute(); err != nil {
+	if err := commands.BuildRootCmd(env).Do(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
