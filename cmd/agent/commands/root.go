@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
@@ -55,6 +56,11 @@ func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCo
 
 // Do executes the RootCommand
 func (r *RootCommand) Do(ctx context.Context) error {
+	sc := r.env.Signal().Notify(os.Interrupt)
+	defer func() {
+		r.env.Signal().Reset()
+	}()
+
 	acquired, err := r.env.Lock().Acquire()
 	if err != nil {
 		return fmt.Errorf("could not acquire process lock: %w", err)
@@ -95,5 +101,7 @@ func (r *RootCommand) Do(ctx context.Context) error {
 		return ctx.Err()
 	case err := <-cc:
 		return err
+	case s := <-sc:
+		return fmt.Errorf("received signal %q", s)
 	}
 }
