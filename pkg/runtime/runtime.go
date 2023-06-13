@@ -11,7 +11,7 @@ import (
 type Environment interface {
 	// Executor returns a process executor that abstracts os.Exec
 	Executor() Executor
-	// Lock returns an interface for managing the process execution
+	// Process returns an interface for managing the process execution
 	Process() Process
 	// Profiler return an execution profiler
 	Profiler() Profiler
