@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"io"
 	"strings"
 )
 
@@ -91,4 +92,105 @@ func NewCallbackExecutor(callback ExecCallback) *CallbackExecutor {
 	return &CallbackExecutor{
 		callback: callback,
 	}
+}
+
+// FakeProfiler is a noop profiler for testing
+type FakeProfiler struct {
+	started bool
+	stopped bool
+}
+
+// NewFakeProfiler creates a new FakeProfiler
+func NewFakeProfiler() *FakeProfiler {
+	return &FakeProfiler{}
+}
+
+// Start updates the FakeProfiler to registers it was started
+func (p *FakeProfiler) Start(c ProfilerConfig) (io.Closer, error) {
+	p.started = true
+	return p, nil
+}
+
+// Close updates the FakeProfiler to registers it was stopped operation
+func (p *FakeProfiler) Close() error {
+	p.stopped = true
+	return nil
+}
+
+// FakeProcess implements a Process for testing
+type FakeProcess struct {
+	name     string
+	locked   bool
+	unlocked bool
+}
+
+// NewFakeProcess returns a default FakeProcess for testing
+func NewFakeProcess(name string) *FakeProcess {
+	return &FakeProcess{
+		name: name,
+	}
+}
+
+// Name implements Name method from Process interface
+func (p *FakeProcess) Name() string {
+	return p.name
+}
+
+// Lock implements Lock method from Process interface
+func (p *FakeProcess) Lock() error {
+	p.locked = true
+	return nil
+}
+
+// Unlock implements Unlock method from Process interface
+func (p *FakeProcess) Unlock() error {
+	p.unlocked = true
+	return nil
+}
+
+// FakeRuntime holds the state of a fake runtime for testing
+type FakeRuntime struct {
+	FakeArgs     []string
+	FakeVars     map[string]string
+	FakeExecutor *FakeExecutor
+	FakeProfiler *FakeProfiler
+	FakeProcess  *FakeProcess
+}
+
+// NewFakeRuntime creates a default FakeRuntime
+func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
+	return &FakeRuntime{
+		FakeArgs:     args,
+		FakeVars:     vars,
+		FakeProfiler: NewFakeProfiler(),
+		FakeExecutor: NewFakeExecutor(nil, nil),
+		FakeProcess:  NewFakeProcess(args[0]),
+	}
+}
+
+// implement Runtime interface
+
+// Profiler implements Profiler method from Runtime interface
+func (f *FakeRuntime) Profiler() Profiler {
+	return f.FakeProfiler
+}
+
+// Executor implements Executor method from Runtime interface
+func (f *FakeRuntime) Executor() Executor {
+	return f.FakeExecutor
+}
+
+// Process implements Process method from Runtime interface
+func (f *FakeRuntime) Process() Process {
+	return f.FakeProcess
+}
+
+// Vars implements Vars method from Runtime interface
+func (f *FakeRuntime) Vars() map[string]string {
+	return f.FakeVars
+}
+
+// Args implements Args method from Runtime interface
+func (f *FakeRuntime) Args() []string {
+	return f.FakeArgs
 }
