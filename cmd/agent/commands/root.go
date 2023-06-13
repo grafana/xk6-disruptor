@@ -27,6 +27,8 @@ func BuildRootCmd(env runtime.Environment) *RootCommand {
 		SilenceErrors: true,
 	}
 
+	rootCmd.SetArgs(env.Args()[1:])
+
 	profilerConfig := runtime.ProfilerConfig{}
 
 	rootCmd.PersistentFlags().BoolVar(&profilerConfig.CPUProfile, "cpu-profile", false, "profile agent execution")
