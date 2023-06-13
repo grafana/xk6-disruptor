@@ -72,7 +72,7 @@ func Test_CancelContext(t *testing.T) {
 
 			err := rootCmd.Do(ctx)
 			if !errors.Is(err, tc.err) {
-				t.Errorf("expected %v got %v", err, tc.err)
+				t.Errorf("expected %v got %v", tc.err, err)
 			}
 		})
 	}
