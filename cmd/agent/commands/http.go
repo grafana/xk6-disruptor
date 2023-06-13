@@ -57,7 +57,7 @@ func BuildHTTPCmd(env runtime.Environment) *cobra.Command {
 				return err
 			}
 
-			return disruptor.Apply(duration)
+			return disruptor.Apply(cmd.Context(), duration)
 		},
 	}
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")

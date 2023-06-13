@@ -4,6 +4,7 @@
 package protocol
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 // Disruptor defines the interface agent
 type Disruptor interface {
-	Apply(duration time.Duration) error
+	Apply(context.Context, time.Duration) error
 }
 
 // DisruptorConfig defines the configuration options for the Disruptor
@@ -89,7 +90,7 @@ func NewDisruptor(
 }
 
 // Apply applies the Disruption to the target system
-func (d *disruptor) Apply(duration time.Duration) error {
+func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 	if duration < time.Second {
 		return fmt.Errorf("duration must be at least one second")
 	}
@@ -110,7 +111,7 @@ func (d *disruptor) Apply(duration time.Duration) error {
 		_ = d.proxy.Stop()
 	}()
 
-	// Wait for request duration or proxy server error
+	// Wait for request duration, context cancellation or proxy server error
 	for {
 		select {
 		case err := <-wc:
@@ -119,6 +120,8 @@ func (d *disruptor) Apply(duration time.Duration) error {
 			}
 		case <-time.After(duration):
 			return nil
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 }
