@@ -17,7 +17,7 @@ type RootCommand struct {
 
 // BuildRootCmd builds the root command for the agent with all the persistent flags.
 // It also initializes/terminates the profiling if requested.
-func BuildRootCmd(env runtime.Environment) *RootCommand {
+func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCommand {
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
 		Short: "Inject disruptions in a system",
@@ -42,8 +42,9 @@ func BuildRootCmd(env runtime.Environment) *RootCommand {
 	rootCmd.PersistentFlags().StringVar(&profilerConfig.TraceFileName, "trace-file", "trace.out", "tracing output file")
 
 	// Add subcommands
-	rootCmd.AddCommand(BuildHTTPCmd(env))
-	rootCmd.AddCommand(BuildGrpcCmd(env))
+	for _, sc := range subcommands {
+		rootCmd.AddCommand(sc)
+	}
 
 	return &RootCommand{
 		env:            env,
