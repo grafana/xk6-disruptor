@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"io"
+	"os"
 	"strings"
 )
 
@@ -147,6 +148,48 @@ type FakeRuntime struct {
 	FakeExecutor *FakeExecutor
 	FakeProfiler *FakeProfiler
 	FakeLock     *FakeLock
+	FakeSignal   *FakeSignal
+}
+
+// FakeSignal implements a fake signal handling for testing
+type FakeSignal struct {
+	signals map[os.Signal]bool
+	channel chan os.Signal
+}
+
+// NewFakeSignal returns a FakeSignal
+func NewFakeSignal() *FakeSignal {
+	return &FakeSignal{
+		channel: make(chan os.Signal),
+		signals: map[os.Signal]bool{},
+	}
+}
+
+// Notify implements Signal's interface Notify method
+func (f *FakeSignal) Notify(signals ...os.Signal) <-chan os.Signal {
+	for _, s := range signals {
+		f.signals[s] = true
+	}
+	return f.channel
+}
+
+// Reset implements Signal's interface Reset method
+func (f *FakeSignal) Reset(signals ...os.Signal) {
+	if len(signals) == 0 {
+		f.signals = map[os.Signal]bool{}
+	} else {
+		for _, s := range signals {
+			delete(f.signals, s)
+		}
+	}
+}
+
+// SendSignal sends the given signal to the signal notification channel if the signal was
+// previously specified in a call to Notify
+func (f *FakeSignal) SendSignal(signal os.Signal) {
+	if f.signals[signal] {
+		f.channel <- signal
+	}
 }
 
 // NewFakeRuntime creates a default FakeRuntime
@@ -157,10 +200,9 @@ func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
 		FakeProfiler: NewFakeProfiler(),
 		FakeExecutor: NewFakeExecutor(nil, nil),
 		FakeLock:     NewFakeLock(),
+		FakeSignal:   NewFakeSignal(),
 	}
 }
-
-// implement Runtime interface
 
 // Profiler implements Profiler method from Runtime interface
 func (f *FakeRuntime) Profiler() Profiler {
@@ -185,4 +227,9 @@ func (f *FakeRuntime) Vars() map[string]string {
 // Args implements Args method from Runtime interface
 func (f *FakeRuntime) Args() []string {
 	return f.FakeArgs
+}
+
+// Signal implements Signal method from Runtime interface
+func (f *FakeRuntime) Signal() Signals {
+	return f.FakeSignal
 }

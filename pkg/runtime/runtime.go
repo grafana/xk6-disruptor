@@ -19,6 +19,8 @@ type Environment interface {
 	Vars() map[string]string
 	// Args returns the arguments passed to the process
 	Args() []string
+	// Signal returns an interface for handling signals
+	Signal() Signals
 }
 
 // environment keeps the state of the execution environment
@@ -26,6 +28,7 @@ type environment struct {
 	executor Executor
 	lock     Lock
 	profiler Profiler
+	signals  Signals
 	vars     map[string]string
 	args     []string
 }
@@ -49,6 +52,7 @@ func DefaultEnvironment() Environment {
 		executor: DefaultExecutor(),
 		profiler: DefaultProfiler(),
 		lock:     DefaultLock(),
+		signals:  DefaultSignals(),
 		vars:     vars,
 		args:     args,
 	}
@@ -72,4 +76,8 @@ func (e *environment) Vars() map[string]string {
 
 func (e *environment) Args() []string {
 	return e.args
+}
+
+func (e *environment) Signal() Signals {
+	return e.signals
 }
