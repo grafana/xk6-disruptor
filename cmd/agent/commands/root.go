@@ -55,6 +55,7 @@ func (r *RootCommand) Do(ctx context.Context) error {
 	if err := r.env.Process().Lock(); err != nil {
 		return fmt.Errorf("could not acquire process lock %w", err)
 	}
+
 	defer func() {
 		_ = r.env.Process().Unlock()
 	}()
@@ -75,5 +76,17 @@ func (r *RootCommand) Do(ctx context.Context) error {
 	// pass context to subcommands
 	r.cmd.SetContext(ctx)
 
-	return r.cmd.Execute()
+	// execute command in a goroutine to prevent blocking
+	cc := make(chan error)
+	go func() {
+		cc <- r.cmd.Execute()
+	}()
+
+	// wait for command completion or cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-cc:
+		return err
+	}
 }
