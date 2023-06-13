@@ -4,13 +4,50 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
-// Lock tries to acquire an execution lock for the given file.
+// Lock defines a process lock
+type Lock interface {
+	// Acquire tries to acquire an execution lock to prevent concurrent executions.
+	// Returns false if lock is already acquired by another process.
+	Acquire() (bool, error)
+	// Release releases the execution lock
+	Release() error
+}
+
+// lock maintains the state of a file based lock
+type filelock struct {
+	path string
+}
+
+// DefaultLock create a new Lock for the currently running process
+func DefaultLock() Lock {
+	name := filepath.Base(os.Args[0])
+
+	// get runtime directory for user
+	lockDir := os.Getenv("XDG_RUNTIME_DIR")
+	if lockDir == "" {
+		lockDir = os.TempDir()
+	}
+
+	return &filelock{
+		path: filepath.Join(lockDir, name),
+	}
+}
+
+// NewFileLock returns a file lock for the given path
+func NewFileLock(path string) Lock {
+	return &filelock{
+		path: path,
+	}
+}
+
+// Acquire tries to acquire an execution lock for the given file.
 // Returns true if lock is acquired.
-func Lock(path string) (bool, error) {
-	tempLock, err := createTempLock(path)
+func (l *filelock) Acquire() (bool, error) {
+	tempLock, err := createTempLock(l.path)
 	if err != nil {
 		return false, err
 	}
@@ -28,20 +65,20 @@ func Lock(path string) (bool, error) {
 			panic("unexpected error cleaning up lock file")
 		}
 
-		lockFile, errDefer := os.Stat(path)
+		lockFile, errDefer := os.Stat(l.path)
 		// if the lock was not created or we did not acquire the lock, remove the temp lock
 		if os.IsNotExist(errDefer) || !os.SameFile(lockFile, tempLockFile) {
 			_ = os.Remove(tempLock)
 		}
 	}()
 
-	err = os.Link(tempLock, path)
+	err = os.Link(tempLock, l.path)
 
 	// some other process already own the lock, let's check this is a legit lock
 	if os.IsExist(err) {
-		owner, errOwner := getOwner(path)
+		owner, errOwner := getOwner(l.path)
 		if errOwner != nil {
-			return false, err
+			return false, fmt.Errorf("could not get lock owner: %w", err)
 		}
 
 		// process is the current owner
@@ -55,11 +92,11 @@ func Lock(path string) (bool, error) {
 		}
 
 		// owner is not alive, remove file and try again
-		err = os.Remove(path)
+		err = os.Remove(l.path)
 		if err != nil {
 			return false, err
 		}
-		err = os.Link(tempLock, path)
+		err = os.Link(tempLock, l.path)
 	}
 
 	if err != nil {
@@ -71,8 +108,8 @@ func Lock(path string) (bool, error) {
 
 // Unlock releases the ownership of a lock.
 // Returns an error if the invoking process is not the current owner
-func Unlock(path string) error {
-	owner, err := getOwner(path)
+func (l *filelock) Release() error {
+	owner, err := getOwner(l.path)
 	if err != nil {
 		return err
 	}
@@ -81,7 +118,7 @@ func Unlock(path string) error {
 		return fmt.Errorf("process is not owner of lock file")
 	}
 
-	return os.Remove(path)
+	return os.Remove(l.path)
 }
 
 // getOwner returns the owner of the lockfile.
@@ -99,7 +136,7 @@ func getOwner(path string) (int, error) {
 	var pid int
 	_, err = fmt.Sscanf(string(content), "%d", &pid)
 	if err != nil {
-		//lint:ignore nilerr  # return value -1 covers case of error scanning pid
+		//nolint:nilerr  // return value -1 covers case of error scanning pid
 		return -1, nil
 	}
 

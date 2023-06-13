@@ -19,50 +19,50 @@ func getDeadProcessPid() string {
 	return string(pid)
 }
 
-func Test_Lock(t *testing.T) {
+func Test_Acquire(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title         string
-		createLock    bool
-		ownerPid      string
-		expectError   bool
-		expectedValue bool
+		title       string
+		createLock  bool
+		ownerPid    string
+		expectError bool
+		acquired    bool
 	}{
 		{
-			title:         "lock does not exist",
-			createLock:    false,
-			ownerPid:      "",
-			expectError:   false,
-			expectedValue: true,
+			title:       "lock does not exist",
+			createLock:  false,
+			ownerPid:    "",
+			expectError: false,
+			acquired:    true,
 		},
 		{
-			title:         "lock with empty owner",
-			createLock:    true,
-			ownerPid:      "",
-			expectError:   false,
-			expectedValue: true,
+			title:       "lock with empty owner",
+			createLock:  true,
+			ownerPid:    "",
+			expectError: false,
+			acquired:    true,
 		},
 		{
-			title:         "process is already owner",
-			createLock:    true,
-			ownerPid:      fmt.Sprintf("%d", os.Getpid()),
-			expectError:   false,
-			expectedValue: true,
+			title:       "process is already owner",
+			createLock:  true,
+			ownerPid:    fmt.Sprintf("%d", os.Getpid()),
+			expectError: false,
+			acquired:    true,
 		},
 		{
-			title:         "lock with other running owner",
-			createLock:    true,
-			ownerPid:      fmt.Sprintf("%d", os.Getppid()),
-			expectError:   false,
-			expectedValue: false,
+			title:       "lock with other running owner",
+			createLock:  true,
+			ownerPid:    fmt.Sprintf("%d", os.Getppid()),
+			expectError: false,
+			acquired:    false,
 		},
 		{
-			title:         "lock with owner not running",
-			createLock:    true,
-			ownerPid:      getDeadProcessPid(),
-			expectError:   false,
-			expectedValue: true,
+			title:       "lock with owner not running",
+			createLock:  true,
+			ownerPid:    getDeadProcessPid(),
+			expectError: false,
+			acquired:    true,
 		},
 	}
 
@@ -83,36 +83,38 @@ func Test_Lock(t *testing.T) {
 			if tc.createLock {
 				lockFile, err := os.Create(testLock)
 				if err != nil {
-					t.Errorf("error in test setup: %t", err)
+					t.Errorf("error in test setup: %v", err)
 					return
 				}
 
 				_, err = lockFile.Write([]byte(tc.ownerPid))
 				if err != nil {
-					t.Errorf("error in test setup: %t", err)
+					t.Errorf("error in test setup: %v", err)
 					return
 				}
 			}
 
-			locked, err := Lock(testLock)
+			lock := NewFileLock(testLock)
+
+			acquired, err := lock.Acquire()
 			if err != nil && !tc.expectError {
-				t.Errorf("failed: %t", err)
+				t.Errorf("failed: %v", err)
 				return
 			}
 
-			if err == nil && tc.expectError {
+			if acquired != tc.acquired {
+				t.Errorf("expected acquired %t got %t", tc.acquired, acquired)
+			}
+
+			if tc.expectError && err == nil {
 				t.Errorf("Should had failed")
 				return
-			}
-
-			if err != nil && locked != tc.expectedValue {
-				t.Errorf("expected %t but received %t", tc.expectedValue, locked)
 			}
 		})
 	}
 }
 
-func Test_Unlock(t *testing.T) {
+func Test_Release(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -164,25 +166,27 @@ func Test_Unlock(t *testing.T) {
 			if tc.createLock {
 				lockFile, err := os.Create(testLock)
 				if err != nil {
-					t.Errorf("error in test setup: %t", err)
+					t.Errorf("error in test setup: %v", err)
 					return
 				}
 
 				_, err = lockFile.Write([]byte(tc.ownerPid))
 				if err != nil {
-					t.Errorf("error in test setup: %t", err)
+					t.Errorf("error in test setup: %v", err)
 					return
 				}
 			}
 
-			err := Unlock(testLock)
-			if err != nil && !tc.expectError {
-				t.Errorf("failed: %t", err)
+			lock := NewFileLock(testLock)
+
+			err := lock.Release()
+			if tc.expectError && err == nil {
+				t.Errorf("Should had failed")
 				return
 			}
 
-			if err == nil && tc.expectError {
-				t.Errorf("Should had failed")
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
 				return
 			}
 		})

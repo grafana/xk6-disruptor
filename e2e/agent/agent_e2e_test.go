@@ -225,7 +225,7 @@ func Test_Agent(t *testing.T) {
 			t.Errorf("command should had failed")
 		}
 
-		if !strings.Contains(string(stderr), "is already in execution") {
+		if !strings.Contains(string(stderr), "is already running") {
 			t.Errorf("unexpected error: %s: ", string(stderr))
 		}
 	})

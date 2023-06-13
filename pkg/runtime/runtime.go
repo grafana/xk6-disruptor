@@ -11,8 +11,8 @@ import (
 type Environment interface {
 	// Executor returns a process executor that abstracts os.Exec
 	Executor() Executor
-	// Process returns an interface for managing the process execution
-	Process() Process
+	// Lock returns an interface for a process lock
+	Lock() Lock
 	// Profiler return an execution profiler
 	Profiler() Profiler
 	// Vars returns the environment variables
@@ -24,7 +24,7 @@ type Environment interface {
 // environment keeps the state of the execution environment
 type environment struct {
 	executor Executor
-	process  Process
+	lock     Lock
 	profiler Profiler
 	vars     map[string]string
 	args     []string
@@ -47,8 +47,8 @@ func DefaultEnvironment() Environment {
 	vars := getEnv()
 	return &environment{
 		executor: DefaultExecutor(),
-		process:  DefaultProcess(args, vars),
 		profiler: DefaultProfiler(),
+		lock:     DefaultLock(),
 		vars:     vars,
 		args:     args,
 	}
@@ -58,8 +58,8 @@ func (e *environment) Executor() Executor {
 	return e.executor
 }
 
-func (e *environment) Process() Process {
-	return e.process
+func (e *environment) Lock() Lock {
+	return e.lock
 }
 
 func (e *environment) Profiler() Profiler {
