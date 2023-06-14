@@ -192,9 +192,9 @@ func (f *FakeSignal) Reset(signals ...os.Signal) {
 	}
 }
 
-// SendSignal sends the given signal to the signal notification channel if the signal was
+// Send sends the given signal to the signal notification channel if the signal was
 // previously specified in a call to Notify
-func (f *FakeSignal) SendSignal(signal os.Signal) {
+func (f *FakeSignal) Send(signal os.Signal) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 

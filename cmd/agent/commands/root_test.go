@@ -125,7 +125,7 @@ func Test_Signals(t *testing.T) {
 			go func() {
 				time.Sleep(1 * time.Second)
 				if tc.signal != nil {
-					env.FakeSignal.SendSignal(tc.signal)
+					env.FakeSignal.Send(tc.signal)
 				}
 			}()
 
