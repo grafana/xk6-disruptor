@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"io"
 	"os"
 	goruntime "runtime"
 	"runtime/pprof"
@@ -20,10 +19,10 @@ type ProfilerConfig struct {
 	TraceFileName      string
 }
 
-// Profiler defines the methods to control execution profiling
+// Profiler defines the methods to control the execution profiling
 type Profiler interface {
-	// Start initiates the tracing. If already active, has no effect
-	Start(ProfilerConfig) (io.Closer, error)
+	// Stops profiling
+	Stop() error
 }
 
 // profiler maintains the configuration state of the profiler
@@ -34,12 +33,10 @@ type profiler struct {
 	traceFile      *os.File
 }
 
-// DefaultProfiler creates a Profiler instance
-func DefaultProfiler() Profiler {
-	return &profiler{}
-}
-
-func (p *profiler) Start(config ProfilerConfig) (io.Closer, error) {
+// StartProfiler starts the profiler with the given configuration, returning a Profiler
+// to control its execution.
+func StartProfiler(config ProfilerConfig) (Profiler, error) {
+	p := &profiler{}
 	var err error
 
 	if config.MemProfile {
@@ -94,7 +91,7 @@ func (p *profiler) Start(config ProfilerConfig) (io.Closer, error) {
 	return p, nil
 }
 
-func (p *profiler) Close() error {
+func (p *profiler) Stop() error {
 	if p.CPUProfile {
 		pprof.StopCPUProfile()
 	}

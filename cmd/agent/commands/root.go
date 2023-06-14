@@ -67,13 +67,13 @@ func (r *RootCommand) Do(ctx context.Context) error {
 		_ = r.env.Lock().Release()
 	}()
 
-	profiler, err := r.env.Profiler().Start(r.profilerConfig)
+	profiler, err := runtime.StartProfiler(r.profilerConfig)
 	if err != nil {
 		return fmt.Errorf("could not create profiler %w", err)
 	}
 
 	defer func() {
-		_ = profiler.Close()
+		_ = profiler.Stop()
 	}()
 
 	// set context for command

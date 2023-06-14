@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"io"
 	"strings"
 )
 
@@ -94,29 +93,6 @@ func NewCallbackExecutor(callback ExecCallback) *CallbackExecutor {
 	}
 }
 
-// FakeProfiler is a noop profiler for testing
-type FakeProfiler struct {
-	started bool
-	stopped bool
-}
-
-// NewFakeProfiler creates a new FakeProfiler
-func NewFakeProfiler() *FakeProfiler {
-	return &FakeProfiler{}
-}
-
-// Start updates the FakeProfiler to registers it was started
-func (p *FakeProfiler) Start(c ProfilerConfig) (io.Closer, error) {
-	p.started = true
-	return p, nil
-}
-
-// Close updates the FakeProfiler to registers it was stopped operation
-func (p *FakeProfiler) Close() error {
-	p.stopped = true
-	return nil
-}
-
 // FakeLock implements a Lock for testing
 type FakeLock struct {
 	locked   bool
@@ -145,7 +121,6 @@ type FakeRuntime struct {
 	FakeArgs     []string
 	FakeVars     map[string]string
 	FakeExecutor *FakeExecutor
-	FakeProfiler *FakeProfiler
 	FakeLock     *FakeLock
 }
 
@@ -154,18 +129,12 @@ func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
 	return &FakeRuntime{
 		FakeArgs:     args,
 		FakeVars:     vars,
-		FakeProfiler: NewFakeProfiler(),
 		FakeExecutor: NewFakeExecutor(nil, nil),
 		FakeLock:     NewFakeLock(),
 	}
 }
 
 // implement Runtime interface
-
-// Profiler implements Profiler method from Runtime interface
-func (f *FakeRuntime) Profiler() Profiler {
-	return f.FakeProfiler
-}
 
 // Executor implements Executor method from Runtime interface
 func (f *FakeRuntime) Executor() Executor {
