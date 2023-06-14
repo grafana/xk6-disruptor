@@ -117,33 +117,25 @@ func (p *FakeProfiler) Close() error {
 	return nil
 }
 
-// FakeProcess implements a Process for testing
-type FakeProcess struct {
-	name     string
+// FakeLock implements a Lock for testing
+type FakeLock struct {
 	locked   bool
 	unlocked bool
 }
 
-// NewFakeProcess returns a default FakeProcess for testing
-func NewFakeProcess(name string) *FakeProcess {
-	return &FakeProcess{
-		name: name,
-	}
+// NewFakeLock returns a default FakeProcess for testing
+func NewFakeLock() *FakeLock {
+	return &FakeLock{}
 }
 
-// Name implements Name method from Process interface
-func (p *FakeProcess) Name() string {
-	return p.name
-}
-
-// Lock implements Lock method from Process interface
-func (p *FakeProcess) Lock() error {
+// Acquire implements Acquire method from Lock interface
+func (p *FakeLock) Acquire() (bool, error) {
 	p.locked = true
-	return nil
+	return true, nil
 }
 
-// Unlock implements Unlock method from Process interface
-func (p *FakeProcess) Unlock() error {
+// Release implements Release method from Lock interface
+func (p *FakeLock) Release() error {
 	p.unlocked = true
 	return nil
 }
@@ -154,7 +146,7 @@ type FakeRuntime struct {
 	FakeVars     map[string]string
 	FakeExecutor *FakeExecutor
 	FakeProfiler *FakeProfiler
-	FakeProcess  *FakeProcess
+	FakeLock     *FakeLock
 }
 
 // NewFakeRuntime creates a default FakeRuntime
@@ -164,7 +156,7 @@ func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
 		FakeVars:     vars,
 		FakeProfiler: NewFakeProfiler(),
 		FakeExecutor: NewFakeExecutor(nil, nil),
-		FakeProcess:  NewFakeProcess(args[0]),
+		FakeLock:     NewFakeLock(),
 	}
 }
 
@@ -180,9 +172,9 @@ func (f *FakeRuntime) Executor() Executor {
 	return f.FakeExecutor
 }
 
-// Process implements Process method from Runtime interface
-func (f *FakeRuntime) Process() Process {
-	return f.FakeProcess
+// Lock implements Lock method from Runtime interface
+func (f *FakeRuntime) Lock() Lock {
+	return f.FakeLock
 }
 
 // Vars implements Vars method from Runtime interface

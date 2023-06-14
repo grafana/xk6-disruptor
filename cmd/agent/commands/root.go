@@ -55,12 +55,16 @@ func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCo
 
 // Do executes the RootCommand
 func (r *RootCommand) Do(ctx context.Context) error {
-	if err := r.env.Process().Lock(); err != nil {
-		return fmt.Errorf("could not acquire process lock %w", err)
+	acquired, err := r.env.Lock().Acquire()
+	if err != nil {
+		return fmt.Errorf("could not acquire process lock: %w", err)
+	}
+	if !acquired {
+		return fmt.Errorf("another instance of the agent is already running")
 	}
 
 	defer func() {
-		_ = r.env.Process().Unlock()
+		_ = r.env.Lock().Release()
 	}()
 
 	profiler, err := r.env.Profiler().Start(r.profilerConfig)
