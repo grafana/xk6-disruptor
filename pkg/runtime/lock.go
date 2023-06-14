@@ -17,7 +17,7 @@ type Lock interface {
 	Release() error
 }
 
-// lock maintains the state of a file based lock
+// filelock maintains the state of a file based lock
 type filelock struct {
 	path string
 }
