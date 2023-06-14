@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"io"
+	"os"
 	"strings"
 )
 
@@ -147,6 +148,35 @@ type FakeRuntime struct {
 	FakeExecutor *FakeExecutor
 	FakeProfiler *FakeProfiler
 	FakeLock     *FakeLock
+	FakeSignal   *FakeSignal
+}
+
+// FakeSignal implements a fake signal handling for testing
+type FakeSignal struct {
+	channel chan os.Signal
+}
+
+// NewFakeSignal returns a FakeSignal
+func NewFakeSignal() *FakeSignal {
+	return &FakeSignal{
+		channel: make(chan os.Signal),
+	}
+}
+
+// Notify implements Signal's interface Notify method
+func (f *FakeSignal) Notify(signals ...os.Signal) <-chan os.Signal {
+	return f.channel
+}
+
+// Reset implements Signal's interface Reset method. It is noop.
+func (f *FakeSignal) Reset(signals ...os.Signal) {
+	// noop
+}
+
+// Send sends the given signal to the signal notification channel if the signal was
+// previously specified in a call to Notify
+func (f *FakeSignal) Send(signal os.Signal) {
+	f.channel <- signal
 }
 
 // NewFakeRuntime creates a default FakeRuntime
@@ -157,10 +187,9 @@ func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
 		FakeProfiler: NewFakeProfiler(),
 		FakeExecutor: NewFakeExecutor(nil, nil),
 		FakeLock:     NewFakeLock(),
+		FakeSignal:   NewFakeSignal(),
 	}
 }
-
-// implement Runtime interface
 
 // Profiler implements Profiler method from Runtime interface
 func (f *FakeRuntime) Profiler() Profiler {
@@ -185,4 +214,9 @@ func (f *FakeRuntime) Vars() map[string]string {
 // Args implements Args method from Runtime interface
 func (f *FakeRuntime) Args() []string {
 	return f.FakeArgs
+}
+
+// Signal implements Signal method from Runtime interface
+func (f *FakeRuntime) Signal() Signals {
+	return f.FakeSignal
 }

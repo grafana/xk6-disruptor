@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"syscall"
 	"testing"
 	"time"
 
@@ -58,6 +59,7 @@ func Test_CancelContext(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
@@ -73,6 +75,69 @@ func Test_CancelContext(t *testing.T) {
 			err := rootCmd.Do(ctx)
 			if !errors.Is(err, tc.err) {
 				t.Errorf("expected %v got %v", tc.err, err)
+			}
+		})
+	}
+}
+
+func Test_Signals(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title     string
+		args      []string
+		vars      map[string]string
+		subcmds   []*cobra.Command
+		signal    syscall.Signal
+		expectErr bool
+	}{
+		{
+			title: "Command is canceled with interrupt",
+			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			vars:  map[string]string{},
+			subcmds: []*cobra.Command{
+				BuildNoopCmd(),
+			},
+			signal:    syscall.SIGINT,
+			expectErr: true,
+		},
+		{
+			title: "Command is not canceled with interrupt",
+			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			vars:  map[string]string{},
+			subcmds: []*cobra.Command{
+				BuildNoopCmd(),
+			},
+			signal:    0,
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+			env := runtime.NewFakeRuntime(tc.args, tc.vars)
+
+			rootCmd := BuildRootCmd(env, tc.subcmds)
+
+			go func() {
+				time.Sleep(1 * time.Second)
+				if tc.signal != 0 {
+					env.FakeSignal.Send(tc.signal)
+				}
+			}()
+
+			err := rootCmd.Do(context.Background())
+			if tc.expectErr && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
 			}
 		})
 	}
