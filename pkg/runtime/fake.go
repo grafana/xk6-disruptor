@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 )
 
 // FakeExecutor is an instance of a ProcessExecutor that keeps the history
@@ -154,8 +153,6 @@ type FakeRuntime struct {
 
 // FakeSignal implements a fake signal handling for testing
 type FakeSignal struct {
-	lock    sync.Mutex
-	signals map[os.Signal]bool
 	channel chan os.Signal
 }
 
@@ -163,44 +160,23 @@ type FakeSignal struct {
 func NewFakeSignal() *FakeSignal {
 	return &FakeSignal{
 		channel: make(chan os.Signal),
-		signals: map[os.Signal]bool{},
 	}
 }
 
 // Notify implements Signal's interface Notify method
 func (f *FakeSignal) Notify(signals ...os.Signal) <-chan os.Signal {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	for _, s := range signals {
-		f.signals[s] = true
-	}
 	return f.channel
 }
 
-// Reset implements Signal's interface Reset method
+// Reset implements Signal's interface Reset method. It is noop.
 func (f *FakeSignal) Reset(signals ...os.Signal) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	if len(signals) == 0 {
-		f.signals = map[os.Signal]bool{}
-	} else {
-		for _, s := range signals {
-			delete(f.signals, s)
-		}
-	}
+	// noop
 }
 
 // Send sends the given signal to the signal notification channel if the signal was
 // previously specified in a call to Notify
 func (f *FakeSignal) Send(signal os.Signal) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	if f.signals[signal] {
-		f.channel <- signal
-	}
+	f.channel <- signal
 }
 
 // NewFakeRuntime creates a default FakeRuntime
