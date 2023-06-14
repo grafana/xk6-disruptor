@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
+	"syscall"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
@@ -56,7 +56,7 @@ func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCo
 
 // Do executes the RootCommand
 func (r *RootCommand) Do(ctx context.Context) error {
-	sc := r.env.Signal().Notify(os.Interrupt)
+	sc := r.env.Signal().Notify(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer func() {
 		r.env.Signal().Reset()
 	}()
