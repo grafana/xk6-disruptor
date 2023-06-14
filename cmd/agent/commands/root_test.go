@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
-	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -88,7 +88,7 @@ func Test_Signals(t *testing.T) {
 		args      []string
 		vars      map[string]string
 		subcmds   []*cobra.Command
-		signal    os.Signal
+		signal    syscall.Signal
 		expectErr bool
 	}{
 		{
@@ -98,7 +98,7 @@ func Test_Signals(t *testing.T) {
 			subcmds: []*cobra.Command{
 				BuildNoopCmd(),
 			},
-			signal:    os.Interrupt,
+			signal:    syscall.SIGINT,
 			expectErr: true,
 		},
 		{
@@ -108,7 +108,7 @@ func Test_Signals(t *testing.T) {
 			subcmds: []*cobra.Command{
 				BuildNoopCmd(),
 			},
-			signal:    nil,
+			signal:    0,
 			expectErr: false,
 		},
 	}
@@ -124,7 +124,7 @@ func Test_Signals(t *testing.T) {
 
 			go func() {
 				time.Sleep(1 * time.Second)
-				if tc.signal != nil {
+				if tc.signal != 0 {
 					env.FakeSignal.Send(tc.signal)
 				}
 			}()
