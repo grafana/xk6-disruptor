@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/http"
-	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
 // BuildHTTPCmd returns a cobra command with the specification of the http command
-func BuildHTTPCmd(env runtime.Environment) *cobra.Command {
+func BuildHTTPCmd(agent *agent.Agent) *cobra.Command {
 	disruption := http.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -29,37 +29,30 @@ func BuildHTTPCmd(env runtime.Environment) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("http://%s:%d", upstreamHost, target)
-			proxy, err := http.NewProxy(
-				http.ProxyConfig{
-					ListenAddress:   listenAddress,
-					UpstreamAddress: upstreamAddress,
-				}, disruption)
-			if err != nil {
-				return err
+
+			proxyConfig := http.ProxyConfig{
+				ListenAddress:   listenAddress,
+				UpstreamAddress: upstreamAddress,
 			}
 
-			// run as a regular proxy
-			if !transparent {
-				// TODO: pass a context with a timeout using the duration argument
-				return proxy.Start()
+			disruptorConfig := protocol.DisruptorConfig{
+				TargetPort:   target,
+				RedirectPort: port,
+				Iface:        iface,
 			}
 
-			disruptor, err := protocol.NewDisruptor(
-				env.Executor(),
-				protocol.DisruptorConfig{
-					TargetPort:   target,
-					RedirectPort: port,
-					Iface:        iface,
-				},
-				proxy,
+			err := agent.ApplyHTTPDisruption(
+				cmd.Context(),
+				proxyConfig,
+				disruption,
+				disruptorConfig,
+				transparent,
+				duration,
 			)
-			if err != nil {
-				return err
-			}
-
-			return disruptor.Apply(cmd.Context(), duration)
+			return err
 		},
 	}
+
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")
 	cmd.Flags().DurationVarP(&disruption.AverageDelay, "average-delay", "a", 0, "average request delay")
 	cmd.Flags().DurationVarP(&disruption.DelayVariation, "delay-variation", "v", 0, "variation in request delay")

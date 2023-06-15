@@ -1,4 +1,4 @@
-package main
+package agent
 
 import (
 	"context"
@@ -8,53 +8,50 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
-	"github.com/spf13/cobra"
 )
 
-// BuildNoopCmd returns a corba.Command that returns after the given delay
-func BuildNoopCmd(args []string) *cobra.Command {
-	var delay time.Duration
-
-	cmd := &cobra.Command{
-		Use: "noop",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			time.Sleep(delay)
-			return nil
-		},
+// BuildNoop returns a function that return the given error after a delay
+func BuildNoop(delay time.Duration, err error) func(context.Context) error {
+	return func(ctx context.Context) error {
+		// TODO: handle context cancellation
+		time.Sleep(delay)
+		return err
 	}
-
-	cmd.Flags().DurationVarP(&delay, "delay", "d", 0, "delay of the disruptions")
-	cmd.SetArgs(args[1:])
-	return cmd
 }
 
 func Test_CancelContext(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title  string
-		args   []string
-		vars   map[string]string
-		config *AgentConfig
-		err    error
+		title    string
+		vars     map[string]string
+		args     []string
+		delay    time.Duration
+		err      error
+		config   *Config
+		expected error
 	}{
 		{
 			title: "Command is not canceled",
-			args:  []string{"noop", "-d", "0s"},
 			vars:  map[string]string{},
-			config: &AgentConfig{
-				profiler: &runtime.ProfilerConfig{},
+			args:  []string{},
+			delay: 0 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
-			err: nil,
+			expected: nil,
 		},
 		{
 			title: "Command is canceled",
-			args:  []string{"noop", "-d", "5s"},
+			delay: 5 * time.Second,
+			err:   nil,
 			vars:  map[string]string{},
-			config: &AgentConfig{
-				profiler: &runtime.ProfilerConfig{},
+			args:  []string{},
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
-			err: context.Canceled,
+			expected: context.Canceled,
 		},
 	}
 
@@ -73,9 +70,9 @@ func Test_CancelContext(t *testing.T) {
 				cancel()
 			}()
 
-			cmd := BuildNoopCmd(tc.args)
-			err := agent.Do(ctx, cmd)
-			if !errors.Is(err, tc.err) {
+			cmd := BuildNoop(tc.delay, tc.err)
+			err := agent.do(ctx, cmd)
+			if !errors.Is(err, tc.expected) {
 				t.Errorf("expected %v got %v", tc.err, err)
 			}
 		})
@@ -89,26 +86,32 @@ func Test_Signals(t *testing.T) {
 		title     string
 		args      []string
 		vars      map[string]string
-		config    *AgentConfig
+		delay     time.Duration
+		err       error
+		config    *Config
 		signal    syscall.Signal
 		expectErr bool
 	}{
 		{
 			title: "Command is canceled with interrupt",
-			args:  []string{"noop", "-d", "5s"},
+			args:  []string{},
 			vars:  map[string]string{},
-			config: &AgentConfig{
-				profiler: &runtime.ProfilerConfig{},
+			delay: 5 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    syscall.SIGINT,
 			expectErr: true,
 		},
 		{
 			title: "Command is not canceled with interrupt",
-			args:  []string{"noop", "-d", "5s"},
+			args:  []string{},
 			vars:  map[string]string{},
-			config: &AgentConfig{
-				profiler: &runtime.ProfilerConfig{},
+			delay: 5 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    0,
 			expectErr: false,
@@ -131,8 +134,8 @@ func Test_Signals(t *testing.T) {
 				}
 			}()
 
-			cmd := BuildNoopCmd(tc.args)
-			err := agent.Do(context.Background(), cmd)
+			cmd := BuildNoop(tc.delay, tc.err)
+			err := agent.do(context.Background(), cmd)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return
