@@ -1,4 +1,4 @@
-package commands
+package main
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 // BuildNoopCmd returns a corba.Command that returns after the given delay
-func BuildNoopCmd() *cobra.Command {
+func BuildNoopCmd(args []string) *cobra.Command {
 	var delay time.Duration
 
 	cmd := &cobra.Command{
@@ -24,6 +24,7 @@ func BuildNoopCmd() *cobra.Command {
 	}
 
 	cmd.Flags().DurationVarP(&delay, "delay", "d", 0, "delay of the disruptions")
+	cmd.SetArgs(args[1:])
 	return cmd
 }
 
@@ -31,27 +32,27 @@ func Test_CancelContext(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title   string
-		args    []string
-		vars    map[string]string
-		subcmds []*cobra.Command
-		err     error
+		title  string
+		args   []string
+		vars   map[string]string
+		config *AgentConfig
+		err    error
 	}{
 		{
 			title: "Command is not canceled",
-			args:  []string{"xk6-disruptor", "noop", "-d", "0s"},
+			args:  []string{"noop", "-d", "0s"},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			config: &AgentConfig{
+				profiler: &runtime.ProfilerConfig{},
 			},
 			err: nil,
 		},
 		{
 			title: "Command is canceled",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			args:  []string{"noop", "-d", "5s"},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			config: &AgentConfig{
+				profiler: &runtime.ProfilerConfig{},
 			},
 			err: context.Canceled,
 		},
@@ -64,7 +65,7 @@ func Test_CancelContext(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			rootCmd := BuildRootCmd(env, tc.subcmds)
+			agent := BuildAgent(env, tc.config)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
@@ -72,7 +73,8 @@ func Test_CancelContext(t *testing.T) {
 				cancel()
 			}()
 
-			err := rootCmd.Do(ctx)
+			cmd := BuildNoopCmd(tc.args)
+			err := agent.Do(ctx, cmd)
 			if !errors.Is(err, tc.err) {
 				t.Errorf("expected %v got %v", tc.err, err)
 			}
@@ -87,26 +89,26 @@ func Test_Signals(t *testing.T) {
 		title     string
 		args      []string
 		vars      map[string]string
-		subcmds   []*cobra.Command
+		config    *AgentConfig
 		signal    syscall.Signal
 		expectErr bool
 	}{
 		{
 			title: "Command is canceled with interrupt",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			args:  []string{"noop", "-d", "5s"},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			config: &AgentConfig{
+				profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    syscall.SIGINT,
 			expectErr: true,
 		},
 		{
 			title: "Command is not canceled with interrupt",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			args:  []string{"noop", "-d", "5s"},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			config: &AgentConfig{
+				profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    0,
 			expectErr: false,
@@ -120,7 +122,7 @@ func Test_Signals(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			rootCmd := BuildRootCmd(env, tc.subcmds)
+			agent := BuildAgent(env, tc.config)
 
 			go func() {
 				time.Sleep(1 * time.Second)
@@ -129,7 +131,8 @@ func Test_Signals(t *testing.T) {
 				}
 			}()
 
-			err := rootCmd.Do(context.Background())
+			cmd := BuildNoopCmd(tc.args)
+			err := agent.Do(context.Background(), cmd)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return
