@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/cmd/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
-	"github.com/grafana/xk6-disruptor/pkg/runtime"
+
 	"github.com/spf13/cobra"
 )
 
 // BuildGrpcCmd returns a cobra command with the specification of the grpc command
-func BuildGrpcCmd(env runtime.Environment) *cobra.Command {
+func BuildGrpcCmd(agent *agent.Agent) *cobra.Command {
 	disruption := grpc.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -29,35 +30,27 @@ func BuildGrpcCmd(env runtime.Environment) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
-			proxy, err := grpc.NewProxy(
-				grpc.ProxyConfig{
-					ListenAddress:   listenAddress,
-					UpstreamAddress: upstreamAddress,
-				}, disruption)
-			if err != nil {
-				return err
+			
+			proxyConfig := grpc.ProxyConfig{
+				ListenAddress:   listenAddress,
+				UpstreamAddress: upstreamAddress,
 			}
 
-			// run as a regular proxy
-			if !transparent {
-				// TODO: pass a context with a timeout using the duration argument
-				return proxy.Start()
+			disruptorConfig := protocol.DisruptorConfig{
+				TargetPort:   target,
+				RedirectPort: port,
+				Iface:        iface,
 			}
 
-			disruptor, err := protocol.NewDisruptor(
-				env.Executor(),
-				protocol.DisruptorConfig{
-					TargetPort:   target,
-					RedirectPort: port,
-					Iface:        iface,
-				},
-				proxy,
+			err := agent.GrpcDisruption(
+				cmd.Context(),
+				proxyConfig,
+				disruption,
+				disruptorConfig,
+				transparent,
+				duration,
 			)
-			if err != nil {
-				return err
-			}
-
-			return disruptor.Apply(cmd.Context(), duration)
+			return err
 		},
 	}
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")

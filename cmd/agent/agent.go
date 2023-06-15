@@ -1,17 +1,20 @@
-package main
+package agent
 
 import (
 	"context"
 	"fmt"
 	"syscall"
+	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/http"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
-	"github.com/spf13/cobra"
 )
 
 // AgentConfig maintains the configuration for the execution of the agent
 type AgentConfig struct {
-	profiler *runtime.ProfilerConfig
+	Profiler *runtime.ProfilerConfig
 }
 
 // Agent maintains the state required for executing an agent command
@@ -28,8 +31,8 @@ func BuildAgent(env runtime.Environment, config *AgentConfig) *Agent {
 	}
 }
 
-// Do executes a command in the Agent
-func (r *Agent) Do(ctx context.Context, cmd *cobra.Command) error {
+// do executes a command in the Agent
+func (r *Agent) do(ctx context.Context, action func(context.Context) error) error {
 	sc := r.env.Signal().Notify(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer func() {
 		r.env.Signal().Reset()
@@ -48,7 +51,7 @@ func (r *Agent) Do(ctx context.Context, cmd *cobra.Command) error {
 	}()
 
 	// start profiler
-	profiler, err := r.env.Profiler().Start(*r.config.profiler)
+	profiler, err := r.env.Profiler().Start(*r.config.Profiler)
 	if err != nil {
 		return fmt.Errorf("could not create profiler %w", err)
 	}
@@ -62,12 +65,10 @@ func (r *Agent) Do(ctx context.Context, cmd *cobra.Command) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cmd.SetContext(ctx)
-
-	// execute command in a goroutine to prevent blocking
+	// execute action goroutine to prevent blocking
 	cc := make(chan error)
 	go func() {
-		cc <- cmd.Execute()
+		cc <- action(ctx)
 	}()
 
 	// wait for command completion or cancellation
@@ -79,4 +80,75 @@ func (r *Agent) Do(ctx context.Context, cmd *cobra.Command) error {
 	case s := <-sc:
 		return fmt.Errorf("received signal %q", s)
 	}
+}
+
+func (r *Agent) HTTPDisruption(
+	ctx context.Context,
+	proxyConfig http.ProxyConfig,
+	disruption http.Disruption,
+	config protocol.DisruptorConfig,
+	transparent bool,
+	duration time.Duration,
+) error {
+	proxy, err := http.NewProxy(proxyConfig, disruption)
+	if err != nil {
+		return err
+	}
+
+	// run as a regular proxy
+	if !transparent {
+		// TODO: pass a context with a timeout using the duration argument
+		return r.do(ctx, func(ctx context.Context) error {
+			return proxy.Start()
+		})
+	}
+
+	disruptor, err := protocol.NewDisruptor(
+		r.env.Executor(),
+		config,
+		proxy,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return r.do(ctx, func(ctx context.Context) error {
+		return disruptor.Apply(ctx, duration)
+	})
+}
+
+func (r *Agent) GrpcDisruption(
+	ctx context.Context,
+	proxyConfig grpc.ProxyConfig,
+	disruption grpc.Disruption,
+	config protocol.DisruptorConfig,
+	transparent bool,
+	duration time.Duration,
+) error {
+	proxy, err := grpc.NewProxy(proxyConfig, disruption)
+	if err != nil {
+		return err
+	}
+
+	// run as a regular proxy
+	if !transparent {
+		return r.do(ctx, func(ctx context.Context) error {
+			return proxy.Start()
+		})
+	}
+
+	disruptor, err := protocol.NewDisruptor(
+		r.env.Executor(),
+		config,
+		proxy,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return r.do(ctx, func(ctx context.Context) error {
+		return disruptor.Apply(ctx, duration)
+	})
 }

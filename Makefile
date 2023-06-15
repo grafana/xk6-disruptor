@@ -16,7 +16,7 @@ build: test
 	xk6 build --with $(shell go list -m)=. --output build/k6
 
 build-agent:
-	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent
+	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent/cli
 
 clean:
 	rm -rf image/agent/build build/
