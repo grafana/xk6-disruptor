@@ -1,0 +1,35 @@
+{
+  "extends": [
+    ":disableDependencyDashboard",
+    ":semanticCommitsDisabled"
+  ],
+  "gomod": {}, // Upgrade go dependencies.
+  "github-actions": {}, // Upgrade GitHub actions.
+  // Renovate evaluates all packageRules and does not stop after the first match.
+  // Rules that appear later in this list override earlier rules.
+  "packageRules": [
+    // Group all Go dependencies in the same PR.
+    {
+      "matchManagers": ["gomod"],
+      "groupName": "go dependencies"
+    },
+    // Separate all kubernetes dependencies to a different PR.
+    {
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["k8s.io/"],
+      "groupName": "go k8s libraries"
+    },
+    // Separate k6 dependencies to a different PR.
+    {
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["go.k6.io/"],
+      "groupName": "k6 core"
+    },
+    // Group all core GitHub actions updates in the same PR.
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackagePrefixes": ["actions/"],
+      "groupName": "core github actions"
+    }
+  ]
+}
