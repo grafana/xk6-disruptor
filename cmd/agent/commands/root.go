@@ -2,23 +2,44 @@ package commands
 
 import (
 	"context"
-	"fmt"
-	"syscall"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
-// RootCommand maintains the state required for executing an agent command
+// RootCommand maintains the state for executing a command on the Agent
 type RootCommand struct {
-	env            runtime.Environment
-	cmd            *cobra.Command
-	profilerConfig runtime.ProfilerConfig
+	cmd *cobra.Command
+	env runtime.Environment
 }
 
-// BuildRootCmd builds the root command for the agent with all the persistent flags.
-// It also initializes/terminates the profiling if requested.
-func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCommand {
+// NewRootCommand builds the for the agent that parses the configuration arguments
+func NewRootCommand(env runtime.Environment) *RootCommand {
+	config := &agent.Config{
+		Profiler: &runtime.ProfilerConfig{},
+	}
+
+	rootCmd := buildRootCmd(config)
+	rootCmd.AddCommand(BuildHTTPCmd(env, config))
+	rootCmd.AddCommand(BuildGrpcCmd(env, config))
+
+	return &RootCommand{
+		cmd: rootCmd,
+		env: env,
+	}
+}
+
+// Execute executes the RootCommand
+func (c *RootCommand) Execute(ctx context.Context) error {
+	rootArgs := c.env.Args()[1:]
+	c.cmd.SetArgs(rootArgs)
+	c.cmd.SetContext(ctx)
+
+	return c.cmd.Execute()
+}
+
+func buildRootCmd(c *agent.Config) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "xk6-disruptor-agent",
 		Short: "Inject disruptions in a system",
@@ -28,80 +49,15 @@ func BuildRootCmd(env runtime.Environment, subcommands []*cobra.Command) *RootCo
 		SilenceErrors: true,
 	}
 
-	rootCmd.SetArgs(env.Args()[1:])
-
-	profilerConfig := runtime.ProfilerConfig{}
-
-	rootCmd.PersistentFlags().BoolVar(&profilerConfig.CPUProfile, "cpu-profile", false, "profile agent execution")
-	rootCmd.PersistentFlags().StringVar(&profilerConfig.CPUProfileFileName, "cpu-profile-file", "cpu.pprof",
+	rootCmd.PersistentFlags().BoolVar(&c.Profiler.CPUProfile, "cpu-profile", false, "profile agent execution")
+	rootCmd.PersistentFlags().StringVar(&c.Profiler.CPUProfileFileName, "cpu-profile-file", "cpu.pprof",
 		"cpu profiling output file")
-	rootCmd.PersistentFlags().BoolVar(&profilerConfig.MemProfile, "mem-profile", false, "profile agent memory")
-	rootCmd.PersistentFlags().StringVar(&profilerConfig.MemProfileFileName, "mem-profile-file", "mem.pprof",
+	rootCmd.PersistentFlags().BoolVar(&c.Profiler.MemProfile, "mem-profile", false, "profile agent memory")
+	rootCmd.PersistentFlags().StringVar(&c.Profiler.MemProfileFileName, "mem-profile-file", "mem.pprof",
 		"memory profiling output file")
-	rootCmd.PersistentFlags().IntVar(&profilerConfig.MemProfileRate, "mem-profile-rate", 1, "memory profiling rate")
-	rootCmd.PersistentFlags().BoolVar(&profilerConfig.Trace, "trace", false, "trace agent execution")
-	rootCmd.PersistentFlags().StringVar(&profilerConfig.TraceFileName, "trace-file", "trace.out", "tracing output file")
+	rootCmd.PersistentFlags().IntVar(&c.Profiler.MemProfileRate, "mem-profile-rate", 1, "memory profiling rate")
+	rootCmd.PersistentFlags().BoolVar(&c.Profiler.Trace, "trace", false, "trace agent execution")
+	rootCmd.PersistentFlags().StringVar(&c.Profiler.TraceFileName, "trace-file", "trace.out", "tracing output file")
 
-	// Add subcommands
-	for _, sc := range subcommands {
-		rootCmd.AddCommand(sc)
-	}
-
-	return &RootCommand{
-		env:            env,
-		cmd:            rootCmd,
-		profilerConfig: profilerConfig,
-	}
-}
-
-// Do executes the RootCommand
-func (r *RootCommand) Do(ctx context.Context) error {
-	sc := r.env.Signal().Notify(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	defer func() {
-		r.env.Signal().Reset()
-	}()
-
-	acquired, err := r.env.Lock().Acquire()
-	if err != nil {
-		return fmt.Errorf("could not acquire process lock: %w", err)
-	}
-	if !acquired {
-		return fmt.Errorf("another instance of the agent is already running")
-	}
-
-	defer func() {
-		_ = r.env.Lock().Release()
-	}()
-
-	profiler, err := r.env.Profiler().Start(r.profilerConfig)
-	if err != nil {
-		return fmt.Errorf("could not create profiler %w", err)
-	}
-
-	defer func() {
-		_ = profiler.Close()
-	}()
-
-	// set context for command
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// pass context to subcommands
-	r.cmd.SetContext(ctx)
-
-	// execute command in a goroutine to prevent blocking
-	cc := make(chan error)
-	go func() {
-		cc <- r.cmd.Execute()
-	}()
-
-	// wait for command completion or cancellation
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-cc:
-		return err
-	case s := <-sc:
-		return fmt.Errorf("received signal %q", s)
-	}
+	return rootCmd
 }

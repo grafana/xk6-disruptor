@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
+
 	"github.com/spf13/cobra"
 )
 
 // BuildGrpcCmd returns a cobra command with the specification of the grpc command
-func BuildGrpcCmd(env runtime.Environment) *cobra.Command {
+func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	disruption := grpc.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -29,35 +31,36 @@ func BuildGrpcCmd(env runtime.Environment) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
-			proxy, err := grpc.NewProxy(
-				grpc.ProxyConfig{
-					ListenAddress:   listenAddress,
-					UpstreamAddress: upstreamAddress,
-				}, disruption)
+
+			proxyConfig := grpc.ProxyConfig{
+				ListenAddress:   listenAddress,
+				UpstreamAddress: upstreamAddress,
+			}
+
+			proxy, err := grpc.NewProxy(proxyConfig, disruption)
 			if err != nil {
 				return err
 			}
 
-			// run as a regular proxy
-			if !transparent {
-				// TODO: pass a context with a timeout using the duration argument
-				return proxy.Start()
+			disruptorConfig := protocol.DisruptorConfig{
+				Transparent:  transparent,
+				TargetPort:   target,
+				RedirectPort: port,
+				Iface:        iface,
 			}
 
 			disruptor, err := protocol.NewDisruptor(
 				env.Executor(),
-				protocol.DisruptorConfig{
-					TargetPort:   target,
-					RedirectPort: port,
-					Iface:        iface,
-				},
+				disruptorConfig,
 				proxy,
 			)
 			if err != nil {
 				return err
 			}
 
-			return disruptor.Apply(cmd.Context(), duration)
+			agent := agent.BuildAgent(env, config)
+
+			return agent.ApplyDisruption(cmd.Context(), disruptor, duration)
 		},
 	}
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")

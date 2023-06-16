@@ -19,6 +19,8 @@ type Disruptor interface {
 
 // DisruptorConfig defines the configuration options for the Disruptor
 type DisruptorConfig struct {
+	// Transparent indicates if the disruption will set a transparent proxy or not
+	Transparent bool
 	// Destination port to intercept protocol
 	TargetPort uint
 	// Network interface where the traffic will be intercepted
@@ -41,8 +43,8 @@ type disruptor struct {
 	config DisruptorConfig
 	// Proxy
 	proxy Proxy
-	// TrafficRedirect
-	redirector iptables.TrafficRedirector
+	// Executor used for running commands
+	executor runtime.Executor
 }
 
 // NewDisruptor creates a new instance of a Disruptor that applies a disruptions to a target
@@ -52,40 +54,32 @@ func NewDisruptor(
 	config DisruptorConfig,
 	proxy Proxy,
 ) (Disruptor, error) {
-	if config.RedirectPort == 0 {
-		return nil, fmt.Errorf("redirect port must be valid tcp port")
-	}
+	if config.Transparent {
+		if config.RedirectPort == 0 {
+			return nil, fmt.Errorf("redirect port must be valid tcp port")
+		}
 
-	if config.TargetPort == 0 {
-		return nil, fmt.Errorf("target port must be valid tcp port")
-	}
+		if config.TargetPort == 0 {
+			return nil, fmt.Errorf("target port must be valid tcp port")
+		}
 
-	if config.Iface == "" {
-		return nil, fmt.Errorf("disruption must specify an interface")
+		if config.TargetPort == config.RedirectPort {
+			return nil, fmt.Errorf("target and destination ports cannot be the same")
+		}
+
+		if config.Iface == "" {
+			return nil, fmt.Errorf("disruption must specify an interface")
+		}
 	}
 
 	if proxy == nil {
 		return nil, fmt.Errorf("proxy cannot be null")
 	}
 
-	trCfg := iptables.TrafficRedirectorConfig{
-		Executor: executor,
-	}
-	// Redirect traffic to the proxy
-	tr := &iptables.TrafficRedirectionSpec{
-		Iface:           config.Iface,
-		DestinationPort: config.TargetPort,
-		RedirectPort:    config.RedirectPort,
-	}
-	redirector, err := iptables.NewTrafficRedirectorWithConfig(tr, trCfg)
-	if err != nil {
-		return nil, err
-	}
-
 	return &disruptor{
-		config:     config,
-		proxy:      proxy,
-		redirector: redirector,
+		config:   config,
+		proxy:    proxy,
+		executor: executor,
 	}, nil
 }
 
@@ -100,16 +94,35 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 		wc <- d.proxy.Start()
 	}()
 
-	if err := d.redirector.Start(); err != nil {
-		return fmt.Errorf(" failed traffic redirection: %w", err)
-	}
-
 	// On termination, restore traffic and stop proxy
 	defer func() {
-		// ignore errors when stopping. Nothing to do
-		_ = d.redirector.Stop()
 		_ = d.proxy.Stop()
 	}()
+
+	if d.config.Transparent {
+		trCfg := iptables.TrafficRedirectorConfig{
+			Executor: d.executor,
+		}
+		// Redirect traffic to the proxy
+		tr := &iptables.TrafficRedirectionSpec{
+			Iface:           d.config.Iface,
+			DestinationPort: d.config.TargetPort,
+			RedirectPort:    d.config.RedirectPort,
+		}
+
+		redirector, err := iptables.NewTrafficRedirectorWithConfig(tr, trCfg)
+		if err != nil {
+			return err
+		}
+
+		if err := redirector.Start(); err != nil {
+			return fmt.Errorf(" failed traffic redirection: %w", err)
+		}
+
+		defer func() {
+			_ = redirector.Stop()
+		}()
+	}
 
 	// Wait for request duration, context cancellation or proxy server error
 	for {

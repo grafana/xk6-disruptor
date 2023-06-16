@@ -1,4 +1,4 @@
-package commands
+package agent
 
 import (
 	"context"
@@ -8,52 +8,50 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
-	"github.com/spf13/cobra"
 )
 
-// BuildNoopCmd returns a corba.Command that returns after the given delay
-func BuildNoopCmd() *cobra.Command {
-	var delay time.Duration
+// FakeProtocolDisruptor implements a fake protocol Disruptor
+type FakeProtocolDisruptor struct{}
 
-	cmd := &cobra.Command{
-		Use: "noop",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			time.Sleep(delay)
-			return nil
-		},
-	}
-
-	cmd.Flags().DurationVarP(&delay, "delay", "d", 0, "delay of the disruptions")
-	return cmd
+// Apply implements the Apply method from the protocol Disruptor interface
+func (d *FakeProtocolDisruptor) Apply(ctx context.Context, duration time.Duration) error {
+	time.Sleep(duration)
+	return nil
 }
 
 func Test_CancelContext(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title   string
-		args    []string
-		vars    map[string]string
-		subcmds []*cobra.Command
-		err     error
+		title    string
+		vars     map[string]string
+		args     []string
+		delay    time.Duration
+		err      error
+		config   *Config
+		expected error
 	}{
 		{
 			title: "Command is not canceled",
-			args:  []string{"xk6-disruptor", "noop", "-d", "0s"},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			args:  []string{},
+			delay: 0 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
-			err: nil,
+			expected: nil,
 		},
 		{
 			title: "Command is canceled",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			delay: 5 * time.Second,
+			err:   nil,
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			args:  []string{},
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
-			err: context.Canceled,
+			expected: context.Canceled,
 		},
 	}
 
@@ -64,7 +62,7 @@ func Test_CancelContext(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			rootCmd := BuildRootCmd(env, tc.subcmds)
+			agent := BuildAgent(env, tc.config)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
@@ -72,8 +70,9 @@ func Test_CancelContext(t *testing.T) {
 				cancel()
 			}()
 
-			err := rootCmd.Do(ctx)
-			if !errors.Is(err, tc.err) {
+			disruptor := &FakeProtocolDisruptor{}
+			err := agent.ApplyDisruption(ctx, disruptor, tc.delay)
+			if !errors.Is(err, tc.expected) {
 				t.Errorf("expected %v got %v", tc.err, err)
 			}
 		})
@@ -87,26 +86,32 @@ func Test_Signals(t *testing.T) {
 		title     string
 		args      []string
 		vars      map[string]string
-		subcmds   []*cobra.Command
+		delay     time.Duration
+		err       error
+		config    *Config
 		signal    syscall.Signal
 		expectErr bool
 	}{
 		{
 			title: "Command is canceled with interrupt",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			args:  []string{},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			delay: 5 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    syscall.SIGINT,
 			expectErr: true,
 		},
 		{
 			title: "Command is not canceled with interrupt",
-			args:  []string{"xk6-disruptor", "noop", "-d", "5s"},
+			args:  []string{},
 			vars:  map[string]string{},
-			subcmds: []*cobra.Command{
-				BuildNoopCmd(),
+			delay: 5 * time.Second,
+			err:   nil,
+			config: &Config{
+				Profiler: &runtime.ProfilerConfig{},
 			},
 			signal:    0,
 			expectErr: false,
@@ -120,7 +125,7 @@ func Test_Signals(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			rootCmd := BuildRootCmd(env, tc.subcmds)
+			agent := BuildAgent(env, tc.config)
 
 			go func() {
 				time.Sleep(1 * time.Second)
@@ -129,7 +134,8 @@ func Test_Signals(t *testing.T) {
 				}
 			}()
 
-			err := rootCmd.Do(context.Background())
+			disruptor := &FakeProtocolDisruptor{}
+			err := agent.ApplyDisruption(context.TODO(), disruptor, tc.delay)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return

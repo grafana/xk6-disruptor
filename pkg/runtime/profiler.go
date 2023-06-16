@@ -41,6 +41,7 @@ func DefaultProfiler() Profiler {
 
 func (p *profiler) Start(config ProfilerConfig) (io.Closer, error) {
 	var err error
+	p.ProfilerConfig = config
 
 	if config.MemProfile {
 		if config.MemProfileRate < 0 {
