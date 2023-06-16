@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
@@ -60,7 +61,11 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := NewTrafficRedirector(&tc.redirect)
+			executor := runtime.NewFakeExecutor(nil, nil)
+			_, err := NewTrafficRedirector(
+				&tc.redirect,
+				executor,
+			)
 			if tc.expectError && err == nil {
 				t.Errorf("error expected but none returned")
 			}
@@ -96,7 +101,7 @@ func Test_Commands(t *testing.T) {
 		expectError  bool
 		fakeError    error
 		fakeOutput   []byte
-		testFunction func(TrafficRedirector) error
+		testFunction func(protocol.TrafficRedirector) error
 	}{
 		{
 			title: "Start valid redirect",
@@ -105,7 +110,7 @@ func Test_Commands(t *testing.T) {
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr TrafficRedirector) error {
+			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Start()
 			},
 			expectedCmds: []string{
@@ -124,7 +129,7 @@ func Test_Commands(t *testing.T) {
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr TrafficRedirector) error {
+			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Stop()
 			},
 			expectedCmds: []string{
@@ -143,7 +148,7 @@ func Test_Commands(t *testing.T) {
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr TrafficRedirector) error {
+			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Start()
 			},
 			expectedCmds: []string{},
@@ -158,7 +163,7 @@ func Test_Commands(t *testing.T) {
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr TrafficRedirector) error {
+			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Stop()
 			},
 			expectedCmds: []string{},
@@ -175,10 +180,7 @@ func Test_Commands(t *testing.T) {
 			t.Parallel()
 
 			executor := runtime.NewFakeExecutor(tc.fakeOutput, tc.fakeError)
-			config := TrafficRedirectorConfig{
-				Executor: executor,
-			}
-			redirector, err := NewTrafficRedirectorWithConfig(&tc.redirect, config)
+			redirector, err := NewTrafficRedirector(&tc.redirect, executor)
 			if err != nil {
 				t.Errorf("failed creating traffic redirector with error %v", err)
 				return

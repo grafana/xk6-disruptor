@@ -8,25 +8,21 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
+
+// TrafficRedirector defines the interface for a traffic redirector
+type TrafficRedirector interface {
+	// Start initiates the redirection of traffic and resets existing connections
+	Start() error
+	// Stop restores the traffic to the original target and resets existing connections
+	// to the redirection target
+	Stop() error
+}
 
 // Disruptor defines the interface agent
 type Disruptor interface {
 	Apply(context.Context, time.Duration) error
-}
-
-// DisruptorConfig defines the configuration options for the Disruptor
-type DisruptorConfig struct {
-	// Transparent indicates if the disruption will set a transparent proxy or not
-	Transparent bool
-	// Destination port to intercept protocol
-	TargetPort uint
-	// Network interface where the traffic will be intercepted
-	Iface string
-	// Port to redirect protocol to
-	RedirectPort uint
 }
 
 // Proxy defines an interface for a proxy
@@ -39,47 +35,26 @@ type Proxy interface {
 // disruptor is an instance of a Disruptor that applies a disruption
 // to a target
 type disruptor struct {
-	// Description of the http disruptor
-	config DisruptorConfig
-	// Proxy
-	proxy Proxy
-	// Executor used for running commands
-	executor runtime.Executor
+	proxy      Proxy
+	redirector TrafficRedirector
+	executor   runtime.Executor
 }
 
 // NewDisruptor creates a new instance of a Disruptor that applies a disruptions to a target
 // The configuration controls how the disruptor operates.
 func NewDisruptor(
 	executor runtime.Executor,
-	config DisruptorConfig,
 	proxy Proxy,
+	redirector TrafficRedirector,
 ) (Disruptor, error) {
-	if config.Transparent {
-		if config.RedirectPort == 0 {
-			return nil, fmt.Errorf("redirect port must be valid tcp port")
-		}
-
-		if config.TargetPort == 0 {
-			return nil, fmt.Errorf("target port must be valid tcp port")
-		}
-
-		if config.TargetPort == config.RedirectPort {
-			return nil, fmt.Errorf("target and destination ports cannot be the same")
-		}
-
-		if config.Iface == "" {
-			return nil, fmt.Errorf("disruption must specify an interface")
-		}
-	}
-
 	if proxy == nil {
 		return nil, fmt.Errorf("proxy cannot be null")
 	}
 
 	return &disruptor{
-		config:   config,
-		proxy:    proxy,
-		executor: executor,
+		proxy:      proxy,
+		executor:   executor,
+		redirector: redirector,
 	}, nil
 }
 
@@ -99,30 +74,13 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 		_ = d.proxy.Stop()
 	}()
 
-	if d.config.Transparent {
-		trCfg := iptables.TrafficRedirectorConfig{
-			Executor: d.executor,
-		}
-		// Redirect traffic to the proxy
-		tr := &iptables.TrafficRedirectionSpec{
-			Iface:           d.config.Iface,
-			DestinationPort: d.config.TargetPort,
-			RedirectPort:    d.config.RedirectPort,
-		}
-
-		redirector, err := iptables.NewTrafficRedirectorWithConfig(tr, trCfg)
-		if err != nil {
-			return err
-		}
-
-		if err := redirector.Start(); err != nil {
-			return fmt.Errorf(" failed traffic redirection: %w", err)
-		}
-
-		defer func() {
-			_ = redirector.Stop()
-		}()
+	if err := d.redirector.Start(); err != nil {
+		return fmt.Errorf(" failed traffic redirection: %w", err)
 	}
+
+	defer func() {
+		_ = d.redirector.Stop()
+	}()
 
 	// Wait for request duration, context cancellation or proxy server error
 	for {
@@ -137,4 +95,20 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 			return ctx.Err()
 		}
 	}
+}
+
+// noop is a no-op traffic redirector
+type noop struct{}
+
+// NoopTrafficRedirector returns a dummy traffic redirector that has no effect
+func NoopTrafficRedirector() TrafficRedirector {
+	return &noop{}
+}
+
+func (n *noop) Start() error {
+	return nil
+}
+
+func (n *noop) Stop() error {
+	return nil
 }
