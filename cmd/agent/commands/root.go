@@ -10,9 +10,8 @@ import (
 
 // RootCommand maintains the state for executing a command on the Agent
 type RootCommand struct {
-	cmd    *cobra.Command
-	config *agent.Config
-	env    runtime.Environment
+	cmd *cobra.Command
+	env runtime.Environment
 }
 
 // NewRootCommand builds the for the agent that parses the configuration arguments
@@ -26,9 +25,8 @@ func NewRootCommand(env runtime.Environment) *RootCommand {
 	rootCmd.AddCommand(BuildGrpcCmd(env, config))
 
 	return &RootCommand{
-		cmd:    rootCmd,
-		config: config,
-		env:    env,
+		cmd: rootCmd,
+		env: env,
 	}
 }
 
