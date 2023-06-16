@@ -43,6 +43,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			}
 
 			disruptorConfig := protocol.DisruptorConfig{
+				Transparent:  transparent,
 				TargetPort:   target,
 				RedirectPort: port,
 				Iface:        iface,

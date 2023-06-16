@@ -33,6 +33,7 @@ func Test_Validations(t *testing.T) {
 			title:    "valid defaults",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				TargetPort:   80,
 				Iface:        "eth0",
 				RedirectPort: 8080,
@@ -44,6 +45,7 @@ func Test_Validations(t *testing.T) {
 			title:    "invalid RedirectPort port",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				TargetPort:   80,
 				Iface:        "eth0",
 				RedirectPort: 0,
@@ -55,6 +57,7 @@ func Test_Validations(t *testing.T) {
 			title:    "invalid target port",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				TargetPort:   0,
 				Iface:        "eth0",
 				RedirectPort: 8080,
@@ -66,6 +69,7 @@ func Test_Validations(t *testing.T) {
 			title:    "target port equals redirect port",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				Iface:        "eth0",
 				TargetPort:   8080,
 				RedirectPort: 8080,
@@ -77,6 +81,7 @@ func Test_Validations(t *testing.T) {
 			title:    "missing  iface",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				Iface:        "",
 				TargetPort:   80,
 				RedirectPort: 8080,
@@ -88,12 +93,25 @@ func Test_Validations(t *testing.T) {
 			title:    "missing proxy",
 			duration: time.Second * 1,
 			config: DisruptorConfig{
+				Transparent:  true,
 				Iface:        "",
 				TargetPort:   80,
 				RedirectPort: 8080,
 			},
 			proxy:       nil,
 			expectError: true,
+		},
+		{
+			title:    "non-transparent proxy",
+			duration: time.Second * 1,
+			config: DisruptorConfig{
+				Transparent:  false,
+				Iface:        "",
+				TargetPort:   80,
+				RedirectPort: 8080,
+			},
+			proxy:       &fakeProxy{},
+			expectError: false,
 		},
 	}
 
