@@ -7,11 +7,12 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/http"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
 // BuildHTTPCmd returns a cobra command with the specification of the http command
-func BuildHTTPCmd(agent *agent.Agent) *cobra.Command {
+func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	disruption := http.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -35,21 +36,29 @@ func BuildHTTPCmd(agent *agent.Agent) *cobra.Command {
 				UpstreamAddress: upstreamAddress,
 			}
 
+			proxy, err := http.NewProxy(proxyConfig, disruption)
+			if err != nil {
+				return err
+			}
+
 			disruptorConfig := protocol.DisruptorConfig{
 				TargetPort:   target,
 				RedirectPort: port,
 				Iface:        iface,
 			}
 
-			err := agent.ApplyHTTPDisruption(
-				cmd.Context(),
-				proxyConfig,
-				disruption,
+			disruptor, err := protocol.NewDisruptor(
+				env.Executor(),
 				disruptorConfig,
-				transparent,
-				duration,
+				proxy,
 			)
-			return err
+			if err != nil {
+				return err
+			}
+
+			agent := agent.BuildAgent(env, config)
+
+			return agent.ApplyDisruption(cmd.Context(), disruptor, duration)
 		},
 	}
 

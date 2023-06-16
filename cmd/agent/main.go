@@ -2,29 +2,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/grafana/xk6-disruptor/cmd/agent/commands"
-	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 func main() {
 	env := runtime.DefaultEnvironment()
-	config := &agent.Config{
-		Profiler: &runtime.ProfilerConfig{},
-	}
-	agent := agent.BuildAgent(env, config)
 
-	rootCmd := commands.BuildRootCmd(config)
-	rootCmd.AddCommand(commands.BuildHTTPCmd(agent))
-	rootCmd.AddCommand(commands.BuildGrpcCmd(agent))
+	rootCmd := commands.NewRootCommand(env)
 
-	rootArgs := env.Args()[1:]
-	rootCmd.SetArgs(rootArgs)
-
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.Execute(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

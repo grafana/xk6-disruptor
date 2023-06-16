@@ -10,13 +10,13 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
-// BuildNoop returns a function that return the given error after a delay
-func BuildNoop(delay time.Duration, err error) func(context.Context) error {
-	return func(ctx context.Context) error {
-		// TODO: handle context cancellation
-		time.Sleep(delay)
-		return err
-	}
+// FakeProtocolDisruptor implements a fake protocol Disruptor
+type FakeProtocolDisruptor struct{}
+
+// Apply implements the Apply method from the protocol Disruptor interface
+func (d *FakeProtocolDisruptor) Apply(ctx context.Context, duration time.Duration) error {
+	time.Sleep(duration)
+	return nil
 }
 
 func Test_CancelContext(t *testing.T) {
@@ -70,8 +70,8 @@ func Test_CancelContext(t *testing.T) {
 				cancel()
 			}()
 
-			cmd := BuildNoop(tc.delay, tc.err)
-			err := agent.do(ctx, cmd)
+			disruptor := &FakeProtocolDisruptor{}
+			err := agent.ApplyDisruption(ctx, disruptor, tc.delay)
 			if !errors.Is(err, tc.expected) {
 				t.Errorf("expected %v got %v", tc.err, err)
 			}
@@ -134,8 +134,8 @@ func Test_Signals(t *testing.T) {
 				}
 			}()
 
-			cmd := BuildNoop(tc.delay, tc.err)
-			err := agent.do(context.Background(), cmd)
+			disruptor := &FakeProtocolDisruptor{}
+			err := agent.ApplyDisruption(context.TODO(), disruptor, tc.delay)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return

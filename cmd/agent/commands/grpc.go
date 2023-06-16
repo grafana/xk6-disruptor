@@ -7,12 +7,13 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
+	"github.com/grafana/xk6-disruptor/pkg/runtime"
 
 	"github.com/spf13/cobra"
 )
 
 // BuildGrpcCmd returns a cobra command with the specification of the grpc command
-func BuildGrpcCmd(agent *agent.Agent) *cobra.Command {
+func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	disruption := grpc.Disruption{}
 	var duration time.Duration
 	var port uint
@@ -36,21 +37,29 @@ func BuildGrpcCmd(agent *agent.Agent) *cobra.Command {
 				UpstreamAddress: upstreamAddress,
 			}
 
+			proxy, err := grpc.NewProxy(proxyConfig, disruption)
+			if err != nil {
+				return err
+			}
+
 			disruptorConfig := protocol.DisruptorConfig{
 				TargetPort:   target,
 				RedirectPort: port,
 				Iface:        iface,
 			}
 
-			err := agent.ApplyGrpcDisruption(
-				cmd.Context(),
-				proxyConfig,
-				disruption,
+			disruptor, err := protocol.NewDisruptor(
+				env.Executor(),
 				disruptorConfig,
-				transparent,
-				duration,
+				proxy,
 			)
-			return err
+			if err != nil {
+				return err
+			}
+
+			agent := agent.BuildAgent(env, config)
+
+			return agent.ApplyDisruption(cmd.Context(), disruptor, duration)
 		},
 	}
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")

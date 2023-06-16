@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/http"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
@@ -32,8 +30,8 @@ func BuildAgent(env runtime.Environment, config *Config) *Agent {
 	}
 }
 
-// do executes a command in the Agent
-func (r *Agent) do(ctx context.Context, action func(context.Context) error) error {
+// ApplyDisruption applies a disruption to the target
+func (r *Agent) ApplyDisruption(ctx context.Context, disruptor protocol.Disruptor, duration time.Duration) error {
 	sc := r.env.Signal().Notify(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer func() {
 		r.env.Signal().Reset()
@@ -69,7 +67,7 @@ func (r *Agent) do(ctx context.Context, action func(context.Context) error) erro
 	// execute action goroutine to prevent blocking
 	cc := make(chan error)
 	go func() {
-		cc <- action(ctx)
+		cc <- disruptor.Apply(ctx, duration)
 	}()
 
 	// wait for command completion or cancellation
@@ -81,79 +79,4 @@ func (r *Agent) do(ctx context.Context, action func(context.Context) error) erro
 	case s := <-sc:
 		return fmt.Errorf("received signal %q", s)
 	}
-}
-
-// ApplyHTTPDisruption applies a disruption to the gRPC requests serviced by the target
-func (r *Agent) ApplyHTTPDisruption(
-	ctx context.Context,
-	proxyConfig http.ProxyConfig,
-	disruption http.Disruption,
-	config protocol.DisruptorConfig,
-	transparent bool,
-	duration time.Duration,
-) error {
-	proxy, err := http.NewProxy(proxyConfig, disruption)
-	if err != nil {
-		return err
-	}
-
-	return r.applyDisruption(
-		ctx,
-		proxy,
-		config,
-		transparent,
-		duration,
-	)
-}
-
-// ApplyGrpcDisruption applies a disruption to the gRPC requests serviced by the target
-func (r *Agent) ApplyGrpcDisruption(
-	ctx context.Context,
-	proxyConfig grpc.ProxyConfig,
-	disruption grpc.Disruption,
-	config protocol.DisruptorConfig,
-	transparent bool,
-	duration time.Duration,
-) error {
-	proxy, err := grpc.NewProxy(proxyConfig, disruption)
-	if err != nil {
-		return err
-	}
-
-	return r.applyDisruption(
-		ctx,
-		proxy,
-		config,
-		transparent,
-		duration,
-	)
-}
-
-func (r *Agent) applyDisruption(
-	ctx context.Context,
-	proxy protocol.Proxy,
-	config protocol.DisruptorConfig,
-	transparent bool,
-	duration time.Duration,
-) error {
-	// if not transparent run as a regular proxy
-	if !transparent {
-		// TODO: pass a context with a timeout using the duration argument
-		return r.do(ctx, func(ctx context.Context) error {
-			return proxy.Start()
-		})
-	}
-
-	disruptor, err := protocol.NewDisruptor(
-		r.env.Executor(),
-		config,
-		proxy,
-	)
-	if err != nil {
-		return err
-	}
-
-	return r.do(ctx, func(ctx context.Context) error {
-		return disruptor.Apply(ctx, duration)
-	})
 }
