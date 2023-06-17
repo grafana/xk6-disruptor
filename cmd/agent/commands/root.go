@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
@@ -60,6 +61,11 @@ func buildRootCmd(c *agent.Config) *cobra.Command {
 	rootCmd.PersistentFlags().IntVar(&c.Profiler.Memory.Rate, "mem-profile-rate", 1, "memory profiling rate")
 	rootCmd.PersistentFlags().BoolVar(&c.Profiler.Trace.Enabled, "trace", false, "trace agent execution")
 	rootCmd.PersistentFlags().StringVar(&c.Profiler.Trace.FileName, "trace-file", "trace.out", "tracing output file")
+	rootCmd.PersistentFlags().BoolVar(&c.Profiler.Metrics.Enabled, "metrics", false, "collect runtime metrics")
+	rootCmd.PersistentFlags().StringVar(&c.Profiler.Metrics.FileName, "metrics-file", "metrics.out",
+		"metrics output file")
+	rootCmd.PersistentFlags().DurationVar(&c.Profiler.Metrics.Rate, "metrics-rate", time.Second,
+		"frequency of metrics sampling")
 
 	return rootCmd
 }

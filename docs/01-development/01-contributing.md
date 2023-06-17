@@ -129,6 +129,7 @@ In order to facilitate debugging `xk6-disruptor-agent` offers options for genera
 * `--trace`: generate traces. The `--trace-file` option allows specifying the output file for traces (default `trace.out`)
 * `--cpu-profile`: generate CPU profiling information. The `--cpu-profile-file` option allows specifying the output file for profile information (default `cpu.pprof`)
 * `--mem-profile`: generate memory profiling information. By default, it sets the [memory profile rate](https://pkg.go.dev/runtime#pkg-variables) to `1`, which will profile every allocation. This rate can be controlled using the `--mem-profile-rate` option. The `--mem-profile-file` option allows specifying the output file for profile information (default `mem.pprof`)
+* `--metrics`: generate [go runtime metrics](https://pkg.go.dev/runtime/metrics). The metrics are collected at intervals defined by the `--metrics-rate` argument (default to `1s`). At the end of the agent execution the minimum, maximum and average value for each collected metric is reported to the file specified in `--metrics-file` (default `metrics.out`).
 
 If you run the [disruptor manually](#running-manually) in a pod you have to copy them from the target pod to your local machine. For example, for copying the `trace.out` file:
 
