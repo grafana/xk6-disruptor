@@ -1,9 +1,12 @@
 package runtime
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/grafana/xk6-disruptor/pkg/runtime/profiler"
 )
 
 // FakeExecutor is an instance of a ProcessExecutor that keeps the history
@@ -107,7 +110,7 @@ func NewFakeProfiler() *FakeProfiler {
 }
 
 // Start updates the FakeProfiler to registers it was started
-func (p *FakeProfiler) Start(c ProfilerConfig) (io.Closer, error) {
+func (p *FakeProfiler) Start(context.Context, profiler.Config) (io.Closer, error) {
 	p.started = true
 	return p, nil
 }
@@ -192,7 +195,7 @@ func NewFakeRuntime(args []string, vars map[string]string) *FakeRuntime {
 }
 
 // Profiler implements Profiler method from Runtime interface
-func (f *FakeRuntime) Profiler() Profiler {
+func (f *FakeRuntime) Profiler() profiler.Profiler {
 	return f.FakeProfiler
 }
 
