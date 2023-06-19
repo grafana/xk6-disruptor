@@ -23,6 +23,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	upstreamHost := "localhost"
 	transparent := true
 
+	//nolint: dupl
 	cmd := &cobra.Command{
 		Use:   "grpc",
 		Short: "grpc disruptor",
@@ -32,8 +33,6 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
-
-			var err error
 
 			proxyConfig := grpc.ProxyConfig{
 				ListenAddress:   listenAddress,

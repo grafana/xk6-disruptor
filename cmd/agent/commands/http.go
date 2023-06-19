@@ -22,6 +22,7 @@ func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	upstreamHost := "localhost"
 	transparent := true
 
+	//nolint: dupl
 	cmd := &cobra.Command{
 		Use:   "http",
 		Short: "http disruptor",
