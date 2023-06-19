@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
@@ -24,31 +25,17 @@ type TrafficRedirectionSpec struct {
 	RedirectPort uint
 }
 
-// TrafficRedirector defines the interface for a traffic redirector
-type TrafficRedirector interface {
-	// Start initiates the redirection of traffic and resets existing connections
-	Start() error
-	// Stop restores the traffic to the original target and resets existing connections
-	// to the redirection target
-	Stop() error
-}
-
 // trafficRedirect defines an instance of a TrafficRedirector
 type redirector struct {
 	*TrafficRedirectionSpec
 	executor runtime.Executor
 }
 
-// TrafficRedirectorConfig defines the options for creating a TrafficRedirector
-type TrafficRedirectorConfig struct {
-	Executor runtime.Executor
-}
-
-// NewTrafficRedirectorWithConfig creates instances of traffic redirector using a TrafficRedirectorConfig
-func NewTrafficRedirectorWithConfig(
+// NewTrafficRedirector creates instances of an iptables traffic redirector
+func NewTrafficRedirector(
 	tr *TrafficRedirectionSpec,
-	config TrafficRedirectorConfig,
-) (TrafficRedirector, error) {
+	executor runtime.Executor,
+) (protocol.TrafficRedirector, error) {
 	if tr.DestinationPort == 0 || tr.RedirectPort == 0 {
 		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be specified")
 	}
@@ -67,16 +54,8 @@ func NewTrafficRedirectorWithConfig(
 
 	return &redirector{
 		TrafficRedirectionSpec: tr,
-		executor:               config.Executor,
+		executor:               executor,
 	}, nil
-}
-
-// NewTrafficRedirector creates an instance of a TrafficRedirector with default configuration
-func NewTrafficRedirector(tf *TrafficRedirectionSpec) (TrafficRedirector, error) {
-	config := TrafficRedirectorConfig{
-		Executor: runtime.DefaultExecutor(),
-	}
-	return NewTrafficRedirectorWithConfig(tf, config)
 }
 
 // delete iptables rules for redirection

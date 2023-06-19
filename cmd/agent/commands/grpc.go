@@ -7,6 +7,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/grpc"
+	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 
 	"github.com/spf13/cobra"
@@ -22,6 +23,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	upstreamHost := "localhost"
 	transparent := true
 
+	//nolint: dupl
 	cmd := &cobra.Command{
 		Use:   "grpc",
 		Short: "grpc disruptor",
@@ -42,17 +44,27 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 				return err
 			}
 
-			disruptorConfig := protocol.DisruptorConfig{
-				Transparent:  transparent,
-				TargetPort:   target,
-				RedirectPort: port,
-				Iface:        iface,
+			// Redirect traffic to the proxy
+			var redirector protocol.TrafficRedirector
+			if transparent {
+				tr := &iptables.TrafficRedirectionSpec{
+					Iface:           iface,
+					DestinationPort: target,
+					RedirectPort:    port,
+				}
+
+				redirector, err = iptables.NewTrafficRedirector(tr, env.Executor())
+				if err != nil {
+					return err
+				}
+			} else {
+				redirector = protocol.NoopTrafficRedirector()
 			}
 
 			disruptor, err := protocol.NewDisruptor(
 				env.Executor(),
-				disruptorConfig,
 				proxy,
+				redirector,
 			)
 			if err != nil {
 				return err
