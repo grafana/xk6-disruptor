@@ -3,10 +3,12 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,9 +19,11 @@ import (
 
 // ProxyConfig configures the Proxy options
 type ProxyConfig struct {
-	// Address to listen for incoming requests
+	// Address to listen for incoming requests.
 	ListenAddress string
-	// Address where to redirect requests
+	// LocalAddress is the IP address from which requests will be sent to upstream.
+	LocalAddress string
+	// Address where to redirect requests. Protocol should not be specified, as it is assumed to be http.
 	UpstreamAddress string
 }
 
@@ -151,7 +155,12 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	upstreamURL, err := url.Parse(p.config.UpstreamAddress)
+	upstreamURL, err := url.Parse("http://" + p.config.UpstreamAddress)
+	if err != nil {
+		return err
+	}
+
+	client, err := httpClientUsingAddress(p.config.LocalAddress)
 	if err != nil {
 		return err
 	}
@@ -159,7 +168,7 @@ func (p *proxy) Start() error {
 	handler := &httpHandler{
 		upstreamURL: *upstreamURL,
 		disruption:  p.disruption,
-		client:      http.DefaultClient,
+		client:      client,
 	}
 
 	p.srv = &http.Server{
@@ -188,4 +197,47 @@ func (p *proxy) Force() error {
 		return p.srv.Close()
 	}
 	return nil
+}
+
+// httpClientUsingAddress returns an *http.Client configured to send requests from the specified IP address.
+// If an empty string is supplied, the returned client behaves like the default client and is not bound to any
+// particular address.
+func httpClientUsingAddress(localAddr string) (*http.Client, error) {
+	var tcpAddr *net.TCPAddr
+
+	if localAddr != "" {
+		ipAddr := net.ParseIP(localAddr)
+		tcpAddr = &net.TCPAddr{
+			IP: ipAddr,
+		}
+	}
+
+	dialer := &net.Dialer{
+		// Use local IP, if specified.
+		LocalAddr: tcpAddr,
+		// Defaults from http.DefaultTransport.
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	tlsDialer := &tls.Dialer{NetDialer: dialer}
+
+	return &http.Client{
+		Transport: &http.Transport{
+			// Use dialers with fixed local address:
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, addr)
+			},
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return tlsDialer.DialContext(ctx, network, addr)
+			},
+			// Defaults from http.DefaultClient.
+			Proxy:                 http.ProxyFromEnvironment,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}, nil
 }
