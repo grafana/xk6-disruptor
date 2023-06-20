@@ -20,7 +20,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	var port uint
 	var target uint
 	var iface string
-	upstreamHost := "localhost"
+	var upstreamHost string
 	transparent := true
 
 	//nolint: dupl
@@ -87,6 +87,8 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
 		" to be excluded from disruption")
 	cmd.Flags().BoolVar(&transparent, "transparent", true, "run as transparent proxy")
+	cmd.Flags().StringVar(&upstreamHost, "upstream-host", "localhost",
+		"upstream host to redirect traffic to")
 
 	return cmd
 }
