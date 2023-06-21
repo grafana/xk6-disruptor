@@ -30,10 +30,10 @@ var injectHTTP500 = []string{
 	"1.0",
 	"--error",
 	"500",
-	"--port",
-	"8080",
+	"--listen",
+	":8080",
 	"--target",
-	"80",
+	"localhost:80",
 }
 
 var injectGrpcInternal = []string{
@@ -47,10 +47,10 @@ var injectGrpcInternal = []string{
 	"14",
 	"--message",
 	"Internal error",
-	"--port",
-	"4000",
+	"--listen",
+	":4000",
 	"--target",
-	"9000",
+	"localhost:9000",
 	"-x",
 	// exclude reflection service otherwise the dynamic client will not work
 	"grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
@@ -65,12 +65,11 @@ var injectUpstreamHTTP500 = []string{
 	"1.0",
 	"--error",
 	"500",
-	"--port",
-	"80",
+	"--listen",
+	":80",
 	"--target",
-	"80",
+	"httpbin.default.svc.cluster.local:80",
 	"--transparent=false",
-	"--upstream-host=httpbin.default.svc.cluster.local",
 }
 
 // deploy pod with [httpbin] and the xk6-disruptor as sidekick container
@@ -121,7 +120,6 @@ func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 }
 
-
 // deploy pod with the xk6-disruptor
 func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 
@@ -141,7 +139,6 @@ func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 		WithContainer(*agent).
 		Build()
 }
-
 
 // builDisruptorService returns a Service definition that exposes httpbin pods
 func builDisruptorService() *corev1.Service {
@@ -290,7 +287,6 @@ func Test_Agent(t *testing.T) {
 			t.Errorf("unexpected error: %s: ", string(stderr))
 		}
 	})
-
 
 	t.Run("Non-transparent proxy to upstream service", func(t *testing.T) {
 		t.Parallel()
