@@ -9,11 +9,13 @@ Fixes # (issue)
 
 # Checklist:
 
-- [ ] My code follows the coding style of this project
 - [ ] I have performed a self-review of my code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation
 - [ ] I have added tests that prove my fix is effective or that my feature works.   
+- [ ] I have run linter locally (`make lint`) and all checks pass.
+- [ ] I have run tests locally (`make test`) and all tests pass.
+- [ ] I have run relevant e2e test locally (`make e2e-xxx` for `agent`, `disruptors`, `kubernetes` or `cluster` related changes)
 - [ ] Any dependent changes have been merged and published in downstream modules<br>
       
  
