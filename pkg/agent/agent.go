@@ -63,13 +63,19 @@ func (r *Agent) ApplyDisruption(ctx context.Context, disruptor protocol.Disrupto
 
 	// set context for command
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	// execute action goroutine to prevent blocking
 	cc := make(chan error)
 	go func() {
 		cc <- disruptor.Apply(ctx, duration)
+		close(cc)
 	}()
+
+	defer func() {
+		<-cc
+	}()
+
+	defer cancel()
 
 	// wait for command completion or cancellation
 	select {
