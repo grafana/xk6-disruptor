@@ -2,6 +2,7 @@ package disruptors
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/utils"
@@ -39,7 +40,7 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 	}
 
 	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
+		cmd = append(cmd, "--target", net.JoinHostPort("localhost", fmt.Sprint(fault.Port)))
 	}
 
 	if len(fault.Exclude) > 0 {
@@ -47,11 +48,7 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 	}
 
 	if options.ProxyPort != 0 {
-		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
-	}
-
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
+		cmd = append(cmd, "--listen", fmt.Sprintf(":%d", options.ProxyPort))
 	}
 
 	return cmd
@@ -89,7 +86,7 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 	}
 
 	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
+		cmd = append(cmd, "--target", net.JoinHostPort("localhost", fmt.Sprint(fault.Port)))
 	}
 
 	if len(fault.Exclude) > 0 {
@@ -97,11 +94,7 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 	}
 
 	if options.ProxyPort != 0 {
-		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
-	}
-
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
+		cmd = append(cmd, "--listen", fmt.Sprintf(":%d", options.ProxyPort))
 	}
 
 	return cmd
