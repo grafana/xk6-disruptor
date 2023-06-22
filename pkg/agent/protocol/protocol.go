@@ -64,6 +64,16 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 		return fmt.Errorf("duration must be at least one second")
 	}
 
+	// Start the redirector first, so it can set up IP addresses and rules if needed.
+	if err := d.redirector.Start(); err != nil {
+		return fmt.Errorf(" failed traffic redirection: %w", err)
+	}
+
+	defer func() {
+		_ = d.redirector.Stop()
+	}()
+
+	// Next, start the proxy.
 	wc := make(chan error)
 	go func() {
 		wc <- d.proxy.Start()
@@ -72,14 +82,6 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 	// On termination, restore traffic and stop proxy
 	defer func() {
 		_ = d.proxy.Stop()
-	}()
-
-	if err := d.redirector.Start(); err != nil {
-		return fmt.Errorf(" failed traffic redirection: %w", err)
-	}
-
-	defer func() {
-		_ = d.redirector.Stop()
 	}()
 
 	// Wait for request duration, context cancellation or proxy server error
