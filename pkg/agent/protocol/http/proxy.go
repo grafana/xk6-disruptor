@@ -160,15 +160,10 @@ func (p *proxy) Start() error {
 		return err
 	}
 
-	client, err := httpClientUsingAddress(p.config.LocalAddress)
-	if err != nil {
-		return err
-	}
-
 	handler := &httpHandler{
 		upstreamURL: *upstreamURL,
 		disruption:  p.disruption,
-		client:      client,
+		client:      httpClientUsingAddress(p.config.LocalAddress),
 	}
 
 	p.srv = &http.Server{
@@ -202,7 +197,7 @@ func (p *proxy) Force() error {
 // httpClientUsingAddress returns an *http.Client configured to send requests from the specified IP address.
 // If an empty string is supplied, the returned client behaves like the default client and is not bound to any
 // particular address.
-func httpClientUsingAddress(localAddr string) (*http.Client, error) {
+func httpClientUsingAddress(localAddr string) *http.Client {
 	var tcpAddr *net.TCPAddr
 
 	if localAddr != "" {
@@ -239,5 +234,5 @@ func httpClientUsingAddress(localAddr string) (*http.Client, error) {
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-	}, nil
+	}
 }
