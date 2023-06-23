@@ -57,6 +57,9 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 				if err != nil {
 					return err
 				}
+
+				// Tell GRPC proxy to send requests from transparentAddress.
+				proxyConfig.LocalAddress = transparentAddress
 			} else {
 				redirector = protocol.NoopTrafficRedirector()
 			}

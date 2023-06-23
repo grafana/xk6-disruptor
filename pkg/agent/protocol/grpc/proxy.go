@@ -19,6 +19,9 @@ type ProxyConfig struct {
 	Network string
 	// Address to listen for incoming requests
 	ListenAddress string
+	// LocalAddress is the IP address from which requests will be sent to upstream.
+	// If empty, it will be automatically selected by the OS.
+	LocalAddress string
 	// Address where to redirect requests
 	UpstreamAddress string
 }
@@ -84,11 +87,31 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
+	dialOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+	}
+
+	if p.config.Network == "tcp" && p.config.LocalAddress != "" {
+		dialer := &net.Dialer{
+			// Use local IP, if specified.
+			LocalAddr: &net.TCPAddr{
+				IP: net.ParseIP(p.config.LocalAddress),
+			},
+			// Defaults from http.DefaultTransport.
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}
+
+		dialOpts = append(dialOpts, grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "tcp", s)
+		}))
+	}
+
 	// should receive the context as a parameter of the Start function
 	conn, err := grpc.DialContext(
 		context.Background(),
 		p.config.UpstreamAddress,
-		grpc.WithInsecure(),
+		dialOpts...,
 	)
 	if err != nil {
 		return fmt.Errorf("error dialing %s: %w", p.config.UpstreamAddress, err)
