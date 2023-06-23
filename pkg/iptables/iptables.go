@@ -8,26 +8,61 @@ import (
 	"strings"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
+	"github.com/grafana/xk6-disruptor/pkg/iproute"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
-const redirectCommand = "%s PREROUTING -t nat -i %s -p tcp --dport %d -j REDIRECT --to-port %d"
+// redirectRule is a netfilter rule that redirects traffic destined to the application's port to the proxy.
+// As per https://unix.stackexchange.com/a/112232/39698, traffic coming from non-local addresses cannot be redirected
+// to local addresses, so the proxy is required to listen on, in addition to localhost, the same address where the
+// application also listens on (typically `eth0`).
+// As per https://upload.wikimedia.org/wikipedia/commons/3/37/Netfilter-packet-flow.svg, locally originated traffic,
+// such as port-forwarded or traffic generated from inside the container, does not traverse PREROUTING. Likewise,
+// traffic coming from the outside of the pod does not traverse OUTPUT, so this rule has to be instantiated for both
+// OUTPUT and PREROUTING chains.
+//
+// As a technicality, the PREROUTING rule does not actually need `! -s %s/32`, as traffic from the proxy to upstream
+// does not traverse PREROUTING but OUTPUT. We keep it anyway for consistency.
+const redirectRule = "%s %s -t nat " + // For traffic traversing the nat table
+	"-p tcp --dport %s " + // Sent to the upstream application's port
+	"! -s %s/32 " + // Unless it is sent from the proxy IP address
+	"-j REDIRECT --to-port %s" // Forward it to the proxy address
 
-const resetCommand = "%s INPUT -i %s -p tcp --dport %d -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset"
+// redirectChains are the chains in which the redirectRule should be added. see redirectRule for details.
+//
+//nolint:gochecknoglobals // Read-only constant-ish.
+var redirectChains = []string{"OUTPUT", "PREROUTING"}
+
+// resetCommand creates an iptables rule that closes existing and new connections to the upstream application's port,
+// forcing clients to re-establish connections.
+const resetCommand = "%s INPUT " + // For traffic traversing the INPUT chain
+	"! -s %s/32 " + // Not coming from the proxy address
+	"! -d %s/32 " + // Not directed to the proxy address
+	"-p tcp --dport %s " + // Directed to the upstream application's port
+	"-m state --state ESTABLISHED " + // That are already ESTABLISHED, i.e. not before they are redirected
+	"-j REJECT --reject-with tcp-reset" // Reject it
+
+// cidrSuffix is the CIDR prefix length suffix appended to LocalAddress before adding it.
+const cidrSuffix = "/32"
 
 // TrafficRedirectionSpec specifies the redirection of traffic to a destination
 type TrafficRedirectionSpec struct {
-	// Interface on which the traffic will be intercepted
-	Iface string
-	// Destination port of the traffic to be redirected
-	DestinationPort uint
-	// Port the traffic will be redirected to
-	RedirectPort uint
+	// LocalAddress is the IP address the proxy will use to send requests, which is excluded from redirection.
+	// This address is added to the interface specified below at the start of the disruption, and removed at the end.
+	// LocalAddress must be specified in CIDR notation.
+	LocalAddress string
+	// Interface is the interface where LocalAddress is added.
+	Interface string
+	// ProxyPort is the port where the proxy is listening at.
+	ProxyPort string
+	// TargetPort is the port of for the upstream application.
+	TargetPort string
 }
 
 // trafficRedirect defines an instance of a TrafficRedirector
 type redirector struct {
 	*TrafficRedirectionSpec
+	ip       iproute.IPRoute
 	executor runtime.Executor
 }
 
@@ -36,103 +71,128 @@ func NewTrafficRedirector(
 	tr *TrafficRedirectionSpec,
 	executor runtime.Executor,
 ) (protocol.TrafficRedirector, error) {
-	if tr.DestinationPort == 0 || tr.RedirectPort == 0 {
-		return nil, fmt.Errorf("the DestinationPort and RedirectPort must be specified")
+	if tr.TargetPort == "" || tr.ProxyPort == "" {
+		return nil, fmt.Errorf("TargetPort and ProxyPort must be specified")
 	}
 
-	if tr.DestinationPort == tr.RedirectPort {
-		return nil, fmt.Errorf(
-			"the DestinationPort (%d) and RedirectPort (%d) must be different",
-			tr.DestinationPort,
-			tr.RedirectPort,
-		)
+	if tr.TargetPort == tr.ProxyPort {
+		return nil, fmt.Errorf("TargetPort (%s) and ProxyPort (%s) must be different", tr.TargetPort, tr.ProxyPort)
 	}
 
-	if tr.Iface == "" {
-		return nil, fmt.Errorf("the Iface must be specified")
+	if tr.LocalAddress == "" || tr.Interface == "" {
+		return nil, fmt.Errorf("local address and interface must be specified")
 	}
 
 	return &redirector{
 		TrafficRedirectionSpec: tr,
 		executor:               executor,
+		ip:                     iproute.New(executor),
 	}, nil
 }
 
 // delete iptables rules for redirection
 func (tr *redirector) deleteRedirectRules() error {
-	return tr.execRedirectCmd("-D")
+	for _, chain := range redirectChains {
+		if err := tr.execRedirectCmd("-D", chain); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // add iptables rules for redirection
 func (tr *redirector) addRedirectRules() error {
-	return tr.execRedirectCmd("-A")
+	for _, chain := range redirectChains {
+		if err := tr.execRedirectCmd("-A", chain); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // add iptables rules for reset connections to port
-func (tr *redirector) addResetRules(port uint) error {
-	return tr.execResetCmd("-A", port)
+func (tr *redirector) addResetRules() error {
+	return tr.execResetCmd("-A")
 }
 
 // delete iptables rules for reset connections to port
-func (tr *redirector) deleteResetRules(port uint) error {
-	return tr.execResetCmd("-D", port)
+func (tr *redirector) deleteResetRules() error {
+	return tr.execResetCmd("-D")
 }
 
 // buildRedirectCmd builds a command for adding or removing a transparent proxy using iptables
-func (tr *redirector) execRedirectCmd(action string) error {
+func (tr *redirector) execRedirectCmd(action, chain string) error {
 	cmd := fmt.Sprintf(
-		redirectCommand,
+		redirectRule,
 		action,
-		tr.Iface,
-		tr.DestinationPort,
-		tr.RedirectPort,
+		chain,
+		tr.TargetPort,
+		tr.LocalAddress,
+		tr.ProxyPort,
 	)
 
 	out, err := tr.executor.Exec("iptables", strings.Split(cmd, " ")...)
 	if err != nil {
-		return fmt.Errorf("error executing iptables command: %w %s", err, string(out))
+		return fmt.Errorf("error executing iptables command %q: %w %s", cmd, err, string(out))
 	}
 
 	return nil
 }
 
-func (tr *redirector) execResetCmd(action string, port uint) error {
+func (tr *redirector) execResetCmd(action string) error {
 	cmd := fmt.Sprintf(
 		resetCommand,
 		action,
-		tr.Iface,
-		port,
+		tr.LocalAddress,
+		tr.LocalAddress,
+		tr.TargetPort,
 	)
 
 	out, err := tr.executor.Exec("iptables", strings.Split(cmd, " ")...)
 	if err != nil {
-		return fmt.Errorf("error executing iptables command: %s", string(out))
+		return fmt.Errorf("error executing iptables command %q: %w %s", cmd, err, string(out))
 	}
 
 	return nil
 }
 
-// Starts applies the TrafficRedirect
+// Start applies the TrafficRedirect
 func (tr *redirector) Start() error {
-	// error is ignored as the rule may not exist
-	_ = tr.deleteResetRules(tr.RedirectPort)
+	cidrAddr := tr.LocalAddress + cidrSuffix
+	if err := tr.ip.Add(cidrAddr, tr.Interface); err != nil {
+		return fmt.Errorf("adding ip address: %w", err)
+	}
+
 	if err := tr.addRedirectRules(); err != nil {
 		return err
 	}
-	return tr.addResetRules(tr.DestinationPort)
+
+	return tr.addResetRules()
 }
 
-// Stops removes the TrafficRedirect
+// Stop stops the TrafficRedirect
 func (tr *redirector) Stop() error {
-	err := tr.deleteRedirectRules()
-	if err != nil {
-		return err
+	cidrAddr := tr.LocalAddress + cidrSuffix
+
+	// TODO: Replace this homemade error aggregation with errors.Join when we upgrade from Go 1.19 to 1.20.
+	// The current workaround loses information about previous error on concatenation, as Errorf does not allow
+	// using more than one %w directive.
+	var err error
+
+	// Cleanup steps are all performed regardless of intermediate errors, as they are idempotent.
+	if redirErr := tr.deleteRedirectRules(); redirErr != nil {
+		err = redirErr
 	}
 
-	err = tr.addResetRules(tr.RedirectPort)
-	if err != nil {
-		return err
+	if resetErr := tr.deleteResetRules(); resetErr != nil {
+		err = fmt.Errorf("%v, %w", err, resetErr)
 	}
 
-	return tr.deleteResetRules(tr.DestinationPort)
+	if addrDelErr := tr.ip.Delete(cidrAddr, tr.Interface); addrDelErr != nil {
+		err = fmt.Errorf("%v, %w", err, addrDelErr)
+	}
+
+	return err
 }

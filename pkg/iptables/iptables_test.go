@@ -2,9 +2,9 @@ package iptables
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
@@ -20,36 +20,36 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		{
 			title: "Valid redirect",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "80",
+				ProxyPort:    "8080",
 			},
 			expectError: false,
 		},
 		{
 			title: "Ports not specified",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 0,
-				RedirectPort:    0,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
 			},
 			expectError: true,
 		},
 		{
-			title: "destination equals redirect port",
+			title: "Same target and proxy port",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    80,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "8080",
+				ProxyPort:    "8080",
 			},
 			expectError: true,
 		},
 		{
-			title: "Invalid iface",
+			title: "Address or interface not specified",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				TargetPort: "80",
+				ProxyPort:  "8080",
 			},
 			expectError: true,
 		},
@@ -77,20 +77,6 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 }
 
-func compareCmds(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func Test_Commands(t *testing.T) {
 	t.Parallel()
 
@@ -106,17 +92,19 @@ func Test_Commands(t *testing.T) {
 		{
 			title: "Start valid redirect",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "80",
+				ProxyPort:    "8080",
 			},
 			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Start()
 			},
 			expectedCmds: []string{
-				"iptables -D INPUT -i eth0 -p tcp --dport 8080 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-				"iptables -A PREROUTING -t nat -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				"iptables -A INPUT -i eth0 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"ip addr add 127.120.107.6/32 dev lo",
+				"iptables -A OUTPUT -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
+				"iptables -A PREROUTING -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
+				"iptables -A INPUT ! -s 127.120.107.6/32 ! -d 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 			},
 			expectError: false,
 			fakeError:   nil,
@@ -125,17 +113,19 @@ func Test_Commands(t *testing.T) {
 		{
 			title: "Stop active redirect",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "80",
+				ProxyPort:    "8080",
 			},
 			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Stop()
 			},
 			expectedCmds: []string{
-				"iptables -D PREROUTING -t nat -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				"iptables -A INPUT -i eth0 -p tcp --dport 8080 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-				"iptables -D INPUT -i eth0 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"iptables -D OUTPUT -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
+				"iptables -D PREROUTING -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
+				"iptables -D INPUT ! -s 127.120.107.6/32 ! -d 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"ip addr del 127.120.107.6/32 dev lo",
 			},
 			expectError: false,
 			fakeError:   nil,
@@ -144,9 +134,10 @@ func Test_Commands(t *testing.T) {
 		{
 			title: "Error invoking iptables command in Start",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "80",
+				ProxyPort:    "8080",
 			},
 			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Start()
@@ -159,9 +150,10 @@ func Test_Commands(t *testing.T) {
 		{
 			title: "Error invoking iptables command in Stop",
 			redirect: TrafficRedirectionSpec{
-				Iface:           "eth0",
-				DestinationPort: 80,
-				RedirectPort:    8080,
+				LocalAddress: "127.120.107.6",
+				Interface:    "lo",
+				TargetPort:   "80",
+				ProxyPort:    "8080",
 			},
 			testFunction: func(tr protocol.TrafficRedirector) error {
 				return tr.Stop()
@@ -203,13 +195,8 @@ func Test_Commands(t *testing.T) {
 				return
 			}
 
-			if !compareCmds(tc.expectedCmds, executor.CmdHistory()) {
-				t.Errorf(
-					"Actual commands differ from expected:\nExpected:\n\t%s\nActual:\n\t%s",
-					strings.Join(tc.expectedCmds, "\n\t"),
-					strings.Join(executor.CmdHistory(), "\n\t"),
-				)
-				return
+			if diff := cmp.Diff(tc.expectedCmds, executor.CmdHistory()); diff != "" {
+				t.Fatalf("Actual commands differ from expected:\n%s", diff)
 			}
 		})
 	}
