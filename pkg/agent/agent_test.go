@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
+	"github.com/grafana/xk6-disruptor/pkg/runtime/profiler"
 )
 
 // FakeProtocolDisruptor implements a fake protocol Disruptor
@@ -38,7 +39,7 @@ func Test_CancelContext(t *testing.T) {
 			delay: 0 * time.Second,
 			err:   nil,
 			config: &Config{
-				Profiler: &runtime.ProfilerConfig{},
+				Profiler: &profiler.Config{},
 			},
 			expected: nil,
 		},
@@ -49,7 +50,7 @@ func Test_CancelContext(t *testing.T) {
 			vars:  map[string]string{},
 			args:  []string{},
 			config: &Config{
-				Profiler: &runtime.ProfilerConfig{},
+				Profiler: &profiler.Config{},
 			},
 			expected: context.Canceled,
 		},
@@ -99,7 +100,7 @@ func Test_Signals(t *testing.T) {
 			delay: 5 * time.Second,
 			err:   nil,
 			config: &Config{
-				Profiler: &runtime.ProfilerConfig{},
+				Profiler: &profiler.Config{},
 			},
 			signal:    syscall.SIGINT,
 			expectErr: true,
@@ -111,7 +112,7 @@ func Test_Signals(t *testing.T) {
 			delay: 5 * time.Second,
 			err:   nil,
 			config: &Config{
-				Profiler: &runtime.ProfilerConfig{},
+				Profiler: &profiler.Config{},
 			},
 			signal:    0,
 			expectErr: false,

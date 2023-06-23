@@ -9,11 +9,12 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
+	"github.com/grafana/xk6-disruptor/pkg/runtime/profiler"
 )
 
 // Config maintains the configuration for the execution of the agent
 type Config struct {
-	Profiler *runtime.ProfilerConfig
+	Profiler *profiler.Config
 }
 
 // Agent maintains the state required for executing an agent command
@@ -50,7 +51,7 @@ func (r *Agent) ApplyDisruption(ctx context.Context, disruptor protocol.Disrupto
 	}()
 
 	// start profiler
-	profiler, err := r.env.Profiler().Start(*r.config.Profiler)
+	profiler, err := r.env.Profiler().Start(ctx, *r.config.Profiler)
 	if err != nil {
 		return fmt.Errorf("could not create profiler %w", err)
 	}

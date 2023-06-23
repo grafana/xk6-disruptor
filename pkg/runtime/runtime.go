@@ -4,6 +4,8 @@ package runtime
 import (
 	"os"
 	"strings"
+
+	"github.com/grafana/xk6-disruptor/pkg/runtime/profiler"
 )
 
 // Environment abstracts the execution environment of a process.
@@ -14,7 +16,7 @@ type Environment interface {
 	// Lock returns an interface for a process lock
 	Lock() Lock
 	// Profiler return an execution profiler
-	Profiler() Profiler
+	Profiler() profiler.Profiler
 	// Vars returns the environment variables
 	Vars() map[string]string
 	// Args returns the arguments passed to the process
@@ -27,7 +29,7 @@ type Environment interface {
 type environment struct {
 	executor Executor
 	lock     Lock
-	profiler Profiler
+	profiler profiler.Profiler
 	signals  Signals
 	vars     map[string]string
 	args     []string
@@ -50,7 +52,7 @@ func DefaultEnvironment() Environment {
 	vars := getEnv()
 	return &environment{
 		executor: DefaultExecutor(),
-		profiler: DefaultProfiler(),
+		profiler: profiler.NewProfiler(),
 		lock:     DefaultLock(),
 		signals:  DefaultSignals(),
 		vars:     vars,
@@ -66,7 +68,7 @@ func (e *environment) Lock() Lock {
 	return e.lock
 }
 
-func (e *environment) Profiler() Profiler {
+func (e *environment) Profiler() profiler.Profiler {
 	return e.profiler
 }
 
