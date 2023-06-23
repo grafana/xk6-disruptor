@@ -1,7 +1,6 @@
 package profiler
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -37,7 +36,7 @@ func NewMemoryProbe(config MemoryConfig) (Probe, error) {
 	}, nil
 }
 
-func (m *memoryProbe) Start(cxt context.Context) (io.Closer, error) {
+func (m *memoryProbe) Start() (io.Closer, error) {
 	var err error
 	m.file, err = os.Create(m.config.FileName)
 

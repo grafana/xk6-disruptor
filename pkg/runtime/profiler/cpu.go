@@ -1,7 +1,6 @@
 package profiler
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +30,7 @@ func NewCPUProbe(config CPUConfig) (Probe, error) {
 	}, nil
 }
 
-func (c *cpuProbe) Start(ctx context.Context) (io.Closer, error) {
+func (c *cpuProbe) Start() (io.Closer, error) {
 	var err error
 
 	c.file, err = os.Create(c.config.FileName)

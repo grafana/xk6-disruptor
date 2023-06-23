@@ -22,7 +22,7 @@ type Profiler interface {
 
 // Probe defines the interface for controlling a profiling probe
 type Probe interface {
-	Start(context.Context) (io.Closer, error)
+	Start() (io.Closer, error)
 }
 
 // profiler maintains the configuration state of the profiler
@@ -36,7 +36,7 @@ func NewProfiler() Profiler {
 }
 
 // Start stars the collection of profiling information with the given configuration
-func (p *profiler) Start(ctx context.Context, config Config) (io.Closer, error) {
+func (p *profiler) Start(_ context.Context, config Config) (io.Closer, error) {
 	probes, err := buildProbes(config)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (p *profiler) Start(ctx context.Context, config Config) (io.Closer, error) 
 
 	closers := []io.Closer{}
 	for _, probe := range probes {
-		closer, err := probe.Start(ctx)
+		closer, err := probe.Start()
 		if err != nil {
 			// ensure any started Probe is closed
 			_ = p.Close()

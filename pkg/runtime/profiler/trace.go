@@ -1,7 +1,6 @@
 package profiler
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +29,7 @@ func NewTraceProbe(config TraceConfig) (Probe, error) {
 	}, nil
 }
 
-func (t *traceProbe) Start(ctx context.Context) (io.Closer, error) {
+func (t *traceProbe) Start() (io.Closer, error) {
 	var err error
 
 	t.file, err = os.Create(t.config.FileName)
