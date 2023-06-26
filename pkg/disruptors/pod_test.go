@@ -150,7 +150,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
-				Exclude: "/path1,/path2",
+				Exclude: []string{"/path1", "/path2"},
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -334,7 +334,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			targets: []string{"my-app-pod"},
 			fault: GrpcFault{
-				Exclude: "service1,service2",
+				Exclude: []string{"service1", "service2"},
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,

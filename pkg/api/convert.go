@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -87,6 +88,18 @@ func convertMap(value interface{}, target interface{}) error {
 
 func convertSlice(value interface{}, target interface{}) error {
 	targetValue := reflect.ValueOf(target).Elem()
+
+	// Hack: Allow to convert a comma-separated string into a slice of strings.
+	// This block is to be removed in 1.0.
+	valueStr, isString := value.(string)
+	if isString && reflect.TypeOf(target).Elem().Elem().Kind() == reflect.String {
+		// TODO: Log warning.
+		var iSlice []interface{}
+		for _, item := range strings.Split(valueStr, ",") {
+			iSlice = append(iSlice, item)
+		}
+		value = iSlice
+	}
 
 	valueSlice, ok := value.([]interface{})
 	if !ok {

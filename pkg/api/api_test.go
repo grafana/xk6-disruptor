@@ -207,7 +207,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -229,7 +229,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -246,7 +246,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -263,7 +263,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				averageDelay: "100ms",
 				delayVariation: "10ms",
 				errorBody: '',
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -284,6 +284,17 @@ func Test_JsPodDisruptor(t *testing.T) {
 			expectError: true,
 		},
 		{
+			description: "inject HTTP Fault with exclude as a string",
+			script: `
+			const fault = {
+				exclude: "foo,bar",
+			}
+
+			d.injectHTTPFaults(fault, "1s")
+			`,
+			expectError: false,
+		},
+		{
 			description: "inject Grpc Fault with full arguments",
 			script: `
 			const fault = {
@@ -292,7 +303,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -314,7 +325,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -331,7 +342,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 
@@ -353,7 +364,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				statusMessage: '',
 				averageDelay: "100ms",
 				delayVariation: "10ms",
-				exclude: "",
+				exclude: [],
 				port: 80
 			}
 

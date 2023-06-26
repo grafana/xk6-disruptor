@@ -2,6 +2,7 @@ package disruptors
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/utils"
@@ -43,7 +44,7 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 	}
 
 	if len(fault.Exclude) > 0 {
-		cmd = append(cmd, "-x", fault.Exclude)
+		cmd = append(cmd, "-x", strings.Join(fault.Exclude, ","))
 	}
 
 	if options.ProxyPort != 0 {
@@ -93,7 +94,7 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 	}
 
 	if len(fault.Exclude) > 0 {
-		cmd = append(cmd, "-x", fault.Exclude)
+		cmd = append(cmd, "-x", strings.Join(fault.Exclude, ","))
 	}
 
 	if options.ProxyPort != 0 {
