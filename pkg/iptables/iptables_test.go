@@ -104,7 +104,7 @@ func Test_Commands(t *testing.T) {
 				"ip addr add 127.120.107.6/32 dev lo",
 				"iptables -A OUTPUT -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
 				"iptables -A PREROUTING -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
-				"iptables -A INPUT ! -s 127.120.107.6/32 ! -d 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"iptables -A INPUT ! -s 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 			},
 			expectError: false,
 			fakeError:   nil,
@@ -124,7 +124,7 @@ func Test_Commands(t *testing.T) {
 			expectedCmds: []string{
 				"iptables -D OUTPUT -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
 				"iptables -D PREROUTING -t nat -p tcp --dport 80 ! -s 127.120.107.6/32 -j REDIRECT --to-port 8080",
-				"iptables -D INPUT ! -s 127.120.107.6/32 ! -d 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
+				"iptables -D INPUT ! -s 127.120.107.6/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 				"ip addr del 127.120.107.6/32 dev lo",
 			},
 			expectError: false,

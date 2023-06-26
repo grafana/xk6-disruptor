@@ -37,7 +37,6 @@ var redirectChains = []string{"OUTPUT", "PREROUTING"}
 // forcing clients to re-establish connections.
 const resetCommand = "%s INPUT " + // For traffic traversing the INPUT chain
 	"! -s %s/32 " + // Not coming from the proxy address
-	"! -d %s/32 " + // Not directed to the proxy address
 	"-p tcp --dport %s " + // Directed to the upstream application's port
 	"-m state --state ESTABLISHED " + // That are already ESTABLISHED, i.e. not before they are redirected
 	"-j REJECT --reject-with tcp-reset" // Reject it
@@ -145,7 +144,6 @@ func (tr *redirector) execResetCmd(action string) error {
 	cmd := fmt.Sprintf(
 		resetCommand,
 		action,
-		tr.LocalAddress,
 		tr.LocalAddress,
 		tr.TargetPort,
 	)
