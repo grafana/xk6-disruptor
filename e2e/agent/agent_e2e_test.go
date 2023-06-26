@@ -186,7 +186,6 @@ func Test_Agent(t *testing.T) {
 
 	t.Run("Test Fault Injection", func(t *testing.T) {
 		t.Parallel()
-		t.Skip()
 
 		testCases := []struct {
 			title string
@@ -257,7 +256,6 @@ func Test_Agent(t *testing.T) {
 
 	t.Run("Prevent execution of multiple commands", func(t *testing.T) {
 		t.Parallel()
-		t.Skip()
 
 		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
 		if err != nil {
