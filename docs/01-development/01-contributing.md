@@ -191,11 +191,6 @@ func Test_E2E(t *testing.T) {
 	        return
         }
 
-	// delete cluster when all sub-tests end
-	t.Cleanup(func() {
-		_ = cluster.Delete()
-	})
-
 	// get kubernetes client
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -240,3 +235,7 @@ The port to be exposed by the test cluster can be changed using the `WithIngress
 		cluster.WithIngressPort(30083),
 	)
 ```
+
+### Debugging e2e tests
+
+By default, once the e2e test is completed, the test cluster is deleted. This is inconvenient for debugging failed tests. This behavior is controlled by the `AutoCleanup` option in the `E2eClusterConfig`. By default it is true. This option can be disable using the `WithAutoCleanup(false)` option in the `BuildE2eCluster` function or by setting `E2E_AUTOCLEANUP=false` in your environment.

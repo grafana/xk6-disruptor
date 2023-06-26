@@ -4,11 +4,13 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fetch"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
 )
 
 // PostInstall defines a function that runs after the cluster is created
@@ -24,6 +26,7 @@ type E2eClusterConfig struct {
 	PostInstall []PostInstall
 	Reuse       bool
 	Wait        time.Duration
+	AutoCleanup bool
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -98,12 +101,14 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // DefaultE2eClusterConfig builds the default configuration for an e2e test cluster
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
+	autoCleanup := utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", true)
 	return E2eClusterConfig{
 		Name:        "e2e-tests",
 		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
 		Reuse:       true,
+		AutoCleanup: autoCleanup,
 		Wait:        60 * time.Second,
 		PostInstall: []PostInstall{
 			InstallContourIngress,
@@ -146,6 +151,14 @@ func WithWait(timeout time.Duration) E2eClusterOption {
 	}
 }
 
+// WithAutoCleanup specifies if the cluster must automatically deleted when test ends
+func WithAutoCleanup(autoCleanup bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.AutoCleanup = autoCleanup
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster *cluster.Cluster
@@ -154,7 +167,7 @@ type e2eCluster struct {
 }
 
 // BuildE2eCluster builds a cluster for e2e tests
-func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCluster, error) {
+func BuildE2eCluster(t *testing.T, e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCluster, error) {
 	var err error
 	// apply option functions
 	for _, option := range ops {
@@ -205,12 +218,19 @@ func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCl
 	// FIXME: add some form of check to avoid fixed waits
 	time.Sleep(e2eConfig.Wait)
 
+	// delete cluster when test ends unless AutoCleanup option used
+	if e2eConfig.AutoCleanup {
+		t.Cleanup(func() {
+			_ = cluster.Delete()
+		})
+	}
+
 	return cluster, nil
 }
 
 // BuildDefaultE2eCluster builds an e2e test cluster with the default configuration
-func BuildDefaultE2eCluster() (E2eCluster, error) {
-	return BuildE2eCluster(DefaultE2eClusterConfig())
+func BuildDefaultE2eCluster(t *testing.T) (E2eCluster, error) {
+	return BuildE2eCluster(t, DefaultE2eClusterConfig())
 }
 
 func (c *e2eCluster) Delete() error {
@@ -228,4 +248,3 @@ func (c *e2eCluster) Ingress() string {
 func (c *e2eCluster) Kubeconfig() string {
 	return c.cluster.Kubeconfig()
 }
-
