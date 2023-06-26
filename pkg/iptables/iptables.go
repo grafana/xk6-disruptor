@@ -4,6 +4,7 @@
 package iptables
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -90,14 +91,14 @@ func NewTrafficRedirector(
 }
 
 // delete iptables rules for redirection
+// Delete commands are all executed regardless of whether the previous failed.
 func (tr *redirector) deleteRedirectRules() error {
+	errs := make([]error, 0, len(redirectChains))
 	for _, chain := range redirectChains {
-		if err := tr.execRedirectCmd("-D", chain); err != nil {
-			return err
-		}
+		errs = append(errs, tr.execRedirectCmd("-D", chain))
 	}
 
-	return nil
+	return errorsJoin(errs...)
 }
 
 // add iptables rules for redirection
@@ -174,23 +175,28 @@ func (tr *redirector) Start() error {
 func (tr *redirector) Stop() error {
 	cidrAddr := tr.LocalAddress + cidrSuffix
 
-	// TODO: Replace this homemade error aggregation with errors.Join when we upgrade from Go 1.19 to 1.20.
-	// The current workaround loses information about previous error on concatenation, as Errorf does not allow
-	// using more than one %w directive.
-	var err error
-
 	// Cleanup steps are all performed regardless of intermediate errors, as they are idempotent.
-	if redirErr := tr.deleteRedirectRules(); redirErr != nil {
-		err = redirErr
+	redirErr := tr.deleteRedirectRules()
+	resetErr := tr.deleteResetRules()
+	addrDelErr := tr.ip.Delete(cidrAddr, tr.Interface)
+
+	return errorsJoin(redirErr, resetErr, addrDelErr)
+}
+
+// errorsJoin is a hacky implementation of errors.Join, which does not wrap errors.
+// TODO: Replace this homemade error aggregation with errors.Join when we upgrade from Go 1.19 to 1.20.
+func errorsJoin(errs ...error) error {
+	var composite string
+
+	for _, err := range errs {
+		if err != nil {
+			composite = fmt.Sprintf("%s%v; ", composite, err)
+		}
 	}
 
-	if resetErr := tr.deleteResetRules(); resetErr != nil {
-		err = fmt.Errorf("%v, %w", err, resetErr)
+	if composite == "" {
+		return nil
 	}
 
-	if addrDelErr := tr.ip.Delete(cidrAddr, tr.Interface); addrDelErr != nil {
-		err = fmt.Errorf("%v, %w", err, addrDelErr)
-	}
-
-	return err
+	return errors.New(strings.TrimSuffix(composite, "; "))
 }
