@@ -229,20 +229,3 @@ func (c *e2eCluster) Kubeconfig() string {
 	return c.cluster.Kubeconfig()
 }
 
-// BuildCluster builds a cluster with the xk6-disruptor-agent image preloaded and
-// the given node ports exposed
-func BuildCluster(name string, ports ...cluster.NodePort) (*cluster.Cluster, error) {
-	config, err := cluster.NewConfig(
-		name,
-		cluster.Options{
-			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
-			Wait:      time.Second * 60,
-			NodePorts: ports,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster config: %w", err)
-	}
-
-	return config.Create()
-}
