@@ -43,13 +43,6 @@ func (f *FakeKubernetes) ServiceHelper(namespace string) helpers.ServiceHelper {
 	)
 }
 
-// NamespaceHelper returns a NamespaceHelper for the given namespace
-func (f *FakeKubernetes) NamespaceHelper() helpers.NamespaceHelper {
-	return helpers.NewFakeNamespaceHelper(
-		f.client,
-	)
-}
-
 // Client return a kubernetes client
 func (f *FakeKubernetes) Client() kubernetes.Interface {
 	return f.client

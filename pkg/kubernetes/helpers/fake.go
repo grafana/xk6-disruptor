@@ -105,20 +105,6 @@ func NewFakeServiceHelper(
 	}
 }
 
-// fakeNamespaceHelper is an fake instance of a NamespaceHelper. It can delegate to the actual
-// helper the execution of actions or override them when needed
-type fakeNamespaceHelper struct {
-	NamespaceHelper
-}
-
-// NewFakeNamespaceHelper creates a set of a NamespaceHelper on the default namespace
-func NewFakeNamespaceHelper(client kubernetes.Interface) NamespaceHelper {
-	h := NewNamespaceHelper(client)
-	return &fakeNamespaceHelper{
-		h,
-	}
-}
-
 // FakeHTTPClient implement a fake HTTPClient that returns a fixed response.
 // When invoked, it records the request it received
 type FakeHTTPClient struct {

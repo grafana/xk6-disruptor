@@ -5,7 +5,6 @@ package e2e
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,27 +37,6 @@ func Test_Kubernetes(t *testing.T) {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
 	}
-
-	kubeconfig := cluster.Kubeconfig()
-
-	// Test Creating a random namespace
-	t.Run("Create Random Namespace", func(t *testing.T) {
-		k8s, err := kubernetes.NewFromKubeconfig(kubeconfig)
-		if err != nil {
-			t.Errorf("error creating kubernetes client: %v", err)
-			return
-		}
-		prefix := "test"
-		ns, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), prefix)
-		if err != nil {
-			t.Errorf("unexpected error creating namespace: %v", err)
-			return
-		}
-		if !strings.HasPrefix(ns, prefix) {
-			t.Errorf("returned namespace does not have expected prefix '%s': %s", prefix, ns)
-		}
-	})
-
 
 	// Test Wait Pod Running
 	t.Run("Wait Pod is Running", func(t *testing.T) {
