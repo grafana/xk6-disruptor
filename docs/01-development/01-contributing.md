@@ -130,7 +130,7 @@ In order to facilitate debugging `xk6-disruptor-agent` offers options for genera
 * `--cpu-profile`: generate CPU profiling information. The `--cpu-profile-file` option allows specifying the output file for profile information (default `cpu.pprof`)
 * `--mem-profile`: generate memory profiling information. By default, it sets the [memory profile rate](https://pkg.go.dev/runtime#pkg-variables) to `1`, which will profile every allocation. This rate can be controlled using the `--mem-profile-rate` option. The `--mem-profile-file` option allows specifying the output file for profile information (default `mem.pprof`)
 
-If you run the [disrupor manually](#running-manually) in a pod you have to copy them from the target pod to your local machine. For example, for copying the `trace.out` file:
+If you run the [disruptor manually](#running-manually) in a pod you have to copy them from the target pod to your local machine. For example, for copying the `trace.out` file:
 
 ```bash
 kubectl cp <target pod>:trace.out -c xk6-agent trace.out
@@ -139,6 +139,11 @@ kubectl cp <target pod>:trace.out -c xk6-agent trace.out
 ## e2e tests
 
 End to end tests are meant to test the components of the project in a test environment without mocks.
+
+The test environment is created using [kind](https://kind.sigs.k8s.io/). The e2e testutils package automates the process of creating and configuring the test clusters.
+
+However, it is convenient to have `kind` installed in case you need to manually interact with the test clusters.
+
 These tests are slow and resource consuming. To prevent them to be executed as part of the `test` target
 it is recommended to make their execution conditioned to the `e2e` build tags by adding the following compiler
 directives to each test file:
@@ -155,7 +160,7 @@ $ make e2e
 
 In order to facilitate the development of e2e tests, diverse helper functions have been created, organized in the following packages:
 
-* [pkg/testutils/e2e/cluster](pkg/testutils/e2e/cluster) functions for creating test clusters
+* [pkg/testutils/e2e/cluster](pkg/testutils/e2e/cluster) functions for creating test clusters using [kind](https://kind.sigs.k8s.io/)
 * [pkg/testutils/e2e/fixtures](pkg/testutils/e2e/fixtures) functions for creating test resources
 * [pkg/testutils/e2e/checks](pkg/testutils/e2e/checks) functions for verifying conditions during the test
 
@@ -238,4 +243,21 @@ The port to be exposed by the test cluster can be changed using the `WithIngress
 
 ### Debugging e2e tests
 
-By default, once the e2e test is completed, the test cluster is deleted. This is inconvenient for debugging failed tests. This behavior is controlled by the `AutoCleanup` option in the `E2eClusterConfig`. By default it is true. This option can be disable using the `WithAutoCleanup(false)` option in the `BuildE2eCluster` function or by setting `E2E_AUTOCLEANUP=false` in your environment.
+By default, once the e2e test is completed, the test cluster is deleted. This is inconvenient for debugging failed tests.
+
+This behavior is controlled by the `AutoCleanup` option in the `E2eClusterConfig`. By default it is true. This option can be disable using the `WithAutoCleanup(false)` option in the `BuildE2eCluster` function or by setting `E2E_AUTOCLEANUP=false` in your environment.
+
+### Reusing e2e test clusters
+
+By default, each e2e test creates a new test cluster to ensure it is properly configured and prevent any left-over from previous runs to affect the test.
+
+However, when testing a solution to an issue, creating a new cluster for each test is time-consuming. 
+
+It is possible to specify that we want to reuse a test cluster is one exists with the `Reuse` option in the `E2eClusterConfig`. This option can be set with the `WithReuse` configuration option or setting the `E2E_REUSE=true` in your environment.
+
+> Note: if you are testing changes in the agent, be sure you generate the image and [upload it to the cluster](#building-the-xk6-disruptor-agent-image) using kind
+
+When you don't longer needs the cluster, you can delete it using kind:
+```sh
+kind delete cluster --name=<cluster name>
+```

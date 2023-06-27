@@ -4,6 +4,8 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ type E2eClusterConfig struct {
 	Reuse       bool
 	Wait        time.Duration
 	AutoCleanup bool
+	Kubeconfig  string
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -102,14 +105,16 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
 	autoCleanup := utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", true)
+	reuse := utils.GetBooleanEnvVar("E2E_REUSE", false)
 	return E2eClusterConfig{
 		Name:        "e2e-tests",
 		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
-		Reuse:       true,
+		Reuse:       reuse,
 		AutoCleanup: autoCleanup,
 		Wait:        60 * time.Second,
+		Kubeconfig:  filepath.Join(os.TempDir(), "e2e-tests"),
 		PostInstall: []PostInstall{
 			InstallContourIngress,
 		},
@@ -143,6 +148,14 @@ func WithName(name string) E2eClusterOption {
 	}
 }
 
+// WithKubeconfig sets the path to the kubeconfig file
+func WithKubeconfig(kubeconfig string) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Kubeconfig = kubeconfig
+		return c, nil
+	}
+}
+
 // WithWait sets the timeout for cluster creation
 func WithWait(timeout time.Duration) E2eClusterOption {
 	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
@@ -159,6 +172,14 @@ func WithAutoCleanup(autoCleanup bool) E2eClusterOption {
 	}
 }
 
+// WithReuse specifies if an existing cluster with the same name must be reused (true) or deleted (false)
+func WithReuse(reuse bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Reuse = reuse
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster *cluster.Cluster
@@ -166,17 +187,9 @@ type e2eCluster struct {
 	name    string
 }
 
-// BuildE2eCluster builds a cluster for e2e tests
-func BuildE2eCluster(t *testing.T, e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCluster, error) {
-	var err error
-	// apply option functions
-	for _, option := range ops {
-		e2eConfig, err = option(e2eConfig)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+// creates and configures a e2e cluster
+func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
+	// create cluster
 	config, err := cluster.NewConfig(
 		e2eConfig.Name,
 		cluster.Options{
@@ -218,14 +231,58 @@ func BuildE2eCluster(t *testing.T, e2eConfig E2eClusterConfig, ops ...E2eCluster
 	// FIXME: add some form of check to avoid fixed waits
 	time.Sleep(e2eConfig.Wait)
 
-	// delete cluster when test ends unless AutoCleanup option used
-	if e2eConfig.AutoCleanup {
-		t.Cleanup(func() {
-			_ = cluster.Delete()
-		})
+	return cluster, nil
+}
+
+// BuildE2eCluster builds a cluster for e2e tests
+func BuildE2eCluster(
+	t *testing.T,
+	e2eConfig E2eClusterConfig,
+	ops ...E2eClusterOption,
+) (e2ec E2eCluster, err error) {
+	// apply option functions
+	for _, option := range ops {
+		e2eConfig, err = option(e2eConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return cluster, nil
+	defer func() {
+		if e2ec != nil && e2eConfig.AutoCleanup {
+			t.Cleanup(func() {
+				_ = e2ec.Delete()
+			})
+		}
+	}()
+
+	// check if cluster exists
+	c, err := cluster.GetCluster(e2eConfig.Name, e2eConfig.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// if exists
+	if c != nil {
+		// if Reuse option is specified, return existing cluster
+		if e2eConfig.Reuse {
+			ingress := fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort)
+			return &e2eCluster{
+				cluster: c,
+				ingress: ingress,
+				name:    e2eConfig.Name,
+			}, nil
+		}
+
+		// otherwise, delete it
+		err = c.Delete()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// we need to create a new cluster
+	return createE2eCluster(e2eConfig)
 }
 
 // BuildDefaultE2eCluster builds an e2e test cluster with the default configuration
