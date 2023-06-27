@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,14 +59,14 @@ func Test_Kubernetes(t *testing.T) {
 		}
 	})
 
+
 	// Test Wait Pod Running
 	t.Run("Wait Pod is Running", func(t *testing.T) {
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		// Deploy nginx
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
@@ -92,12 +93,11 @@ func Test_Kubernetes(t *testing.T) {
 
 	// Test Wait Service Ready helper
 	t.Run("Wait Service Ready", func(t *testing.T) {
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		// Deploy nginx and expose it as a service. Intentionally not using e2e fixures
 		// because these functions rely on WaitPodRunnin and WaitServiceReady which we
@@ -131,12 +131,11 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Exec Command", func(t *testing.T) {
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		err = deploy.RunPod(k8s, namespace, fixtures.BuildBusyBoxPod(), 10*time.Second)
 		if err != nil {
@@ -163,12 +162,11 @@ func Test_Kubernetes(t *testing.T) {
 	})
 
 	t.Run("Attach Ephemeral Container", func(t *testing.T) {
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		err = deploy.RunPod(k8s, namespace, fixtures.BuildPausedPod(), 10*time.Second)
 		if err != nil {

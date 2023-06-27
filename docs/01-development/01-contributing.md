@@ -205,14 +205,12 @@ func Test_E2E(t *testing.T) {
 
 	// Execute test on cluster
 	t.Run("Test", func(t *testing.T){
-		// create namespace for test
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test")
+		// create namespace for test. Will be deleted automatically when the test ends
+		namespace, err := namespace.CreateNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
 			t.Errorf("error creating test namespace: %v", err)
 			return
 		}
-		// delete test resources when test ends
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		// create test resources using k8s fixtures
 
@@ -261,3 +259,9 @@ When you don't longer needs the cluster, you can delete it using kind:
 ```sh
 kind delete cluster --name=<cluster name>
 ```
+
+### Keeping Kubernetes resources for debugging
+
+By default, test namespaces created with `CreateTestNamespace` are automatically deleted when a test ends. This is inconvenient for debugging failed tests.
+
+This behavior is controlled by passing the `WithKeepOnFail` option when creating the namespace or by setting `E2E_KEEPONFAIL=true` in the environment when running an e2e test.

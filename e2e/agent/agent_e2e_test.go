@@ -14,10 +14,10 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -222,12 +222,12 @@ func Test_Agent(t *testing.T) {
 			tc := tc
 			t.Run(tc.title, func(t *testing.T) {
 				t.Parallel()
-				namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+
+				namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 				if err != nil {
-					t.Errorf("error creating test namespace: %v", err)
+					t.Errorf("failed to create test namespace: %v", err)
 					return
 				}
-				defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 				err = deploy.ExposeApp(
 					k8s,
@@ -254,12 +254,11 @@ func Test_Agent(t *testing.T) {
 	t.Run("Prevent execution of multiple commands", func(t *testing.T) {
 		t.Parallel()
 
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		err = deploy.RunPod(
 			k8s,
@@ -290,12 +289,11 @@ func Test_Agent(t *testing.T) {
 	t.Run("Non-transparent proxy to upstream service", func(t *testing.T) {
 		t.Parallel()
 
-		namespace, err := k8s.NamespaceHelper().CreateRandomNamespace(context.TODO(), "test-")
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
-			t.Errorf("error creating test namespace: %v", err)
+			t.Errorf("failed to create test namespace: %v", err)
 			return
 		}
-		defer k8s.Client().CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 
 		err = deploy.ExposeApp(
 			k8s,
