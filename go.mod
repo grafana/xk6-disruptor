@@ -8,9 +8,9 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
 	go.k6.io/k6 v0.45.0
-	k8s.io/api v0.27.2
-	k8s.io/apimachinery v0.27.2
-	k8s.io/client-go v0.27.2
+	k8s.io/api v0.27.3
+	k8s.io/apimachinery v0.27.3
+	k8s.io/client-go v0.27.3
 	sigs.k8s.io/kind v0.13.0
 )
 
