@@ -21,6 +21,8 @@ import (
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
+	t.Parallel()
+
 	cluster, err := cluster.BuildE2eCluster(
 		t,
 		cluster.DefaultE2eClusterConfig(),

@@ -164,6 +164,8 @@ func builDisruptorService() *corev1.Service {
 }
 
 func Test_Agent(t *testing.T) {
+	t.Parallel()
+
 	cluster, err := cluster.BuildE2eCluster(
 		t,
 		cluster.DefaultE2eClusterConfig(),
