@@ -5,6 +5,15 @@
   ],
   "gomod": {}, // Upgrade go dependencies.
   "github-actions": {}, // Upgrade GitHub actions.
+  "regexManagers": [
+    // Custom golangci version in .golangci.yml comment.
+    {
+      "fileMatch": [".golangci.ya?ml$"],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "golangci/golangci-lint",
+      "matchStrings": ["^# (?<currentValue>v[\\w-.]+)"]
+    }
+  ],
   // Renovate evaluates all packageRules and does not stop after the first match.
   // Rules that appear later in this list override earlier rules.
   "packageRules": [
