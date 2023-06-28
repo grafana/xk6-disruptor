@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: 1.19.x
       - name: Build with xk6
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: 1.19.x
       - name: Run unit tests
@@ -49,7 +49,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: 1.19.x
       - name: Set golangci-lint environment
