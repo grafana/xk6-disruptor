@@ -60,6 +60,8 @@ type Options struct {
 	Workers int
 	// Kubernetes version
 	Version string
+	// Path to Kubeconfig
+	Kubeconfig string
 }
 
 // Config contains the configuration for creating a cluster
@@ -120,8 +122,6 @@ func (c *Config) Render() (string, error) {
 
 // Cluster an active test cluster
 type Cluster struct {
-	// configuration used for creating the cluster
-	config *Config
 	//  path to the Kubeconfig
 	kubeconfig string
 	// kind cluster provider
@@ -250,16 +250,18 @@ func (c *Config) Create() (*Cluster, error) {
 		}
 	}
 
-	configPath := filepath.Join(os.TempDir(), c.name)
-	err = provider.ExportKubeConfig(c.name, configPath, false)
+	kubeconfig := c.options.Kubeconfig
+	if kubeconfig == "" {
+		kubeconfig = filepath.Join(os.TempDir(), c.name)
+	}
+	err = provider.ExportKubeConfig(c.name, kubeconfig, false)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Cluster{
 		name:       c.name,
-		config:     c,
-		kubeconfig: configPath,
+		kubeconfig: kubeconfig,
 		provider:   *provider,
 	}, nil
 }
@@ -275,4 +277,39 @@ func (c *Cluster) Delete() error {
 // Kubeconfig returns the path to the kubeconfig for the test cluster
 func (c *Cluster) Kubeconfig() string {
 	return c.kubeconfig
+}
+
+// Name returns the name of the cluster
+func (c *Cluster) Name() string {
+	return c.name
+}
+
+// GetCluster returns an existing cluster if exists, nil otherwise
+func GetCluster(name string, kubeconfig string) (*Cluster, error) {
+	if name == "" || kubeconfig == "" {
+		return nil, fmt.Errorf("cluster name and kubeconfig path are required")
+	}
+
+	provider := kind.NewProvider()
+
+	clusters, err := provider.List()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving list of clusters %w", err)
+	}
+
+	//nolint:nilnil
+	if !strings.Contains(strings.Join(clusters, ","), name) {
+		return nil, nil
+	}
+
+	err = provider.ExportKubeConfig(name, kubeconfig, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Cluster{
+		name:       name,
+		kubeconfig: kubeconfig,
+		provider:   *provider,
+	}, nil
 }

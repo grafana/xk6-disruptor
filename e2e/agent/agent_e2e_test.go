@@ -165,6 +165,7 @@ func builDisruptorService() *corev1.Service {
 
 func Test_Agent(t *testing.T) {
 	cluster, err := cluster.BuildE2eCluster(
+		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-xk6-agent"),
 		cluster.WithIngressPort(30080),
@@ -173,10 +174,6 @@ func Test_Agent(t *testing.T) {
 		t.Errorf("failed to create e2e cluster: %v", err)
 		return
 	}
-
-	t.Cleanup(func() {
-		_ = cluster.Delete()
-	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {

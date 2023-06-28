@@ -24,6 +24,7 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
 
 	cluster, err := cluster.BuildE2eCluster(
+		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-pod-disruptor"),
 		cluster.WithIngressPort(30082),
@@ -32,10 +33,6 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
-
-	t.Cleanup(func() {
-		_ = cluster.Delete()
-	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {

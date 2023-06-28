@@ -98,4 +98,5 @@ linters:
     - containedctx
     - usestdlibvars
     - nosprintfhostport
+    - nonamedreturns
   fast: false

@@ -172,3 +172,38 @@ func Test_InvalidKubernetesVersion(t *testing.T) {
 		return
 	}
 }
+
+// FIXME: this is a very basic test. Check for error conditions and ensure
+// returned cluster is functional.
+func Test_GetCluster(t *testing.T) {
+	// create cluster with  configuration
+	config, err := cluster.NewConfig(
+		"e2e-preexisting-cluster",
+		cluster.Options{
+			Wait: time.Second * 60,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	c, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+
+	cluster, err := cluster.GetCluster(c.Name(), c.Kubeconfig())
+	if err != nil {
+		t.Errorf("failed to get cluster: %v", err)
+		return
+	}
+
+	// delete cluster
+	cluster.Delete()
+	if err != nil {
+		t.Errorf("failed to delete cluster: %v", err)
+		return
+	}
+}

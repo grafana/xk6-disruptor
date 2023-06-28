@@ -4,11 +4,15 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fetch"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
 )
 
 // PostInstall defines a function that runs after the cluster is created
@@ -24,6 +28,8 @@ type E2eClusterConfig struct {
 	PostInstall []PostInstall
 	Reuse       bool
 	Wait        time.Duration
+	AutoCleanup bool
+	Kubeconfig  string
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -99,12 +105,14 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
 	return E2eClusterConfig{
-		Name:        "e2e-tests",
+		Name:        "e2e-test",
 		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
-		Reuse:       true,
+		Reuse:       false,
+		AutoCleanup: true,
 		Wait:        60 * time.Second,
+		Kubeconfig:  filepath.Join(os.TempDir(), "e2e-test"),
 		PostInstall: []PostInstall{
 			InstallContourIngress,
 		},
@@ -138,10 +146,34 @@ func WithName(name string) E2eClusterOption {
 	}
 }
 
+// WithKubeconfig sets the path to the kubeconfig file
+func WithKubeconfig(kubeconfig string) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Kubeconfig = kubeconfig
+		return c, nil
+	}
+}
+
 // WithWait sets the timeout for cluster creation
 func WithWait(timeout time.Duration) E2eClusterOption {
 	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
 		c.Wait = timeout
+		return c, nil
+	}
+}
+
+// WithAutoCleanup specifies if the cluster must automatically deleted when test ends
+func WithAutoCleanup(autoCleanup bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.AutoCleanup = autoCleanup
+		return c, nil
+	}
+}
+
+// WithReuse specifies if an existing cluster with the same name must be reused (true) or deleted (false)
+func WithReuse(reuse bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Reuse = reuse
 		return c, nil
 	}
 }
@@ -153,17 +185,9 @@ type e2eCluster struct {
 	name    string
 }
 
-// BuildE2eCluster builds a cluster for e2e tests
-func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCluster, error) {
-	var err error
-	// apply option functions
-	for _, option := range ops {
-		e2eConfig, err = option(e2eConfig)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+// creates and configures a e2e cluster
+func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
+	// create cluster
 	config, err := cluster.NewConfig(
 		e2eConfig.Name,
 		cluster.Options{
@@ -208,9 +232,69 @@ func BuildE2eCluster(e2eConfig E2eClusterConfig, ops ...E2eClusterOption) (E2eCl
 	return cluster, nil
 }
 
+// merge options from environment variables
+func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
+	config.AutoCleanup = utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", config.AutoCleanup)
+	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
+	return config
+}
+
+// BuildE2eCluster builds a cluster for e2e tests
+func BuildE2eCluster(
+	t *testing.T,
+	e2eConfig E2eClusterConfig,
+	ops ...E2eClusterOption,
+) (e2ec E2eCluster, err error) {
+	// apply option functions
+	for _, option := range ops {
+		e2eConfig, err = option(e2eConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	e2eConfig = mergeEnvVariables(e2eConfig)
+
+	defer func() {
+		if e2ec != nil && e2eConfig.AutoCleanup {
+			t.Cleanup(func() {
+				_ = e2ec.Delete()
+			})
+		}
+	}()
+
+	// check if cluster exists
+	c, err := cluster.GetCluster(e2eConfig.Name, e2eConfig.Kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// if exists
+	if c != nil {
+		// if Reuse option is specified, return existing cluster
+		if e2eConfig.Reuse {
+			ingress := fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort)
+			return &e2eCluster{
+				cluster: c,
+				ingress: ingress,
+				name:    e2eConfig.Name,
+			}, nil
+		}
+
+		// otherwise, delete it
+		err = c.Delete()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// we need to create a new cluster
+	return createE2eCluster(e2eConfig)
+}
+
 // BuildDefaultE2eCluster builds an e2e test cluster with the default configuration
-func BuildDefaultE2eCluster() (E2eCluster, error) {
-	return BuildE2eCluster(DefaultE2eClusterConfig())
+func BuildDefaultE2eCluster(t *testing.T) (E2eCluster, error) {
+	return BuildE2eCluster(t, DefaultE2eClusterConfig())
 }
 
 func (c *e2eCluster) Delete() error {
@@ -227,22 +311,4 @@ func (c *e2eCluster) Ingress() string {
 
 func (c *e2eCluster) Kubeconfig() string {
 	return c.cluster.Kubeconfig()
-}
-
-// BuildCluster builds a cluster with the xk6-disruptor-agent image preloaded and
-// the given node ports exposed
-func BuildCluster(name string, ports ...cluster.NodePort) (*cluster.Cluster, error) {
-	config, err := cluster.NewConfig(
-		name,
-		cluster.Options{
-			Images:    []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
-			Wait:      time.Second * 60,
-			NodePorts: ports,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cluster config: %w", err)
-	}
-
-	return config.Create()
 }
