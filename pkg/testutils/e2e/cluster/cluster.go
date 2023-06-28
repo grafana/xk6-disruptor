@@ -104,17 +104,15 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // DefaultE2eClusterConfig builds the default configuration for an e2e test cluster
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
-	autoCleanup := utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", true)
-	reuse := utils.GetBooleanEnvVar("E2E_REUSE", false)
 	return E2eClusterConfig{
-		Name:        "e2e-tests",
+		Name:        "e2e-test",
 		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
-		Reuse:       reuse,
-		AutoCleanup: autoCleanup,
+		Reuse:       false,
+		AutoCleanup: true,
 		Wait:        60 * time.Second,
-		Kubeconfig:  filepath.Join(os.TempDir(), "e2e-tests"),
+		Kubeconfig:  filepath.Join(os.TempDir(), "e2e-test"),
 		PostInstall: []PostInstall{
 			InstallContourIngress,
 		},
@@ -234,6 +232,13 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 	return cluster, nil
 }
 
+// merge options from environment variables
+func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
+	config.AutoCleanup = utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", config.AutoCleanup)
+	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
+	return config
+}
+
 // BuildE2eCluster builds a cluster for e2e tests
 func BuildE2eCluster(
 	t *testing.T,
@@ -247,6 +252,8 @@ func BuildE2eCluster(
 			return nil, err
 		}
 	}
+
+	e2eConfig = mergeEnvVariables(e2eConfig)
 
 	defer func() {
 		if e2ec != nil && e2eConfig.AutoCleanup {
