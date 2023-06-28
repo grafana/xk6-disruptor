@@ -14,3 +14,13 @@ func GetBooleanEnvVar(envVar string, defaultValue bool) bool {
 	}
 	return value
 }
+
+// GetEnvVar returns a string environment variable.
+// If variable is not set or has an empty value, returns the default value
+func GetEnvVar(envVar string, defaultValue string) string {
+	value := os.Getenv(envVar)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}

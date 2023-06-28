@@ -236,6 +236,7 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
 	config.AutoCleanup = utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", config.AutoCleanup)
 	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
+	config.Name = utils.GetEnvVar("E2E_CLUSTER_NAME", config.Name)
 	return config
 }
 
