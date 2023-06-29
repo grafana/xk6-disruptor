@@ -37,7 +37,7 @@ type PodHelper interface {
 		options AttachOptions,
 	) error
 	// List returns a list of pods that match the given PodFilter
-	List(ctx context.Context, filter PodFilter) ([]string, error)
+	List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error)
 	// ValidatePort verifies if all pods that match the given PodFilter listen to the given port
 	ValidatePort(ctx context.Context, filter PodFilter, port uint) error
 }
@@ -286,22 +286,8 @@ func buildLabelSelector(f PodFilter) (labels.Selector, error) {
 	return labelsSelector, nil
 }
 
-func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]string, error) {
-	pods, err := h.getPods(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	names := []string{}
-	for _, p := range pods {
-		names = append(names, p.Name)
-	}
-
-	return names, nil
-}
-
 func (h *podHelper) ValidatePort(ctx context.Context, filter PodFilter, port uint) error {
-	pods, err := h.getPods(ctx, filter)
+	pods, err := h.List(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -315,7 +301,7 @@ func (h *podHelper) ValidatePort(ctx context.Context, filter PodFilter, port uin
 	return nil
 }
 
-func (h *podHelper) getPods(ctx context.Context, filter PodFilter) ([]corev1.Pod, error) {
+func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error) {
 	labelSelector, err := buildLabelSelector(filter)
 	if err != nil {
 		return nil, err

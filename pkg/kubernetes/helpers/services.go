@@ -26,7 +26,7 @@ type ServiceHelper interface {
 	// MapPort return a map of pod, port pairs for a service port
 	MapPort(ctx context.Context, name string, svcPort uint) (map[string]uint, error)
 	// GetTargets returns the list of pods that match the service selector criteria
-	GetTargets(ctx context.Context, service string) ([]string, error)
+	GetTargets(ctx context.Context, service string) ([]corev1.Pod, error)
 }
 
 // helpers struct holds the data required by the helpers
@@ -136,7 +136,7 @@ func (h *serviceHelper) MapPort(ctx context.Context, name string, svcPort uint) 
 	return targets, nil
 }
 
-func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, error) {
+func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]corev1.Pod, error) {
 	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
@@ -149,16 +149,8 @@ func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, 
 		ctx,
 		listOptions,
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	names := make([]string, 0, len(pods.Items))
-	for _, p := range pods.Items {
-		names = append(names, p.Name)
-	}
-
-	return names, nil
+	return pods.Items, err
 }
 
 // ServiceClient is the minimal interface for executing HTTP requests

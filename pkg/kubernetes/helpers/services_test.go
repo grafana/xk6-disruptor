@@ -724,8 +724,12 @@ func Test_Targets(t *testing.T) {
 				return
 			}
 
-			if !assertions.CompareStringArrays(tc.expectedPods, targets) {
-				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, targets)
+			names := []string{}
+			for _, p := range targets {
+				names = append(names, p.Name)
+			}
+			if !assertions.CompareStringArrays(tc.expectedPods, names) {
+				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, names)
 				return
 			}
 		})

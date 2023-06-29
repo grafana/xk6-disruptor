@@ -29,7 +29,7 @@ type AgentController interface {
 type agentController struct {
 	helper    helpers.PodHelper
 	namespace string
-	targets   []string
+	targets   []corev1.Pod
 	timeout   time.Duration
 }
 
@@ -80,7 +80,7 @@ func (c *agentController) InjectDisruptorAgent(ctx context.Context) error {
 			if err != nil {
 				errors <- err
 			}
-		}(pod)
+		}(pod.Name)
 	}
 
 	wg.Wait()
@@ -108,7 +108,7 @@ func (c *agentController) Visit(ctx context.Context, visitor func(string) []stri
 	errors := make(chan error, len(c.targets))
 	for _, pod := range c.targets {
 		// get the command to execute in the target
-		cmd := visitor(pod)
+		cmd := visitor(pod.Name)
 		wg.Add(1)
 		// attach each container asynchronously
 		go func(pod string) {
@@ -118,7 +118,7 @@ func (c *agentController) Visit(ctx context.Context, visitor func(string) []stri
 			}
 
 			wg.Done()
-		}(pod)
+		}(pod.Name)
 	}
 
 	wg.Wait()
@@ -133,7 +133,11 @@ func (c *agentController) Visit(ctx context.Context, visitor func(string) []stri
 
 // Targets retrieves the list of target pods for the given PodSelector
 func (c *agentController) Targets(ctx context.Context) ([]string, error) {
-	return c.targets, nil
+	names := []string{}
+	for _, p := range c.targets {
+		names = append(names, p.Name)
+	}
+	return names, nil
 }
 
 // NewAgentController creates a new controller for a list of target pods
@@ -141,7 +145,7 @@ func NewAgentController(
 	ctx context.Context,
 	helper helpers.PodHelper,
 	namespace string,
-	targets []string,
+	targets []corev1.Pod,
 	timeout time.Duration,
 ) AgentController {
 	if timeout == 0 {
