@@ -133,3 +133,48 @@ func Test_ServicePortMapping(t *testing.T) {
 		})
 	}
 }
+
+func Test_ValidatePort(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title      string
+		namespace  string
+		pod        *corev1.Pod
+		targetPort uint
+		expect     bool
+	}{
+		{
+			title:     "Pods listen to the specified port",
+			namespace: "testns",
+			pod: builders.NewPodBuilder("test-pod-1").
+				WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 8080}}}).
+				WithNamespace("testns").
+				Build(),
+			targetPort: 8080,
+			expect:     true,
+		},
+		{
+			title:     "Pod doesn't listen to the specified port",
+			namespace: "testns",
+			pod: builders.NewPodBuilder("test-pod-2").
+				WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 9090}}}).
+				WithNamespace("testns").
+				Build(),
+			targetPort: 8080,
+			expect:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			validation := ValidatePort(*tc.pod, tc.targetPort)
+			if validation != tc.expect {
+				t.Errorf("expected %t got %t", tc.expect, validation)
+			}
+		})
+	}
+}

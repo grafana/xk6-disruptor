@@ -7,12 +7,17 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/utils"
 )
 
-//nolint:dupl
 func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"grpc",
 		"-d", utils.DurationSeconds(duration),
+		"-t", fmt.Sprint(fault.Port),
+	}
+
+	// TODO: make port mandatory
+	if fault.Port != 0 {
+		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
 	if fault.AverageDelay > 0 {
@@ -38,10 +43,6 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 		}
 	}
 
-	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
-	}
-
 	if len(fault.Exclude) > 0 {
 		cmd = append(cmd, "-x", fault.Exclude)
 	}
@@ -57,12 +58,16 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 	return cmd
 }
 
-//nolint:dupl
 func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
 		"-d", utils.DurationSeconds(duration),
+	}
+
+	// TODO: make port mandatory
+	if fault.Port != 0 {
+		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
 	if fault.AverageDelay > 0 {
@@ -86,10 +91,6 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 		if fault.ErrorBody != "" {
 			cmd = append(cmd, "-b", fault.ErrorBody)
 		}
-	}
-
-	if fault.Port != 0 {
-		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
 	if len(fault.Exclude) > 0 {

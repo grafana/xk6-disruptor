@@ -56,3 +56,15 @@ func MapPort(service corev1.Service, port uint, pod corev1.Pod) (uint, error) {
 
 	return 0, fmt.Errorf("pod %q does match port %d for service %q", pod.Name, port, service.Name)
 }
+
+// ValidatePort verifies if a pods listen to the given port
+func ValidatePort(pod corev1.Pod, port uint) bool {
+	for _, container := range pod.Spec.Containers {
+		for _, containerPort := range container.Ports {
+			if uint(containerPort.ContainerPort) == port {
+				return true
+			}
+		}
+	}
+	return false
+}

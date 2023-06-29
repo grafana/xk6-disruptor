@@ -38,8 +38,6 @@ type PodHelper interface {
 	) error
 	// List returns a list of pods that match the given PodFilter
 	List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error)
-	// ValidatePort verifies if all pods that match the given PodFilter listen to the given port
-	ValidatePort(ctx context.Context, filter PodFilter, port uint) error
 }
 
 // helpers struct holds the data required by the helpers
@@ -286,21 +284,6 @@ func buildLabelSelector(f PodFilter) (labels.Selector, error) {
 	return labelsSelector, nil
 }
 
-func (h *podHelper) ValidatePort(ctx context.Context, filter PodFilter, port uint) error {
-	pods, err := h.List(ctx, filter)
-	if err != nil {
-		return err
-	}
-
-	for _, pod := range pods {
-		if !isPortInUse(pod, port) {
-			return fmt.Errorf("pod %s doesn't listen to the port %d", pod.Name, port)
-		}
-	}
-
-	return nil
-}
-
 func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error) {
 	labelSelector, err := buildLabelSelector(filter)
 	if err != nil {
@@ -319,16 +302,4 @@ func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]corev1.Pod, e
 	}
 
 	return pods.Items, nil
-}
-
-// isPortInUse checks if port is used by any container in the pod
-func isPortInUse(pod corev1.Pod, port uint) bool {
-	for _, container := range pod.Spec.Containers {
-		for _, containerPort := range container.Ports {
-			if uint(containerPort.ContainerPort) == port {
-				return true
-			}
-		}
-	}
-	return false
 }
