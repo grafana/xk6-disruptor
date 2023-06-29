@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
+	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -143,7 +143,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			objs := []runtime.Object{}
+			objs := []kruntime.Object{}
 			objs = append(objs, tc.service)
 			for _, p := range tc.pods {
 				objs = append(objs, p)

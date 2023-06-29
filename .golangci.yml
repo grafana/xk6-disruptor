@@ -32,6 +32,7 @@ issues:
         - lll
         - bodyclose
         - maintidx
+        - unparam
     - linters:
         - paralleltest # false positive: https://github.com/kunwardeep/paralleltest/issues/8.
       text: "does not use range value in test Run"

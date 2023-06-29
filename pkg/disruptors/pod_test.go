@@ -19,12 +19,16 @@ import (
 
 type fakeAgentController struct {
 	namespace string
-	targets   []string
+	targets   []corev1.Pod
 	executor  *runtime.FakeExecutor
 }
 
 func (f *fakeAgentController) Targets(ctx context.Context) ([]string, error) {
-	return f.targets, nil
+	names := []string{}
+	for _, p := range f.targets {
+		names = append(names, p.Name)
+	}
+	return names, nil
 }
 
 func (f *fakeAgentController) InjectDisruptorAgent(ctx context.Context) error {
@@ -36,9 +40,9 @@ func (f *fakeAgentController) ExecCommand(ctx context.Context, cmd []string) err
 	return err
 }
 
-func (f *fakeAgentController) Visit(ctx context.Context, visitor func(string) []string) error {
+func (f *fakeAgentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([]string, error)) error {
 	for _, t := range f.targets {
-		cmd := visitor(t)
+		cmd, _ := visitor(t)
 		_, err := f.executor.Exec(cmd[0], cmd[1:]...)
 		if err != nil {
 			return err
@@ -198,21 +202,23 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 
 			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
 
-			controller := &fakeAgentController{
-				namespace: tc.selector.Namespace,
-				targets:   tc.targets,
-				executor:  executor,
-			}
-
 			objs := []kruntime.Object{}
+			targets := []corev1.Pod{}
 
 			for _, target := range tc.targets {
-				obj := builders.NewPodBuilder(target).
+				pod := builders.NewPodBuilder(target).
 					WithLabels(tc.selector.Select.Labels).
 					WithNamespace(tc.selector.Namespace).
 					WithContainer(defaultContainer()).
 					Build()
-				objs = append(objs, obj)
+				targets = append(targets, *pod)
+				objs = append(objs, pod)
+			}
+
+			controller := &fakeAgentController{
+				namespace: tc.selector.Namespace,
+				targets:   targets,
+				executor:  executor,
 			}
 
 			client := fake.NewSimpleClientset(objs...)
@@ -385,21 +391,23 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 
 			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
 
-			controller := &fakeAgentController{
-				namespace: tc.selector.Namespace,
-				targets:   tc.targets,
-				executor:  executor,
-			}
-
 			objs := []kruntime.Object{}
+			targets := []corev1.Pod{}
 
 			for _, target := range tc.targets {
-				obj := builders.NewPodBuilder(target).
+				pod := builders.NewPodBuilder(target).
 					WithLabels(tc.selector.Select.Labels).
 					WithNamespace(tc.selector.Namespace).
 					WithContainer(defaultContainer()).
 					Build()
-				objs = append(objs, obj)
+				targets = append(targets, *pod)
+				objs = append(objs, pod)
+			}
+
+			controller := &fakeAgentController{
+				namespace: tc.selector.Namespace,
+				targets:   targets,
+				executor:  executor,
 			}
 
 			client := fake.NewSimpleClientset(objs...)

@@ -7,6 +7,10 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ServiceDisruptor defines operations for injecting faults in services
@@ -24,7 +28,7 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
-	service    string
+	service    corev1.Service
 	namespace  string
 	options    ServiceDisruptorOptions
 	helper     helpers.ServiceHelper
@@ -43,7 +47,13 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("must specify a service name")
 	}
 
+	svc, err := k8s.Client().CoreV1().Services(namespace).Get(ctx, service, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
 	sh := k8s.ServiceHelper(namespace)
+
 	targets, err := sh.GetTargets(ctx, service)
 	if err != nil {
 		return nil, err
@@ -64,7 +74,7 @@ func NewServiceDisruptor(
 	}
 
 	return &serviceDisruptor{
-		service:    service,
+		service:    *svc,
 		namespace:  namespace,
 		options:    options,
 		helper:     sh,
@@ -78,19 +88,19 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	targets, err := d.helper.MapPort(ctx, d.service, fault.Port)
-	if err != nil {
-		return fmt.Errorf("error getting target for fault injection: %w", err)
-	}
-
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err = d.controller.Visit(ctx, func(pod string) []string {
+	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+		port, err := utils.MapPort(d.service, fault.Port, pod)
+		if err != nil {
+			return nil, err
+		}
+
 		// copy fault to change target port for the pod
 		podFault := fault
-		podFault.Port = targets[pod]
+		podFault.Port = port
 		cmd := buildHTTPFaultCmd(podFault, duration, options)
-		return cmd
+		return cmd, nil
 	})
 
 	return err
@@ -102,18 +112,17 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	targets, err := d.helper.MapPort(ctx, d.service, fault.Port)
-	if err != nil {
-		return fmt.Errorf("error getting target for fault injection: %w", err)
-	}
-
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err = d.controller.Visit(ctx, func(pod string) []string {
+	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+		port, err := utils.MapPort(d.service, fault.Port, pod)
+		if err != nil {
+			return nil, err
+		}
 		podFault := fault
-		podFault.Port = targets[pod]
+		podFault.Port = port
 		cmd := buildGrpcFaultCmd(fault, duration, options)
-		return cmd
+		return cmd, nil
 	})
 
 	return err
