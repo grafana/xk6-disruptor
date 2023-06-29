@@ -115,6 +115,11 @@ func (d *podDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
+	// TODO: make port mandatory instead of using a default
+	if fault.Port == 0 {
+		fault.Port = DefaultTargetPort
+	}
+
 	// TODO: adapt command to each pod
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
