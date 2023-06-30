@@ -31,6 +31,9 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
 			" iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if target == 0 {
+				return fmt.Errorf("target port for fault injection is required")
+			}
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
 
@@ -83,7 +86,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().StringVarP(&disruption.StatusMessage, "message", "m", "", "error message for injected faults")
 	cmd.Flags().StringVarP(&iface, "interface", "i", "eth0", "interface to disrupt")
 	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
-	cmd.Flags().UintVarP(&target, "target", "t", 80, "port the proxy will redirect request to")
+	cmd.Flags().UintVarP(&target, "target", "t", 0, "port the proxy will redirect request to")
 	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
 		" to be excluded from disruption")
 	cmd.Flags().BoolVar(&transparent, "transparent", true, "run as transparent proxy")
