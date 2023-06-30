@@ -23,10 +23,8 @@ type ServiceHelper interface {
 	WaitIngressReady(ctx context.Context, ingress string, timeout time.Duration) error
 	// GetServiceProxy returns a client for making HTTP requests to the service using api server's proxy
 	GetServiceProxy(name string, svcPort int) (ServiceClient, error)
-	// MapPort return a map of pod, port pairs for a service port
-	MapPort(ctx context.Context, name string, svcPort uint) (map[string]uint, error)
 	// GetTargets returns the list of pods that match the service selector criteria
-	GetTargets(ctx context.Context, service string) ([]string, error)
+	GetTargets(ctx context.Context, service string) ([]corev1.Pod, error)
 }
 
 // helpers struct holds the data required by the helpers
@@ -81,62 +79,7 @@ func (h *serviceHelper) WaitIngressReady(ctx context.Context, name string, timeo
 	})
 }
 
-// getTargetPort returns the ServicePort object that corresponds to the given port number
-// if the given port is 0, it will return the first port or error if more than one port is defined
-func getTargetPort(service *corev1.Service, svcPort uint) (corev1.ServicePort, error) {
-	ports := service.Spec.Ports
-	if svcPort != 0 {
-		for _, p := range ports {
-			if uint(p.Port) == svcPort {
-				return p, nil
-			}
-		}
-		return corev1.ServicePort{}, fmt.Errorf("the service does not expose the given svcPort: %d", svcPort)
-	}
-
-	if len(ports) > 1 {
-		return corev1.ServicePort{}, fmt.Errorf("service exposes multiple ports. Port option must be defined")
-	}
-
-	return ports[0], nil
-}
-
-func (h *serviceHelper) MapPort(ctx context.Context, name string, svcPort uint) (map[string]uint, error) {
-	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
-	}
-
-	targets := map[string]uint{}
-	tp, err := getTargetPort(service, svcPort)
-	if err != nil {
-		return nil, err
-	}
-
-	endpoints, err := h.client.CoreV1().Endpoints(h.namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve endpoints for service %s: %w", service, err)
-	}
-
-	// Iterate over endpoints sub-ranges looking for those that have the service's target port, and retrieve the name of
-	// the pods and their port.
-	for _, subset := range endpoints.Subsets {
-		for _, p := range subset.Ports {
-			if (tp.TargetPort.StrVal != "" && tp.TargetPort.StrVal == p.Name) || tp.TargetPort.IntVal == p.Port {
-				for _, addr := range subset.Addresses {
-					if addr.TargetRef.Kind == "Pod" {
-						targets[addr.TargetRef.Name] = uint(p.Port) // Endpoint port, i.e. the Pod port.
-					}
-				}
-				break
-			}
-		}
-	}
-
-	return targets, nil
-}
-
-func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, error) {
+func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]corev1.Pod, error) {
 	service, err := h.client.CoreV1().Services(h.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve target service %s: %w", service, err)
@@ -149,16 +92,8 @@ func (h *serviceHelper) GetTargets(ctx context.Context, name string) ([]string, 
 		ctx,
 		listOptions,
 	)
-	if err != nil {
-		return nil, err
-	}
 
-	names := make([]string, 0, len(pods.Items))
-	for _, p := range pods.Items {
-		names = append(names, p.Name)
-	}
-
-	return names, nil
+	return pods.Items, err
 }
 
 // ServiceClient is the minimal interface for executing HTTP requests

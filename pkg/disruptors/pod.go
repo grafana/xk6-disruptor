@@ -9,7 +9,9 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -101,7 +103,6 @@ func NewPodDisruptor(
 	}, nil
 }
 
-// Targets retrieves the list of target pods for the given PodSelector
 func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
 	return d.controller.Targets(ctx)
 }
@@ -113,14 +114,22 @@ func (d *podDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	cmd := buildHTTPFaultCmd(fault, duration, options)
-
-	err := d.validatePort(ctx, fault.Port)
-	if err != nil {
-		return fmt.Errorf("validate fault port: %w", err)
+	// TODO: make port mandatory instead of using a default
+	if fault.Port == 0 {
+		fault.Port = DefaultTargetPort
 	}
 
-	err = d.controller.ExecCommand(ctx, cmd)
+	// TODO: adapt command to each pod
+	cmd := buildHTTPFaultCmd(fault, duration, options)
+
+	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+		if !utils.HasPort(pod, fault.Port) {
+			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
+		}
+
+		return cmd, nil
+	})
+
 	return err
 }
 
@@ -131,21 +140,16 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
+	// TODO: adapt command to each pod
 	cmd := buildGrpcFaultCmd(fault, duration, options)
 
-	err := d.validatePort(ctx, fault.Port)
-	if err != nil {
-		return fmt.Errorf("validate fault port: %w", err)
-	}
+	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+		if !utils.HasPort(pod, fault.Port) {
+			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
+		}
 
-	err = d.controller.ExecCommand(ctx, cmd)
+		return cmd, nil
+	})
+
 	return err
-}
-
-func (d *podDisruptor) validatePort(ctx context.Context, port uint) error {
-	if port == 0 {
-		port = DefaultTargetPort
-	}
-
-	return d.podHelper.ValidatePort(ctx, d.podFilter, port)
 }

@@ -66,10 +66,10 @@ func Test_InjectAgent(t *testing.T) {
 
 			objs := []runtime.Object{}
 
-			targets := []string{}
+			targets := []corev1.Pod{}
 			for _, pod := range tc.pods {
 				objs = append(objs, pod)
-				targets = append(targets, pod.Name)
+				targets = append(targets, *pod)
 			}
 
 			client := fake.NewSimpleClientset(objs...)
@@ -98,10 +98,10 @@ func Test_InjectAgent(t *testing.T) {
 				return
 			}
 
-			for _, podName := range targets {
+			for _, p := range targets {
 				pod, err := client.CoreV1().
 					Pods(tc.namespace).
-					Get(context.TODO(), podName, metav1.GetOptions{})
+					Get(context.TODO(), p.Name, metav1.GetOptions{})
 				if err != nil {
 					t.Errorf("failed: %v", err)
 					return
@@ -171,10 +171,10 @@ func Test_ExecCommand(t *testing.T) {
 
 			objs := []runtime.Object{}
 
-			targets := []string{}
+			targets := []corev1.Pod{}
 			for _, pod := range tc.pods {
 				objs = append(objs, pod)
-				targets = append(targets, pod.Name)
+				targets = append(targets, *pod)
 			}
 			client := fake.NewSimpleClientset(objs...)
 			executor := helpers.NewFakePodCommandExecutor()
@@ -208,7 +208,7 @@ func Test_ExecCommand(t *testing.T) {
 
 			pods := map[string]bool{}
 			for _, p := range targets {
-				pods[p] = true
+				pods[p.Name] = true
 			}
 
 			history := executor.GetHistory()
@@ -217,7 +217,11 @@ func Test_ExecCommand(t *testing.T) {
 			}
 			for _, c := range history {
 				if _, found := pods[c.Pod]; !found {
-					t.Errorf("invalid pod name. Expected to be in %s got %s", targets, c.Pod)
+					podNames := []string{}
+					for _, p := range targets {
+						podNames = append(podNames, p.Name)
+					}
+					t.Errorf("invalid pod name. Expected to be in %s got %s", podNames, c.Pod)
 					return
 				}
 				// TODO: don't use hard-coded agent name

@@ -19,17 +19,17 @@ type AgentController interface {
 	InjectDisruptorAgent(ctx context.Context) error
 	// ExecCommand executes a command in the targets of the AgentController and reports any error
 	ExecCommand(ctx context.Context, cmd []string) error
-	// Targets returns the list of targets for the controller
+	// Targets retrieves the names of the target of the controller
 	Targets(ctx context.Context) ([]string, error)
 	// Visit allows executing a different command on each target returned by a visiting function
-	Visit(ctx context.Context, visitor func(target string) []string) error
+	Visit(ctx context.Context, visitor func(target corev1.Pod) ([]string, error)) error
 }
 
 // AgentController controls de agents in a set of target pods
 type agentController struct {
 	helper    helpers.PodHelper
 	namespace string
-	targets   []string
+	targets   []corev1.Pod
 	timeout   time.Duration
 }
 
@@ -80,7 +80,7 @@ func (c *agentController) InjectDisruptorAgent(ctx context.Context) error {
 			if err != nil {
 				errors <- err
 			}
-		}(pod)
+		}(pod.Name)
 	}
 
 	wg.Wait()
@@ -96,23 +96,27 @@ func (c *agentController) InjectDisruptorAgent(ctx context.Context) error {
 // ExecCommand executes a command in the targets of the AgentController and reports any error
 func (c *agentController) ExecCommand(ctx context.Context, cmd []string) error {
 	// visit each target with the same command
-	return c.Visit(ctx, func(string) []string {
-		return cmd
+	return c.Visit(ctx, func(corev1.Pod) ([]string, error) {
+		return cmd, nil
 	})
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *agentController) Visit(ctx context.Context, visitor func(string) []string) error {
+func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([]string, error)) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
 	errors := make(chan error, len(c.targets))
 	for _, pod := range c.targets {
-		// get the command to execute in the target
-		cmd := visitor(pod)
 		wg.Add(1)
 		// attach each container asynchronously
-		go func(pod string) {
-			_, stderr, err := c.helper.Exec(pod, "xk6-agent", cmd, []byte{})
+		go func(pod corev1.Pod) {
+			// get the command to execute in the target
+			cmd, err := visitor(pod)
+			if err != nil {
+				errors <- fmt.Errorf("error building command for pod %s: %w", pod.Name, err)
+			}
+
+			_, stderr, err := c.helper.Exec(pod.Name, "xk6-agent", cmd, []byte{})
 			if err != nil {
 				errors <- fmt.Errorf("error invoking agent: %w \n%s", err, string(stderr))
 			}
@@ -131,9 +135,13 @@ func (c *agentController) Visit(ctx context.Context, visitor func(string) []stri
 	}
 }
 
-// Targets retrieves the list of target pods for the given PodSelector
+// Targets retrieves the list of names of the target pods
 func (c *agentController) Targets(ctx context.Context) ([]string, error) {
-	return c.targets, nil
+	names := []string{}
+	for _, p := range c.targets {
+		names = append(names, p.Name)
+	}
+	return names, nil
 }
 
 // NewAgentController creates a new controller for a list of target pods
@@ -141,7 +149,7 @@ func NewAgentController(
 	ctx context.Context,
 	helper helpers.PodHelper,
 	namespace string,
-	targets []string,
+	targets []corev1.Pod,
 	timeout time.Duration,
 ) AgentController {
 	if timeout == 0 {
