@@ -85,7 +85,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().Float32VarP(&disruption.ErrorRate, "rate", "r", 0, "error rate")
 	cmd.Flags().StringVarP(&disruption.StatusMessage, "message", "m", "", "error message for injected faults")
 	cmd.Flags().StringVarP(&iface, "interface", "i", "eth0", "interface to disrupt")
-	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
+	cmd.Flags().UintVarP(&port, "port", "p", 8000, "port the proxy will listen to")
 	cmd.Flags().UintVarP(&target, "target", "t", 0, "port the proxy will redirect request to")
 	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
 		" to be excluded from disruption")
