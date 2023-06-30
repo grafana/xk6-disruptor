@@ -23,8 +23,6 @@ type Kubernetes interface {
 	ServiceHelper(namespace string) helpers.ServiceHelper
 	// PodHelper returns a helpers.PodHelper scoped for the given namespace
 	PodHelper(namespace string) helpers.PodHelper
-	// NamespaceHelper returns a namespace helper
-	NamespaceHelper() helpers.NamespaceHelper
 }
 
 // k8s Holds the reference to the helpers for interacting with kubernetes
@@ -124,13 +122,6 @@ func (k *k8s) PodHelper(namespace string) helpers.PodHelper {
 		k.Interface,
 		k.config,
 		namespace,
-	)
-}
-
-// NamespaceHelper returns a NamespaceHelper
-func (k *k8s) NamespaceHelper() helpers.NamespaceHelper {
-	return helpers.NewNamespaceHelper(
-		k.Interface,
 	)
 }
 
