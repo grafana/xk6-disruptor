@@ -103,7 +103,6 @@ func NewPodDisruptor(
 	}, nil
 }
 
-// Targets retrieves the list of target pods for the given PodSelector
 func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
 	return d.controller.Targets(ctx)
 }
@@ -124,7 +123,7 @@ func (d *podDisruptor) InjectHTTPFaults(
 	cmd := buildHTTPFaultCmd(fault, duration, options)
 
 	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
-		if !utils.ValidatePort(pod, fault.Port) {
+		if !utils.HasPort(pod, fault.Port) {
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
@@ -145,7 +144,7 @@ func (d *podDisruptor) InjectGrpcFaults(
 	cmd := buildGrpcFaultCmd(fault, duration, options)
 
 	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
-		if !utils.ValidatePort(pod, fault.Port) {
+		if !utils.HasPort(pod, fault.Port) {
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 

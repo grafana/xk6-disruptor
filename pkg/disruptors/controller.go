@@ -19,7 +19,7 @@ type AgentController interface {
 	InjectDisruptorAgent(ctx context.Context) error
 	// ExecCommand executes a command in the targets of the AgentController and reports any error
 	ExecCommand(ctx context.Context, cmd []string) error
-	// Targets returns the list of targets for the controller
+	// Targets retrieves the names of the target of the controller
 	Targets(ctx context.Context) ([]string, error)
 	// Visit allows executing a different command on each target returned by a visiting function
 	Visit(ctx context.Context, visitor func(target corev1.Pod) ([]string, error)) error
@@ -135,7 +135,7 @@ func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([
 	}
 }
 
-// Targets retrieves the list of target pods for the given PodSelector
+// Targets retrieves the list of names of the target pods
 func (c *agentController) Targets(ctx context.Context) ([]string, error) {
 	names := []string{}
 	for _, p := range c.targets {

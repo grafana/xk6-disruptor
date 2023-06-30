@@ -171,7 +171,7 @@ func Test_ValidatePort(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			validation := ValidatePort(*tc.pod, tc.targetPort)
+			validation := HasPort(*tc.pod, tc.targetPort)
 			if validation != tc.expect {
 				t.Errorf("expected %t got %t", tc.expect, validation)
 			}
