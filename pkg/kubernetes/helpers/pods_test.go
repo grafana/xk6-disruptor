@@ -73,7 +73,7 @@ func TestPods_Wait(t *testing.T) {
 			go func(tc TestCase) {
 				pod := builders.NewPodBuilder(tc.name).
 					WithNamespace(testNamespace).
-					WithStatus(tc.status).
+					WithPhase(tc.status).
 					Build()
 				time.Sleep(tc.delay)
 				watcher.Modify(pod)

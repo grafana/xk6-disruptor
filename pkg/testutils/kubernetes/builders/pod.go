@@ -14,7 +14,7 @@ type PodBuilder interface {
 	// WithLabels sets the labels for the pod to be built
 	WithLabels(labels map[string]string) PodBuilder
 	// WithStatus sets the PodPhase for the pod  to be built
-	WithStatus(status corev1.PodPhase) PodBuilder
+	WithPhase(status corev1.PodPhase) PodBuilder
 	// WithContainer add a container to the pod
 	WithContainer(c corev1.Container) PodBuilder
 }
@@ -24,7 +24,7 @@ type podBuilder struct {
 	name       string
 	namespace  string
 	labels     map[string]string
-	status     corev1.PodPhase
+	phase      corev1.PodPhase
 	containers []corev1.Container
 }
 
@@ -41,8 +41,8 @@ func (b *podBuilder) WithNamespace(namespace string) PodBuilder {
 	return b
 }
 
-func (b *podBuilder) WithStatus(phase corev1.PodPhase) PodBuilder {
-	b.status = phase
+func (b *podBuilder) WithPhase(phase corev1.PodPhase) PodBuilder {
+	b.phase = phase
 	return b
 }
 
@@ -72,7 +72,7 @@ func (b *podBuilder) Build() *corev1.Pod {
 			EphemeralContainers: nil,
 		},
 		Status: corev1.PodStatus{
-			Phase: b.status,
+			Phase: b.phase,
 		},
 	}
 }
