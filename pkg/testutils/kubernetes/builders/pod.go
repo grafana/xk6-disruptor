@@ -13,8 +13,10 @@ type PodBuilder interface {
 	WithNamespace(namespace string) PodBuilder
 	// WithLabels sets the labels for the pod to be built
 	WithLabels(labels map[string]string) PodBuilder
-	// WithStatus sets the PodPhase for the pod  to be built
+	// WithPhase sets the PodPhase for the pod to be built
 	WithPhase(status corev1.PodPhase) PodBuilder
+	// WithIP sets the IP address for the pod to be built
+	WithIP(ip string) PodBuilder
 	// WithContainer add a container to the pod
 	WithContainer(c corev1.Container) PodBuilder
 }
@@ -25,6 +27,7 @@ type podBuilder struct {
 	namespace  string
 	labels     map[string]string
 	phase      corev1.PodPhase
+	ip         string
 	containers []corev1.Container
 }
 
@@ -46,6 +49,11 @@ func (b *podBuilder) WithPhase(phase corev1.PodPhase) PodBuilder {
 	return b
 }
 
+func (b *podBuilder) WithIP(ip string) PodBuilder {
+	b.ip = ip
+	return b
+}
+
 func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	b.labels = labels
 	return b
@@ -57,7 +65,7 @@ func (b *podBuilder) WithContainer(c corev1.Container) PodBuilder {
 }
 
 func (b *podBuilder) Build() *corev1.Pod {
-	return &corev1.Pod{
+	pod := corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
@@ -75,4 +83,14 @@ func (b *podBuilder) Build() *corev1.Pod {
 			Phase: b.phase,
 		},
 	}
+
+	// PodIPs is a patchMergeKey field, so it should be nil if no IPs are present. Otherwise, creation of
+	// StrategicMerge patches will fail with:
+	// map: map[] does not contain declared merge key: ip
+	if b.ip != "" {
+		pod.Status.PodIP = b.ip
+		pod.Status.PodIPs = []corev1.PodIP{{IP: b.ip}}
+	}
+
+	return &pod
 }
