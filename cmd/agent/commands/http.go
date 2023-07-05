@@ -30,6 +30,9 @@ func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
 			" iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if target == 0 {
+				return fmt.Errorf("target port for fault injection is required")
+			}
 			listenAddress := fmt.Sprintf(":%d", port)
 			upstreamAddress := fmt.Sprintf("http://%s:%d", upstreamHost, target)
 
@@ -87,8 +90,8 @@ func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().StringVar(&upstreamHost, "upstream-host", "localhost",
 		"upstream host to redirect traffic to")
 	cmd.Flags().StringVarP(&iface, "interface", "i", "eth0", "interface to disrupt")
-	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
-	cmd.Flags().UintVarP(&target, "target", "t", 80, "port the proxy will redirect request to")
+	cmd.Flags().UintVarP(&port, "port", "p", 8000, "port the proxy will listen to")
+	cmd.Flags().UintVarP(&target, "target", "t", 0, "port the proxy will redirect request to")
 
 	return cmd
 }
