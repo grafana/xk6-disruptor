@@ -50,12 +50,6 @@ export default function () {
         select: { labels: { app: "my-app" } },
     });
 
-    // Check that there is at least one target
-    const targets = disruptor.targets();
-    if (targets.length != 1) {
-        throw new Error("expected list to have one target");
-    }
-
     // Disrupt the targets by injecting HTTP faults into them for 30 seconds
     const fault = {
         averageDelay: 500,
