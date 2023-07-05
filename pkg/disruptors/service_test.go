@@ -14,6 +14,8 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
+// TODO: Refactor tests so they include the generated command.
+// Currently we do not have tests covering command generation logic for ServiceDisruptor.
 func Test_NewServiceDisruptor(t *testing.T) {
 	t.Parallel()
 
@@ -49,7 +51,9 @@ func Test_NewServiceDisruptor(t *testing.T) {
 					WithNamespace("test-ns").
 					WithLabels(map[string]string{
 						"app": "test",
-					}).Build(),
+					}).
+					WithIP("192.0.2.6").
+					Build(),
 			},
 			endpoints: []*corev1.Endpoints{
 				builders.NewEndPointsBuilder("test-svc").

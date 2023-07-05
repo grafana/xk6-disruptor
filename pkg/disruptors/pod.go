@@ -119,18 +119,21 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	// TODO: adapt command to each pod
-	cmd := buildHTTPFaultCmd(fault, duration, options)
-
-	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
 		if !utils.HasPort(pod, fault.Port) {
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
+		var err error
+		options.TargetAddress, err = utils.PodIP(pod)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd := buildHTTPFaultCmd(fault, duration, options)
+
 		return cmd, nil
 	})
-
-	return err
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
@@ -140,16 +143,18 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	// TODO: adapt command to each pod
-	cmd := buildGrpcFaultCmd(fault, duration, options)
-
-	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
 		if !utils.HasPort(pod, fault.Port) {
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
+		var err error
+		options.TargetAddress, err = utils.PodIP(pod)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd := buildGrpcFaultCmd(fault, duration, options)
 		return cmd, nil
 	})
-
-	return err
 }
