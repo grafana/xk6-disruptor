@@ -230,8 +230,8 @@ func newPortForwardConfig(opts ...PortForwardOption) portForwardConfig {
 // Returns the local port used for listening
 func (c *Client) ForwardPodPort(
 	ctx context.Context,
-	pod string,
 	namespace string,
+	pod string,
 	port uint,
 	opts ...PortForwardOption,
 ) (uint, error) {
@@ -278,7 +278,7 @@ func (c *Client) ForwardPodPort(
 		errors <- fw.ForwardPorts()
 	}()
 
-	// Wait for the port forwarder to be ready and return stop channel
+	// Wait for the port forwarder to be ready to return port
 	select {
 	case <-ready:
 		// return the local port (we are waiting for ready, so no error expected)

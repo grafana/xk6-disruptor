@@ -71,7 +71,7 @@ func Test_Kubectl(t *testing.T) {
 		// ensure por forwarder is cancelled
 		defer stopper()
 
-		port, err := client.ForwardPodPort(ctx, nginx.GetName(), namespace, 80)
+		port, err := client.ForwardPodPort(ctx, namespace, nginx.GetName(), 80)
 		if err != nil {
 			t.Errorf("failed to forward local port: %v", err)
 			return
