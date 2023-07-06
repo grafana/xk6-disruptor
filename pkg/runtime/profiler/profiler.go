@@ -9,9 +9,10 @@ import (
 
 // Config is the configuration of the profiler
 type Config struct {
-	CPU    CPUConfig
-	Memory MemoryConfig
-	Trace  TraceConfig
+	CPU     CPUConfig
+	Memory  MemoryConfig
+	Metrics MetricsConfig
+	Trace   TraceConfig
 }
 
 // Profiler defines the methods to control execution profiling
@@ -89,6 +90,14 @@ func buildProbes(config Config) ([]Probe, error) {
 
 	if config.Trace.Enabled {
 		probe, err := NewTraceProbe(config.Trace)
+		if err != nil {
+			return nil, err
+		}
+		probes = append(probes, probe)
+	}
+
+	if config.Metrics.Enabled {
+		probe, err := NewMetricsProbe(config.Metrics)
 		if err != nil {
 			return nil, err
 		}
