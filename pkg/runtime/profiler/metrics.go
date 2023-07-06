@@ -17,8 +17,8 @@ type MetricsConfig struct {
 }
 
 type metricsProbe struct {
-	config    MetricsConfig
-	collector context.CancelFunc
+	config MetricsConfig
+	cancel context.CancelFunc
 }
 
 // NewMetricsProbe creates a metrics profiling probe with the given configuration
@@ -50,13 +50,13 @@ func (m *metricsProbe) Start() (io.Closer, error) {
 		return nil, err
 	}
 
-	m.collector = cancel
+	m.cancel = cancel
 	return m, nil
 }
 
 func (m *metricsProbe) Close() error {
 	// stops the collector
-	m.collector()
+	m.cancel()
 
 	return nil
 }
@@ -112,13 +112,15 @@ func (m *metricsCollector) Start(ctx context.Context) error {
 	// start periodic sampling in background
 	go func() {
 		ticks := time.NewTicker(m.rate)
+		defer ticks.Stop()
+
 		for {
 			select {
 			case <-ticks.C:
 				m.sample()
 			case <-ctx.Done():
-				ticks.Stop()
 				m.generate()
+				return
 			}
 		}
 	}()
