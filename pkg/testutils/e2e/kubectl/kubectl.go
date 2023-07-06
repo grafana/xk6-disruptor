@@ -7,6 +7,9 @@ package kubectl
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -20,14 +23,18 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/transport/spdy"
 	"k8s.io/client-go/util/homedir"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"k8s.io/client-go/tools/portforward"
 )
 
 // Client holds the state to access kubernetes
 type Client struct {
+	config     *rest.Config
 	dynamic    dynamic.Interface
 	mapper     meta.RESTMapper
 	serializer runtime.Serializer
@@ -68,6 +75,7 @@ func NewForConfig(ctx context.Context, config *rest.Config) (*Client, error) {
 	}
 
 	return &Client{
+		config:     config,
 		mapper:     mapper,
 		dynamic:    dynamic,
 		serializer: yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme),
@@ -176,4 +184,110 @@ func (c *Client) Apply(ctx context.Context, yaml string) error {
 	}
 
 	return nil
+}
+
+type portForwardConfig struct {
+	localport uint
+	stderr    io.Writer
+	stdout    io.Writer
+}
+
+// PortForwardOption defines a configuration option for port forwarding
+type PortForwardOption func(portForwardConfig) portForwardConfig
+
+// WithLocalPort sets the local port to listen for request. Defaults to 0 (random local port)
+func WithLocalPort(port uint) PortForwardOption {
+	return func(p portForwardConfig) portForwardConfig {
+		p.localport = port
+		return p
+	}
+}
+
+// WithOutputStreams sets the output streams for the port forwarder. Default to nil
+func WithOutputStreams(stdout io.Writer, stderr io.Writer) PortForwardOption {
+	return func(p portForwardConfig) portForwardConfig {
+		p.stdout = stdout
+		p.stderr = stderr
+		return p
+	}
+}
+
+func newPortForwardConfig(opts ...PortForwardOption) portForwardConfig {
+	config := portForwardConfig{
+		localport: 0,
+		stdout:    nil,
+		stderr:    nil,
+	}
+
+	for _, option := range opts {
+		config = option(config)
+	}
+
+	return config
+}
+
+// ForwardPodPort opens a local port for forwards requests to a pod's port.
+// Returns the local port used for listening
+func (c *Client) ForwardPodPort(
+	ctx context.Context,
+	pod string,
+	namespace string,
+	port uint,
+	opts ...PortForwardOption,
+) (uint, error) {
+	config := newPortForwardConfig(opts...)
+
+	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", namespace, pod)
+	host, err := url.Parse(c.config.Host)
+	if err != nil {
+		return 0, fmt.Errorf("invalid host URL in k8s client config: %w", err)
+	}
+	url := &url.URL{
+		Scheme: "https",
+		Path:   path,
+		Host:   host.Host,
+	}
+
+	transport, upgrader, err := spdy.RoundTripperFor(c.config)
+	if err != nil {
+		return 0, err
+	}
+	dialer := spdy.NewDialer(
+		upgrader,
+		&http.Client{Transport: transport},
+		http.MethodPost,
+		url,
+	)
+
+	ports := []string{fmt.Sprintf("%d:%d", config.localport, port)}
+	ready := make(chan struct{})
+	fw, err := portforward.New(
+		dialer,
+		ports,
+		ctx.Done(),
+		ready,
+		config.stdout,
+		config.stderr,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	errors := make(chan error)
+	go func() {
+		errors <- fw.ForwardPorts()
+	}()
+
+	// Wait for the port forwarder to be ready and return stop channel
+	select {
+	case <-ready:
+		// return the local port (we are waiting for ready, so no error expected)
+		p, _ := fw.GetPorts()
+		// assumes only one port was forwarded
+		return uint(p[0].Local), nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	case e := <-errors:
+		return 0, fmt.Errorf("failed to start port forwarding: %w", e)
+	}
 }
