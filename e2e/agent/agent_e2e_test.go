@@ -5,6 +5,8 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
@@ -247,11 +250,40 @@ func Test_Agent(t *testing.T) {
 					return
 				}
 
-				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
-				if err != nil {
-					t.Errorf("failed : %v", err)
-					return
-				}
+				t.Run("via ingress", func(t *testing.T) {
+					t.Parallel()
+
+					err := tc.check.Verify(k8s, cluster.Ingress(), namespace)
+					if err != nil {
+						t.Errorf("failed : %v", err)
+						return
+					}
+				})
+
+				t.Run("via port-forward", func(t *testing.T) {
+					t.Parallel()
+
+					ctx, cancel := context.WithCancel(context.Background())
+					t.Cleanup(func() {
+						cancel()
+					})
+
+					kc, err := kubectl.NewFromKubeconfig(ctx, cluster.Kubeconfig())
+					if err != nil {
+						t.Fatalf("creating kubectl client from kubeconfig: %v", err)
+					}
+
+					port, err := kc.ForwardPodPort(ctx, namespace, tc.pod.Name, uint(tc.port))
+					if err != nil {
+						t.Fatalf("forwarding port from %s/%s: %v", namespace, tc.pod, err)
+					}
+
+					err = tc.check.Verify(k8s, net.JoinHostPort("localhost", fmt.Sprint(port)), namespace)
+					if err != nil {
+						t.Errorf("failed to access service: %v", err)
+						return
+					}
+				})
 			})
 		}
 	})
