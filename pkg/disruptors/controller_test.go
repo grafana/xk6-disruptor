@@ -34,9 +34,11 @@ func Test_InjectAgent(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
 					Build(),
 				builders.NewPodBuilder("pod2").
 					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
 					Build(),
 			},
 			timeout:     -1,

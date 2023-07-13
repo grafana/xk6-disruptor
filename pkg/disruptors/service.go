@@ -90,7 +90,7 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 ) error {
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
 		port, err := utils.MapPort(d.service, fault.Port, pod)
 		if err != nil {
 			return nil, err
@@ -99,11 +99,15 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 		// copy fault to change target port for the pod
 		podFault := fault
 		podFault.Port = port
-		cmd := buildHTTPFaultCmd(podFault, duration, options)
+
+		options.TargetAddress, err = utils.PodIP(pod)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd := buildHTTPFaultCmd(fault, duration, options)
 		return cmd, nil
 	})
-
-	return err
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
@@ -114,18 +118,23 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 ) error {
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	err := d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
 		port, err := utils.MapPort(d.service, fault.Port, pod)
 		if err != nil {
 			return nil, err
 		}
+
 		podFault := fault
 		podFault.Port = port
+
+		options.TargetAddress, err = utils.PodIP(pod)
+		if err != nil {
+			return nil, err
+		}
+
 		cmd := buildGrpcFaultCmd(fault, duration, options)
 		return cmd, nil
 	})
-
-	return err
 }
 
 func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {

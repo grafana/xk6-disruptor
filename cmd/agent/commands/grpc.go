@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent"
@@ -14,16 +15,16 @@ import (
 )
 
 // BuildGrpcCmd returns a cobra command with the specification of the grpc command
+//
+//nolint:funlen
 func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	disruption := grpc.Disruption{}
 	var duration time.Duration
 	var port uint
-	var target uint
-	var iface string
 	var upstreamHost string
+	var targetPort uint
 	transparent := true
 
-	//nolint: dupl
 	cmd := &cobra.Command{
 		Use:   "grpc",
 		Short: "grpc disruptor",
@@ -31,11 +32,18 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
 			" iptable rules.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if target == 0 {
+			if targetPort == 0 {
 				return fmt.Errorf("target port for fault injection is required")
 			}
-			listenAddress := fmt.Sprintf(":%d", port)
-			upstreamAddress := fmt.Sprintf("%s:%d", upstreamHost, target)
+
+			if transparent && (upstreamHost == "localhost" || upstreamHost == "127.0.0.1") {
+				// When running in transparent mode, the Redirector will also redirect traffic directed to 127.0.0.1 to
+				// the proxy. Using 127.0.0.1 as the proxy upstream would cause a redirection loop.
+				return fmt.Errorf("upstream host cannot be localhost when running in transparent mode")
+			}
+
+			listenAddress := net.JoinHostPort("", fmt.Sprint(port))
+			upstreamAddress := net.JoinHostPort(upstreamHost, fmt.Sprint(targetPort))
 
 			proxyConfig := grpc.ProxyConfig{
 				ListenAddress:   listenAddress,
@@ -51,9 +59,8 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			var redirector protocol.TrafficRedirector
 			if transparent {
 				tr := &iptables.TrafficRedirectionSpec{
-					Iface:           iface,
-					DestinationPort: target,
-					RedirectPort:    port,
+					DestinationPort: targetPort, // Redirect traffic from the application (target) port...
+					RedirectPort:    port,       // to the proxy port.
 				}
 
 				redirector, err = iptables.NewTrafficRedirector(tr, env.Executor())
@@ -84,9 +91,8 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().Int32VarP(&disruption.StatusCode, "status", "s", 0, "status code")
 	cmd.Flags().Float32VarP(&disruption.ErrorRate, "rate", "r", 0, "error rate")
 	cmd.Flags().StringVarP(&disruption.StatusMessage, "message", "m", "", "error message for injected faults")
-	cmd.Flags().StringVarP(&iface, "interface", "i", "eth0", "interface to disrupt")
-	cmd.Flags().UintVarP(&port, "port", "p", 8000, "port the proxy will listen to")
-	cmd.Flags().UintVarP(&target, "target", "t", 0, "port the proxy will redirect request to")
+	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
+	cmd.Flags().UintVarP(&targetPort, "target", "t", 0, "port the proxy will redirect request to")
 	cmd.Flags().StringSliceVarP(&disruption.Excluded, "exclude", "x", []string{}, "comma-separated list of grpc services"+
 		" to be excluded from disruption")
 	cmd.Flags().BoolVar(&transparent, "transparent", true, "run as transparent proxy")

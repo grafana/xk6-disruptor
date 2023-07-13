@@ -68,3 +68,13 @@ func HasPort(pod corev1.Pod, port uint) bool {
 	}
 	return false
 }
+
+// PodIP returns the pod IP for the supplied pod, or an error if it has no IP (yet).
+func PodIP(pod corev1.Pod) (string, error) {
+	// PodIP must be set if len(PodIPs > 0).
+	if ip := pod.Status.PodIP; ip != "" {
+		return ip, nil
+	}
+
+	return "", fmt.Errorf("pod %s/%s does not have an IP address", pod.Namespace, pod.Name)
+}

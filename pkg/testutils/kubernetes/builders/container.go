@@ -16,6 +16,11 @@ type ContainerBuilder interface {
 	WithCapabilities(capabilities ...corev1.Capability) ContainerBuilder
 	// Build returns a Pod with the attributes defined in the PodBuilder
 	Build() *corev1.Container
+	// WithEnvVarFromField adds an environment variable to the container
+	WithEnvVar(name string, value string) ContainerBuilder
+	// WithEnvVarFromField adds an environment variable to the container referencing a field
+	// Example: "PodName", "metadata.name"
+	WithEnvVarFromField(name string, path string) ContainerBuilder
 }
 
 // containerBuilder maintains the configuration for building a container
@@ -26,6 +31,7 @@ type containerBuilder struct {
 	command      []string
 	ports        []corev1.ContainerPort
 	capabilities []corev1.Capability
+	vars         []corev1.EnvVar
 }
 
 // NewContainerBuilder returns a new ContainerBuilder
@@ -67,6 +73,20 @@ func (b *containerBuilder) WithCapabilities(capabilities ...corev1.Capability) C
 	return b
 }
 
+func (b *containerBuilder) WithEnvVar(name string, value string) ContainerBuilder {
+	b.vars = append(b.vars, corev1.EnvVar{Name: name, Value: value})
+	return b
+}
+
+func (b *containerBuilder) WithEnvVarFromField(name string, path string) ContainerBuilder {
+	valueFrom := &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{FieldPath: path},
+	}
+	b.vars = append(b.vars, corev1.EnvVar{Name: name, ValueFrom: valueFrom})
+
+	return b
+}
+
 func (b *containerBuilder) Build() *corev1.Container {
 	return &corev1.Container{
 		Name:            b.name,
@@ -79,5 +99,6 @@ func (b *containerBuilder) Build() *corev1.Container {
 				Add: b.capabilities,
 			},
 		},
+		Env: b.vars,
 	}
 }

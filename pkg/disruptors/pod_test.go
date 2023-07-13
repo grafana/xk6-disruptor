@@ -72,6 +72,7 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 	pod := builders.NewPodBuilder(name).
 		WithNamespace("test-ns").
 		WithContainer(*container).
+		WithIP("192.0.2.6").
 		Build()
 
 	return pod
@@ -109,7 +110,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			},
 			opts:        HTTPDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500",
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 		},
@@ -123,8 +124,10 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 					},
 				},
 			},
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500}",
+			target: buildPodWithPort("my-app-pod", "http", 80),
+			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
+			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
@@ -147,7 +150,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				},
 			},
 			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms",
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
@@ -168,7 +171,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				},
 			},
 			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2",
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 			fault: HTTPFault{
@@ -189,7 +192,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				},
 			},
 			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80",
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 --upstream-host 192.0.2.6",
 			expectError: true,
 			cmdError:    fmt.Errorf("error executing command"),
 			fault: HTTPFault{
@@ -212,6 +215,34 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			expectError: true,
 			fault: HTTPFault{
 				Port: 8080,
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
+		},
+		{
+			title: "Pod without PodIP",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			target: builders.NewPodBuilder("noip").
+				WithNamespace("test-ns").
+				WithLabels(map[string]string{
+					"app": "myapp",
+				}).
+				WithContainer(
+					*builders.NewContainerBuilder("noip").
+						WithPort("http", 80).
+						Build(),
+				).
+				Build(),
+			expectError: true,
+			fault: HTTPFault{
+				Port: 80,
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
@@ -292,7 +323,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 		},
@@ -315,7 +346,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 -m internal error",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 -m internal error --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 		},
@@ -336,7 +367,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -a 100ms -v 0ms",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 		},
@@ -357,7 +388,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -x service1,service2",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -x service1,service2 --upstream-host 192.0.2.6",
 			expectError: false,
 			cmdError:    nil,
 		},
@@ -375,7 +406,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			fault:       GrpcFault{},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000",
+			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 --upstream-host 192.0.2.6",
 			expectError: true,
 			cmdError:    fmt.Errorf("error executing command"),
 		},

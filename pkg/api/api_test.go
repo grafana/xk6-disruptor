@@ -213,7 +213,6 @@ func Test_JsPodDisruptor(t *testing.T) {
 
 			const faultOpts = {
 				proxyPort: 8080,
-				iface: "eth0"
 			}
 
 			d.injectHTTPFaults(fault, "1s", faultOpts)
@@ -298,7 +297,6 @@ func Test_JsPodDisruptor(t *testing.T) {
 
 			const faultOpts = {
 				proxyPort: 4000,
-				iface: "eth0"
 			}
 
 			d.injectGrpcFaults(fault, "1s", faultOpts)
@@ -337,7 +335,6 @@ func Test_JsPodDisruptor(t *testing.T) {
 
 			const faultOpts = {
 				proxyPort: 4000,
-				iface: "eth0"
 			}
 
 			d.injectGrpcFaults(fault)
@@ -359,7 +356,6 @@ func Test_JsPodDisruptor(t *testing.T) {
 
 			const faultOpts = {
 				proxyPort: 4000,
-				iface: "eth0"
 			}
 
 			d.injectGrpcFaults(fault, "1")    // missing duration unit

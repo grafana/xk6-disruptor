@@ -51,8 +51,8 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}
 
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
+	if options.TargetAddress != "" {
+		cmd = append(cmd, "--upstream-host", options.TargetAddress)
 	}
 
 	return cmd
@@ -101,8 +101,8 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}
 
-	if options.Iface != "" {
-		cmd = append(cmd, "-i", options.Iface)
+	if options.TargetAddress != "" {
+		cmd = append(cmd, "--upstream-host", options.TargetAddress)
 	}
 
 	return cmd

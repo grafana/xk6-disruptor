@@ -5,6 +5,8 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
@@ -29,11 +32,14 @@ var injectHTTP500 = []string{
 	"--rate",
 	"1.0",
 	"--error",
-	"500",
+	"418",
 	"--port",
 	"8080",
 	"--target",
 	"80",
+	"--upstream-host",
+	// POD_IP is injected in the container and take its value from status.podIP
+	"$(POD_IP)",
 }
 
 var injectGrpcInternal = []string{
@@ -51,6 +57,9 @@ var injectGrpcInternal = []string{
 	"4000",
 	"--target",
 	"9000",
+	"--upstream-host",
+	// POD_IP is injected in the container and take its value from status.podIP
+	"$(POD_IP)",
 	"-x",
 	// exclude reflection service otherwise the dynamic client will not work
 	"grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
@@ -82,6 +91,7 @@ func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 
 	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
 		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
+		WithEnvVarFromField("POD_IP", "status.podIP").
 		WithCommand(cmd...).
 		WithCapabilities("NET_ADMIN").
 		Build()
@@ -106,6 +116,7 @@ func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 
 	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
 		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
+		WithEnvVarFromField("POD_IP", "status.podIP").
 		WithCommand(cmd...).
 		WithCapabilities("NET_ADMIN").
 		Build()
@@ -121,10 +132,8 @@ func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 }
 
-
 // deploy pod with the xk6-disruptor
 func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
-
 	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
 		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
 		WithPort("http", 80).
@@ -141,7 +150,6 @@ func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 		WithContainer(*agent).
 		Build()
 }
-
 
 // builDisruptorService returns a Service definition that exposes httpbin pods
 func builDisruptorService() *corev1.Service {
@@ -200,7 +208,7 @@ func Test_Agent(t *testing.T) {
 					Service:      "httpbin",
 					Port:         80,
 					Path:         "/status/200",
-					ExpectedCode: 500,
+					ExpectedCode: 418,
 				},
 			},
 			{
@@ -242,11 +250,40 @@ func Test_Agent(t *testing.T) {
 					return
 				}
 
-				err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
-				if err != nil {
-					t.Errorf("failed : %v", err)
-					return
-				}
+				t.Run("via ingress", func(t *testing.T) {
+					t.Parallel()
+
+					err := tc.check.Verify(k8s, cluster.Ingress(), namespace)
+					if err != nil {
+						t.Errorf("failed : %v", err)
+						return
+					}
+				})
+
+				t.Run("via port-forward", func(t *testing.T) {
+					t.Parallel()
+
+					ctx, cancel := context.WithCancel(context.Background())
+					t.Cleanup(func() {
+						cancel()
+					})
+
+					kc, err := kubectl.NewFromKubeconfig(ctx, cluster.Kubeconfig())
+					if err != nil {
+						t.Fatalf("creating kubectl client from kubeconfig: %v", err)
+					}
+
+					port, err := kc.ForwardPodPort(ctx, namespace, tc.pod.Name, uint(tc.port))
+					if err != nil {
+						t.Fatalf("forwarding port from %s/%s: %v", namespace, tc.pod, err)
+					}
+
+					err = tc.check.Verify(k8s, net.JoinHostPort("localhost", fmt.Sprint(port)), namespace)
+					if err != nil {
+						t.Errorf("failed to access service: %v", err)
+						return
+					}
+				})
 			})
 		}
 	})
@@ -284,7 +321,6 @@ func Test_Agent(t *testing.T) {
 			t.Errorf("unexpected error: %s: ", string(stderr))
 		}
 	})
-
 
 	t.Run("Non-transparent proxy to upstream service", func(t *testing.T) {
 		t.Parallel()
