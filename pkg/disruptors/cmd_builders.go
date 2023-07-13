@@ -7,7 +7,12 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/utils"
 )
 
-func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisruptionOptions) []string {
+func buildGrpcFaultCmd(
+	targetAddress string,
+	fault GrpcFault,
+	duration time.Duration,
+	options GrpcDisruptionOptions,
+) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"grpc",
@@ -51,14 +56,17 @@ func buildGrpcFaultCmd(fault GrpcFault, duration time.Duration, options GrpcDisr
 		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}
 
-	if options.TargetAddress != "" {
-		cmd = append(cmd, "--upstream-host", options.TargetAddress)
-	}
+	cmd = append(cmd, "--upstream-host", targetAddress)
 
 	return cmd
 }
 
-func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisruptionOptions) []string {
+func buildHTTPFaultCmd(
+	targetAddress string,
+	fault HTTPFault,
+	duration time.Duration,
+	options HTTPDisruptionOptions,
+) []string {
 	cmd := []string{
 		"xk6-disruptor-agent",
 		"http",
@@ -101,9 +109,7 @@ func buildHTTPFaultCmd(fault HTTPFault, duration time.Duration, options HTTPDisr
 		cmd = append(cmd, "-p", fmt.Sprint(options.ProxyPort))
 	}
 
-	if options.TargetAddress != "" {
-		cmd = append(cmd, "--upstream-host", options.TargetAddress)
-	}
+	cmd = append(cmd, "--upstream-host", targetAddress)
 
 	return cmd
 }

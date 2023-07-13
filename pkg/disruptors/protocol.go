@@ -17,18 +17,12 @@ type ProtocolFaultInjector interface {
 
 // HTTPDisruptionOptions defines options for the injection of HTTP faults in a target pod
 type HTTPDisruptionOptions struct {
-	// IP address where the proxy will send requests.
-	// This is typically the pod IP. It must not be `localhost`.
-	TargetAddress string
 	// Port used by the agent for listening
 	ProxyPort uint `js:"proxyPort"`
 }
 
 // GrpcDisruptionOptions defines options for the injection of grpc faults in a target pod
 type GrpcDisruptionOptions struct {
-	// IP address where the proxy will send requests.
-	// This is typically the pod IP. It must not be `localhost`.
-	TargetAddress string
 	// Port used by the agent for listening
 	ProxyPort uint `js:"proxyPort"`
 }
