@@ -124,13 +124,12 @@ func (d *podDisruptor) InjectHTTPFaults(
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
-		var err error
-		options.TargetAddress, err = utils.PodIP(pod)
+		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return nil, err
 		}
 
-		cmd := buildHTTPFaultCmd(fault, duration, options)
+		cmd := buildHTTPFaultCmd(targetAddress, fault, duration, options)
 
 		return cmd, nil
 	})
@@ -148,13 +147,12 @@ func (d *podDisruptor) InjectGrpcFaults(
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
-		var err error
-		options.TargetAddress, err = utils.PodIP(pod)
+		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return nil, err
 		}
 
-		cmd := buildGrpcFaultCmd(fault, duration, options)
+		cmd := buildGrpcFaultCmd(targetAddress, fault, duration, options)
 		return cmd, nil
 	})
 }

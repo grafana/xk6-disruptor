@@ -100,12 +100,12 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 		podFault := fault
 		podFault.Port = port
 
-		options.TargetAddress, err = utils.PodIP(pod)
+		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return nil, err
 		}
 
-		cmd := buildHTTPFaultCmd(fault, duration, options)
+		cmd := buildHTTPFaultCmd(targetAddress, fault, duration, options)
 		return cmd, nil
 	})
 }
@@ -127,12 +127,12 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 		podFault := fault
 		podFault.Port = port
 
-		options.TargetAddress, err = utils.PodIP(pod)
+		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return nil, err
 		}
 
-		cmd := buildGrpcFaultCmd(fault, duration, options)
+		cmd := buildGrpcFaultCmd(targetAddress, fault, duration, options)
 		return cmd, nil
 	})
 }
