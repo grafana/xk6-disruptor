@@ -17,18 +17,21 @@ type PodBuilder interface {
 	WithPhase(status corev1.PodPhase) PodBuilder
 	// WithIP sets the IP address for the pod to be built
 	WithIP(ip string) PodBuilder
+	// WithHostNetwork sets the hostNetwork property of the pod to be built
+	WithHostNetwork(hostNetwork bool) PodBuilder
 	// WithContainer add a container to the pod
 	WithContainer(c corev1.Container) PodBuilder
 }
 
 // podBuilder defines the attributes for building a pod
 type podBuilder struct {
-	name       string
-	namespace  string
-	labels     map[string]string
-	phase      corev1.PodPhase
-	ip         string
-	containers []corev1.Container
+	name        string
+	namespace   string
+	labels      map[string]string
+	phase       corev1.PodPhase
+	ip          string
+	hostNetwork bool
+	containers  []corev1.Container
 }
 
 // NewPodBuilder creates a new instance of PodBuilder with the given pod name
@@ -59,6 +62,11 @@ func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	return b
 }
 
+func (b *podBuilder) WithHostNetwork(hostNetwork bool) PodBuilder {
+	b.hostNetwork = hostNetwork
+	return b
+}
+
 func (b *podBuilder) WithContainer(c corev1.Container) PodBuilder {
 	b.containers = append(b.containers, c)
 	return b
@@ -77,6 +85,7 @@ func (b *podBuilder) Build() *corev1.Pod {
 		},
 		Spec: corev1.PodSpec{
 			Containers:          b.containers,
+			HostNetwork:         b.hostNetwork,
 			EphemeralContainers: nil,
 		},
 		Status: corev1.PodStatus{
