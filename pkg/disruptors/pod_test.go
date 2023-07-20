@@ -247,6 +247,36 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
 		},
+		{
+			title: "Pod with hostNetwork",
+			selector: PodSelector{
+				Namespace: "testns",
+				Select: PodAttributes{
+					Labels: map[string]string{
+						"app": "myapp",
+					},
+				},
+			},
+			target: builders.NewPodBuilder("hostnet").
+				WithNamespace("test-ns").
+				WithLabels(map[string]string{
+					"app": "myapp",
+				}).
+				WithHostNetwork(true).
+				WithIP("192.0.2.6").
+				WithContainer(
+					*builders.NewContainerBuilder("myapp").
+						WithPort("http", 80).
+						Build(),
+				).
+				Build(),
+			expectError: true,
+			fault: HTTPFault{
+				Port: 80,
+			},
+			opts:     HTTPDisruptionOptions{},
+			duration: 60,
+		},
 	}
 
 	for _, tc := range testCases {
