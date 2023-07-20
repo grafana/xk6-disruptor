@@ -96,6 +96,10 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 			return nil, err
 		}
 
+		if utils.HasHostNetwork(pod) {
+			return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+		}
+
 		// copy fault to change target port for the pod
 		podFault := fault
 		podFault.Port = port

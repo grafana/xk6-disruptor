@@ -124,6 +124,10 @@ func (d *podDisruptor) InjectHTTPFaults(
 			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
+		if utils.HasHostNetwork(pod) {
+			return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+		}
+
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return nil, err

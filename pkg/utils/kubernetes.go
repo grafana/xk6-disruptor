@@ -69,6 +69,11 @@ func HasPort(pod corev1.Pod, port uint) bool {
 	return false
 }
 
+// HasHostNetwork returns whether a pod has HostNetwork enabled, i.e. it shares the host's network namespace.
+func HasHostNetwork(pod corev1.Pod) bool {
+	return pod.Spec.HostNetwork
+}
+
 // PodIP returns the pod IP for the supplied pod, or an error if it has no IP (yet).
 func PodIP(pod corev1.Pod) (string, error) {
 	// PodIP must be set if len(PodIPs > 0).
