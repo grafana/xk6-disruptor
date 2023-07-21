@@ -57,8 +57,6 @@ linters-settings:
     min-occurrences: 4
   govet:
     check-shadowing: true
-  maligned:
-    suggest-new: true
   gosec:
     excludes:
       - G107 # Http request made with variable url
