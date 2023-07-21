@@ -102,7 +102,7 @@ func (c *agentController) ExecCommand(ctx context.Context, cmd []string) error {
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([]string, error)) error {
+func (c *agentController) Visit(_ context.Context, visitor func(corev1.Pod) ([]string, error)) error {
 	var wg sync.WaitGroup
 	// ensure errors channel has enough space to avoid blocking gorutines
 	errors := make(chan error, len(c.targets))
@@ -136,7 +136,7 @@ func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([
 }
 
 // Targets retrieves the list of names of the target pods
-func (c *agentController) Targets(ctx context.Context) ([]string, error) {
+func (c *agentController) Targets(_ context.Context) ([]string, error) {
 	names := []string{}
 	for _, p := range c.targets {
 		names = append(names, p.Name)
@@ -146,7 +146,7 @@ func (c *agentController) Targets(ctx context.Context) ([]string, error) {
 
 // NewAgentController creates a new controller for a list of target pods
 func NewAgentController(
-	ctx context.Context,
+	_ context.Context,
 	helper helpers.PodHelper,
 	namespace string,
 	targets []corev1.Pod,

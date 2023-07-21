@@ -21,7 +21,7 @@ type fakeHTTPClient struct {
 	body    []byte
 }
 
-func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
+func (f *fakeHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		Proto:         "HTTP/1.1",
 		ProtoMajor:    1,

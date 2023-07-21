@@ -63,7 +63,6 @@ func (c *Client) Connect(ctx context.Context) error {
 	rc := grpcreflect.NewClientAuto(ctx, conn)
 	defer rc.Reset()
 
-	//nolint:contextcheck   // linter expects this function to be passed a context!?
 	desc, err := rc.ResolveService(c.service)
 	if err != nil {
 		return err

@@ -22,7 +22,7 @@ type fakeAgentController struct {
 	executor  *runtime.FakeExecutor
 }
 
-func (f *fakeAgentController) Targets(ctx context.Context) ([]string, error) {
+func (f *fakeAgentController) Targets(_ context.Context) ([]string, error) {
 	names := []string{}
 	for _, p := range f.targets {
 		names = append(names, p.Name)
@@ -30,16 +30,16 @@ func (f *fakeAgentController) Targets(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
-func (f *fakeAgentController) InjectDisruptorAgent(ctx context.Context) error {
+func (f *fakeAgentController) InjectDisruptorAgent(_ context.Context) error {
 	return nil
 }
 
-func (f *fakeAgentController) ExecCommand(ctx context.Context, cmd []string) error {
+func (f *fakeAgentController) ExecCommand(_ context.Context, cmd []string) error {
 	_, err := f.executor.Exec(cmd[0], cmd[1:]...)
 	return err
 }
 
-func (f *fakeAgentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([]string, error)) error {
+func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) ([]string, error)) error {
 	for _, t := range f.targets {
 		cmd, err := visitor(t)
 		if err != nil {

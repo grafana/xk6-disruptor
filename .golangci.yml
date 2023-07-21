@@ -1,4 +1,4 @@
-# v1.49.0
+# v1.53.3
 # Please don't remove the first line. It is used in CI to determine the golangci version
 run:
   deadline: 5m
@@ -57,8 +57,6 @@ linters-settings:
     min-occurrences: 4
   govet:
     check-shadowing: true
-  maligned:
-    suggest-new: true
   gosec:
     excludes:
       - G107 # Http request made with variable url
@@ -100,4 +98,11 @@ linters:
     - usestdlibvars
     - nosprintfhostport
     - nonamedreturns
+    # Deprecated linters as of 1.53.3
+    - structcheck
+    - varcheck
+    - deadcode
+    - ifshort
+    - nosnakecase
+    - depguard # Dependency whitelist, needs to be configured
   fast: false

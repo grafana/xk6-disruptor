@@ -167,12 +167,12 @@ func NewFakeSignal() *FakeSignal {
 }
 
 // Notify implements Signal's interface Notify method
-func (f *FakeSignal) Notify(signals ...os.Signal) <-chan os.Signal {
+func (f *FakeSignal) Notify(_ ...os.Signal) <-chan os.Signal {
 	return f.channel
 }
 
 // Reset implements Signal's interface Reset method. It is noop.
-func (f *FakeSignal) Reset(signals ...os.Signal) {
+func (f *FakeSignal) Reset(_ ...os.Signal) {
 	// noop
 }
 

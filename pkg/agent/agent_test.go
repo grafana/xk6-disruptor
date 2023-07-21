@@ -15,7 +15,7 @@ import (
 type FakeProtocolDisruptor struct{}
 
 // Apply implements the Apply method from the protocol Disruptor interface
-func (d *FakeProtocolDisruptor) Apply(ctx context.Context, duration time.Duration) error {
+func (d *FakeProtocolDisruptor) Apply(_ context.Context, duration time.Duration) error {
 	time.Sleep(duration)
 	return nil
 }
