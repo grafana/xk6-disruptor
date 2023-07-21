@@ -21,15 +21,16 @@ type PostInstall func(ctx context.Context, cluster E2eCluster) error
 
 // E2eClusterConfig defines the configuration of a e2e test cluster
 type E2eClusterConfig struct {
-	Name        string
-	Images      []string
-	IngressAddr string
-	IngressPort int32
-	PostInstall []PostInstall
-	Reuse       bool
-	Wait        time.Duration
-	AutoCleanup bool
-	Kubeconfig  string
+	Name           string
+	Images         []string
+	IngressAddr    string
+	IngressPort    int32
+	PostInstall    []PostInstall
+	Reuse          bool
+	Wait           time.Duration
+	AutoCleanup    bool
+	Kubeconfig     string
+	UseEtcdRAMDisk bool
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -116,6 +117,7 @@ func DefaultE2eClusterConfig() E2eClusterConfig {
 		PostInstall: []PostInstall{
 			InstallContourIngress,
 		},
+		UseEtcdRAMDisk: true,
 	}
 }
 
@@ -178,6 +180,14 @@ func WithReuse(reuse bool) E2eClusterOption {
 	}
 }
 
+// WithEtcdRAMDisk specifies if the cluster must be configured to use a RAM disk for Etcd
+func WithEtcdRAMDisk(ramdisk bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.UseEtcdRAMDisk = ramdisk
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster *cluster.Cluster
@@ -199,6 +209,7 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 					NodePort: 80,
 				},
 			},
+			UseEtcdRAMDisk: e2eConfig.UseEtcdRAMDisk,
 		},
 	)
 	if err != nil {
@@ -236,6 +247,7 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
 	config.AutoCleanup = utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", config.AutoCleanup)
 	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
+	config.UseEtcdRAMDisk = utils.GetBooleanEnvVar("E2E_ETCD_RAMDISK", config.UseEtcdRAMDisk)
 	return config
 }
 
