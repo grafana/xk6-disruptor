@@ -62,7 +62,7 @@ func NewFromKubeconfig(ctx context.Context, kubeconfig string) (*Client, error) 
 }
 
 // NewForConfig returns a new Client using a rest.Config
-func NewForConfig(ctx context.Context, config *rest.Config) (*Client, error) {
+func NewForConfig(_ context.Context, config *rest.Config) (*Client, error) {
 	dynamic, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err

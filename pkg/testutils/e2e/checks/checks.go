@@ -59,7 +59,7 @@ type GrpcCheck struct {
 }
 
 // Verify verifies a HTTPCheck
-func (c HTTPCheck) Verify(k kubernetes.Kubernetes, ingress string, namespace string) error {
+func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) error {
 	time.Sleep(c.Delay)
 
 	url := fmt.Sprintf("http://%s", ingress)
@@ -85,7 +85,7 @@ func (c HTTPCheck) Verify(k kubernetes.Kubernetes, ingress string, namespace str
 }
 
 // Verify verifies a GrpcServiceCheck
-func (c GrpcCheck) Verify(k kubernetes.Kubernetes, ingress string, namespace string) error {
+func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) error {
 	time.Sleep(c.Delay)
 
 	client, err := dynamic.NewClientWithDialOptions(

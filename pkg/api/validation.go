@@ -11,7 +11,8 @@ import (
 func IsCompatible(actual interface{}, expected interface{}) error {
 	actualType := reflect.TypeOf(actual)
 	expectedType := reflect.TypeOf(expected)
-	compatible := false
+
+	var compatible bool
 	switch expectedType.Kind() {
 	case reflect.Map:
 		compatible = actualType.Kind() == reflect.Map

@@ -17,8 +17,8 @@ import (
 	"go.k6.io/k6/js/common"
 )
 
-//nolint:unparam   // TODO: call directly Convert from API methods
-func convertValue(rt *goja.Runtime, value goja.Value, target interface{}) error {
+// TODO: call directly Convert from API methods
+func convertValue(_ *goja.Runtime, value goja.Value, target interface{}) error {
 	return Convert(value.Export(), target)
 }
 

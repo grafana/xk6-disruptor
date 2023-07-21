@@ -51,7 +51,7 @@ func contains(list []string, target string) bool {
 
 // handles requests from the client. If selected for error injection, returns an error,
 // otherwise, forwards to the server transparently
-func (h *handler) streamHandler(srv interface{}, serverStream grpc.ServerStream) error {
+func (h *handler) streamHandler(_ interface{}, serverStream grpc.ServerStream) error {
 	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
 	if !ok {
 		return status.Errorf(codes.Internal, "ServerTransportStream not exists in context")

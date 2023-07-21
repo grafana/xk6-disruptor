@@ -87,7 +87,7 @@ func Test_Acquire(t *testing.T) {
 					return
 				}
 
-				_, err = lockFile.Write([]byte(tc.ownerPid))
+				_, err = lockFile.WriteString(tc.ownerPid)
 				if err != nil {
 					t.Errorf("error in test setup: %v", err)
 					return
@@ -170,7 +170,7 @@ func Test_Release(t *testing.T) {
 					return
 				}
 
-				_, err = lockFile.Write([]byte(tc.ownerPid))
+				_, err = lockFile.WriteString(tc.ownerPid)
 				if err != nil {
 					t.Errorf("error in test setup: %v", err)
 					return
