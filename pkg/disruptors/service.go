@@ -109,7 +109,7 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 			return nil, err
 		}
 
-		cmd := buildHTTPFaultCmd(targetAddress, fault, duration, options)
+		cmd := buildHTTPFaultCmd(targetAddress, podFault, duration, options)
 		return cmd, nil
 	})
 }
@@ -136,7 +136,7 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 			return nil, err
 		}
 
-		cmd := buildGrpcFaultCmd(targetAddress, fault, duration, options)
+		cmd := buildGrpcFaultCmd(targetAddress, podFault, duration, options)
 		return cmd, nil
 	})
 }
