@@ -41,6 +41,30 @@ func Test_DefaultConfig(t *testing.T) {
 	cluster.Delete()
 }
 
+func Test_UseEtcdRamDisk(t *testing.T) {
+	// create cluster with default configuration
+	config, err := cluster.NewConfig(
+		"e2e-etcdramdisk-cluster",
+		cluster.Options{
+			Wait:           time.Second * 60,
+			UseEtcdRAMDisk: true,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	cluster, err := config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+
+	// delete cluster
+	cluster.Delete()
+}
+
 func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -125,7 +149,6 @@ func Test_PreloadImages(t *testing.T) {
 		return
 	}
 }
-
 
 func Test_KubernetesVersion(t *testing.T) {
 	// create cluster with default configuration

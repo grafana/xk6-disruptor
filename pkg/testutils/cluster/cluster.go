@@ -31,6 +31,14 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane`
 
+const etcdPatch = `
+kubeadmConfigPatches:
+- |
+  kind: ClusterConfiguration
+  etcd:
+    local:
+      dataDir: /tmp/etcd`
+
 const kindPortMapping = `
   - containerPort: %d
     hostPort: %d
@@ -62,6 +70,8 @@ type Options struct {
 	Version string
 	// Path to Kubeconfig
 	Kubeconfig string
+	// UseEtcdRAMDisk
+	UseEtcdRAMDisk bool
 }
 
 // Config contains the configuration for creating a cluster
@@ -115,6 +125,10 @@ func (c *Config) Render() (string, error) {
 
 	for i := 0; i < c.options.Workers; i++ {
 		fmt.Fprintf(&config, "\n- role: worker")
+	}
+
+	if c.options.UseEtcdRAMDisk {
+		fmt.Fprintf(&config, "\n%s", etcdPatch)
 	}
 
 	return config.String(), nil
