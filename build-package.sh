@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 ARCH=$(go env GOARCH)
 BUILD="build"
@@ -7,7 +7,7 @@ DIST="dist"
 PKG=""
 NAME="xk6-disruptor"
 OS=$(go env GOOS)
-VERSION="latest"
+VERSION=""
 
 function usage() {
 cat << EOF
@@ -32,7 +32,6 @@ options:
   -p, --pkg: package format (valid options: deb, rpm, tgz)
   -v, --version: package version in semver formatf
   -y, --binary: name of the binary (default is name-os-arch)
-
 
 EOF
 }
@@ -59,6 +58,13 @@ function build() {
     binary="$NAME-$os-$arch"
   fi
 
+  # set disruptor version to use for build
+  mod=$(go list -m)
+  replace="."
+  if [[ ! -z $version ]]; then
+    replace=${mod}@${version}
+  fi
+
   #start sub shell to create its own environment
   (
    if [[ $os == "linux" ]]; then # disable cross-compiling for linux
@@ -67,8 +73,8 @@ function build() {
 
    export GOARCH=$arch
    export GOOS=$os
-   export XK6_BUILD_FLAGS='-ldflags "-w -s -X github.com/grafana/xk6-disruptor/pkg/internal/consts.Version='${version}'"'
-   xk6 build --with $(go list -m)=. --output $BUILD/$binary
+   export XK6_BUILD_FLAGS='-ldflags "-w -s'
+   xk6 build --with $mod=${replace} --output $BUILD/$binary
   )
 }
 
