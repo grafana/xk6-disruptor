@@ -96,7 +96,7 @@ func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().BoolVar(&transparent, "transparent", true, "run as transparent proxy")
 	cmd.Flags().StringVar(&upstreamHost, "upstream-host", "localhost",
 		"upstream host to redirect traffic to")
-	cmd.Flags().UintVarP(&port, "port", "p", 8080, "port the proxy will listen to")
+	cmd.Flags().UintVarP(&port, "port", "p", 8000, "port the proxy will listen to")
 	cmd.Flags().UintVarP(&targetPort, "target", "t", 0, "port the proxy will redirect request to")
 
 	return cmd
