@@ -5,6 +5,8 @@ import (
 	"runtime/debug"
 )
 
+const xk6DisruptorPath = "github.com/grafana/xk6-disruptor"
+
 // DisruptorVersion returns the version of the currently executed disruptor
 func DisruptorVersion() string {
 	bi, ok := debug.ReadBuildInfo()
@@ -12,7 +14,16 @@ func DisruptorVersion() string {
 		panic("could not read runtime debug info. Package version could not be defined")
 	}
 
-	return bi.Main.Version
+	for _, d := range bi.Deps {
+		if d.Path == xk6DisruptorPath {
+			if d.Replace != nil {
+				return d.Replace.Version
+			}
+			return d.Version
+		}
+	}
+
+	panic("could not identify xk6-disruptor version")
 }
 
 // AgentImage returns the name of the agent image that corresponds to
