@@ -2,6 +2,7 @@ package disruptors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// ErrServiceNoTargets is returned by NewServiceDisruptor when passed a service without any pod matching its selector.
+var ErrServiceNoTargets = errors.New("service does not have any backing pods")
 
 // ServiceDisruptor defines operations for injecting faults in services
 type ServiceDisruptor interface {
@@ -53,6 +57,10 @@ func NewServiceDisruptor(
 	targets, err := sh.GetTargets(ctx, service)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("creating disruptor for service %s/%s: %w", service, namespace, ErrServiceNoTargets)
 	}
 
 	ph := k8s.PodHelper(namespace)

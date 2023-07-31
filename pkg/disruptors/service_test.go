@@ -91,8 +91,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				BuildAsPtr(),
 			pods:        []corev1.Pod{},
 			options:     ServiceDisruptorOptions{},
-			expectError: false,
-			expected:    []string{},
+			expectError: true,
 		},
 		{
 			title:       "service does not exist",
