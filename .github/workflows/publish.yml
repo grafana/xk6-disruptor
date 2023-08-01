@@ -27,6 +27,7 @@ jobs:
       outputs:
         version: ${{ steps.export-version.outputs.version}}
         pkg_version: ${{ steps.export-version.outputs.pkg_version }}
+        image_version: ${{ steps.export-version.outputs.image_version }}
       steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -51,14 +52,18 @@ jobs:
           COMMIT="$(git rev-parse --short HEAD)"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
               VERSION="${{ github.event.inputs.version }}"
+              IMAGE_VERSION=$VERSION
           elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
               VERSION=$GITHUB_REF_NAME
+              IMAGE_VERSION=$VERSION
           else
               VERSION="$COMMIT"
+              IMAGE_VERSION="latest"
           fi
           PKG_VERSION=${VERSION:-dev-$COMMIT}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
       - name: build and package disruptor
         env:
           VERSION: ${{ env.VERSION }}
@@ -85,9 +90,11 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
           PKG_VERSION: ${{ env.PKG_VERSION }}
+          IMAGE_VERSION: ${{ env.IMAGE_VERSION }}
         run: |
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          echo "image_version=$IMAGE_VERSION" >> $GITHUB_OUTPUT
 
   build-windows-installer:
     runs-on: windows-2019
@@ -145,6 +152,7 @@ jobs:
         run: |
           echo "VERSION=${{needs.build-binaries.outputs.version}}" >> $GITHUB_ENV
           echo "PKG_VERSION=${{needs.build-binaries.outputs.pkg_version}}" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=${{needs.build-binaries.outputs.image_version}}" >> $GITHUB_ENV
       - name: Download binaries
         uses: actions/download-artifact@v3
         with:
@@ -164,19 +172,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push disruptor image
         env:
-          VERSION: ${{ env.VERSION }}
+          IMAGE_VERSION: ${{ env.IMAGE_VERSION }}
           PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
-          IMAGE_TAG="$REGISTRY/$DISRUPTOR_IMAGE_NAME:${VERSION:-latest}"
+          IMAGE_TAG="$REGISTRY/$DISRUPTOR_IMAGE_NAME:${IMAGE_VERSION:-latest}"
           mkdir images/disruptor/build/
           cat dist/xk6-disruptor-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/disruptor/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/disruptor --push
       - name: Build and push agent image
         env:
-          VERSION: ${{ env.VERSION }}
+          IMAGE_VERSION: ${{ env.IMAGE_VERSION }}
           PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
-          IMAGE_TAG="$REGISTRY/$AGENT_IMAGE_NAME:${VERSION:-latest}"
+          IMAGE_TAG="$REGISTRY/$AGENT_IMAGE_NAME:${IMAGE_VERSION:-latest}"
           mkdir images/agent/build/
           cat dist/xk6-disruptor-agent-${PKG_VERSION}-linux-*.tar.gz | tar -xzf - -i -C images/agent/build/
           docker buildx build -t $IMAGE_TAG --platform=linux/amd64,linux/arm64 images/agent --push
