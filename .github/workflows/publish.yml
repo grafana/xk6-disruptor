@@ -48,14 +48,14 @@ jobs:
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.16.0
       - name: get-version
         run: |
+          COMMIT="$(git rev-parse --short HEAD)"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
               VERSION="${{ github.event.inputs.version }}"
           elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
               VERSION=$GITHUB_REF_NAME
           else
-              VERSION=""
+              VERSION="$COMMIT"
           fi
-          COMMIT="$(git rev-parse --short HEAD)"
           PKG_VERSION=${VERSION:-dev-$COMMIT}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
