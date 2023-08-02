@@ -29,8 +29,20 @@ type Disruptor interface {
 type Proxy interface {
 	Start() error
 	Stop() error
+	// Metrics returns a map of counter-type metrics. Implementations may return zero or more of the metrics defined
+	// below, as well as any number of implementation-defined metrics.
+	Metrics() map[string]uint
 	Force() error
 }
+
+const (
+	// MetricRequests is the total number of requests received by the proxy.
+	MetricRequests = "requests_total"
+	// MetricRequestsExcluded is the total number of requests passed through due to exclusion rules.
+	MetricRequestsExcluded = "requests_excluded"
+	// MetricRequestsFaulted is the total number requests for which the proxy returned an error.
+	MetricRequestsFaulted = "requests_faulted"
+)
 
 // disruptor is an instance of a Disruptor that applies a disruption
 // to a target

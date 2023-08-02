@@ -200,6 +200,11 @@ func (p *proxy) Stop() error {
 	return nil
 }
 
+// Metrics returns runtime metrics for the proxy.
+func (p *proxy) Metrics() map[string]uint {
+	return nil
+}
+
 // Force stops the proxy without waiting for connections to drain
 func (p *proxy) Force() error {
 	if p.srv != nil {

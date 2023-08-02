@@ -120,6 +120,12 @@ func (p *proxy) Stop() error {
 	return nil
 }
 
+// Metrics returns runtime metrics for the proxy.
+// TODO: Add metrics.
+func (p *proxy) Metrics() map[string]uint {
+	return nil
+}
+
 // Force stops the proxy without waiting for connections to drain
 // In grpc this action is a nop
 func (p *proxy) Force() error {
