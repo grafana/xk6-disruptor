@@ -44,6 +44,7 @@ type proxy struct {
 	config     ProxyConfig
 	disruption Disruption
 	srv        *http.Server
+	metrics    protocol.MetricMap
 }
 
 // NewProxy return a new Proxy for HTTP requests
@@ -85,6 +86,7 @@ type httpHandler struct {
 	upstreamURL url.URL
 	disruption  Disruption
 	client      httpClient
+	metrics     *protocol.MetricMap
 }
 
 // isExcluded checks whether a request should be proxied through without any kind of modification whatsoever.
@@ -146,7 +148,10 @@ func (h *httpHandler) injectError(rw http.ResponseWriter, delay time.Duration) {
 }
 
 func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	h.metrics.Inc(protocol.MetricRequests)
+
 	if h.isExcluded(req) {
+		h.metrics.Inc(protocol.MetricRequestsExcluded)
 		//nolint:contextcheck // Unclear which context the linter requires us to propagate here.
 		h.forward(rw, req, 0)
 		return
@@ -159,6 +164,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
+		h.metrics.Inc(protocol.MetricRequestsFaulted)
 		h.injectError(rw, delay)
 		return
 	}
@@ -178,6 +184,7 @@ func (p *proxy) Start() error {
 		upstreamURL: *upstreamURL,
 		disruption:  p.disruption,
 		client:      http.DefaultClient,
+		metrics:     &p.metrics,
 	}
 
 	p.srv = &http.Server{
@@ -202,7 +209,7 @@ func (p *proxy) Stop() error {
 
 // Metrics returns runtime metrics for the proxy.
 func (p *proxy) Metrics() map[string]uint {
-	return nil
+	return p.metrics.Map()
 }
 
 // Force stops the proxy without waiting for connections to drain
