@@ -98,9 +98,8 @@ func (h *httpHandler) isExcluded(r *http.Request) bool {
 	return false
 }
 
-// proxy proxies a request to the upstream URL.
-// Request is performed immediately, but response won't be copied to the client until wait has been consumed.
-func (h *httpHandler) proxy(rw http.ResponseWriter, req *http.Request, wait <-chan time.Time) {
+// proxyWriter immediately performs the request to the upstream URL and returns a function that writes it downstream.
+func (h *httpHandler) proxyWriter(req *http.Request) func(rw http.ResponseWriter) {
 	upstreamReq := req.Clone(context.Background())
 	upstreamReq.Host = h.upstreamURL.Host
 	upstreamReq.URL.Host = h.upstreamURL.Host
@@ -108,46 +107,48 @@ func (h *httpHandler) proxy(rw http.ResponseWriter, req *http.Request, wait <-ch
 	upstreamReq.RequestURI = "" // It is an error to set this field in an HTTP client request.
 
 	response, err := h.client.Do(req)
-	<-wait
 
-	if err != nil {
-		rw.WriteHeader(http.StatusBadGateway)
-		_, _ = fmt.Fprint(rw, err)
-		return
-	}
-
-	defer func() {
-		// Fully consume and then close upstream response body.
-		_, _ = io.Copy(io.Discard, response.Body)
-		_ = response.Body.Close()
-	}()
-
-	// Mirror headers.
-	for key, values := range response.Header {
-		for _, value := range values {
-			rw.Header().Add(key, value)
+	return func(rw http.ResponseWriter) {
+		if err != nil {
+			rw.WriteHeader(http.StatusBadGateway)
+			_, _ = fmt.Fprint(rw, err)
+			return
 		}
+
+		defer func() {
+			// Fully consume and then close upstream response body.
+			_, _ = io.Copy(io.Discard, response.Body)
+			_ = response.Body.Close()
+		}()
+
+		// Mirror headers.
+		for key, values := range response.Header {
+			for _, value := range values {
+				rw.Header().Add(key, value)
+			}
+		}
+
+		// Mirror status code.
+		rw.WriteHeader(response.StatusCode)
+
+		// ignore errors writing body, nothing to do.
+		_, _ = io.Copy(rw, response.Body)
+
 	}
-
-	// Mirror status code.
-	rw.WriteHeader(response.StatusCode)
-
-	// ignore errors writing body, nothing to do.
-	_, _ = io.Copy(rw, response.Body)
 }
 
-// fault consumes wait and then writes to rw the configured error code and body.
-func (h *httpHandler) fault(rw http.ResponseWriter, wait <-chan time.Time) {
-	<-wait
-
-	rw.WriteHeader(int(h.disruption.ErrorCode))
-	_, _ = rw.Write([]byte(h.disruption.ErrorBody))
+// errorWriter returns a function that writes an error downstream.
+func (h *httpHandler) errorWriter() func(rw http.ResponseWriter) {
+	return func(rw http.ResponseWriter) {
+		rw.WriteHeader(int(h.disruption.ErrorCode))
+		_, _ = rw.Write([]byte(h.disruption.ErrorBody))
+	}
 }
 
 func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if h.isExcluded(req) {
 		//nolint:contextcheck // Unclear which context the linter requires us to propagate here.
-		h.proxy(rw, req, time.After(0))
+		h.proxyWriter(req)(rw)
 		return
 	}
 
@@ -157,15 +158,16 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		delay += time.Duration(variation - 2*rand.Int63n(variation))
 	}
 
-	responseTimer := time.After(delay)
-
+	var writer func(rw http.ResponseWriter)
 	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-		h.fault(rw, responseTimer)
-		return
+		writer = h.errorWriter()
+	} else {
+		writer = h.proxyWriter(req)
 	}
 
-	//nolint:contextcheck // Unclear which context the linter requires us to propagate here.
-	h.proxy(rw, req, responseTimer)
+	time.Sleep(delay)
+
+	writer(rw)
 }
 
 // Start starts the execution of the proxy

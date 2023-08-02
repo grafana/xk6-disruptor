@@ -207,7 +207,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 	testCases := []TestCase{
 		{
-			title: "default proxy",
+			title: "default proxyWriter",
 			disruption: Disruption{
 				AverageDelay:   0,
 				DelayVariation: 0,
