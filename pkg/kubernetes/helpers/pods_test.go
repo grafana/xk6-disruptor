@@ -6,17 +6,16 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	k8stest "k8s.io/client-go/testing"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/assertions"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
 const (
-	testNamespace = "ns-test"
+	testNamespace = "default"
 )
 
 func TestPods_Wait(t *testing.T) {
@@ -25,7 +24,7 @@ func TestPods_Wait(t *testing.T) {
 	type TestCase struct {
 		test           string
 		name           string
-		status         corev1.PodPhase
+		phase          corev1.PodPhase
 		delay          time.Duration
 		expectError    bool
 		expectedResult bool
@@ -37,7 +36,7 @@ func TestPods_Wait(t *testing.T) {
 			test:           "wait pod running",
 			name:           "pod-running",
 			delay:          1 * time.Second,
-			status:         corev1.PodRunning,
+			phase:          corev1.PodRunning,
 			expectError:    false,
 			expectedResult: true,
 			timeout:        5 * time.Second,
@@ -45,7 +44,7 @@ func TestPods_Wait(t *testing.T) {
 		{
 			test:           "timeout waiting pod running",
 			name:           "pod-running",
-			status:         corev1.PodRunning,
+			phase:          corev1.PodRunning,
 			delay:          10 * time.Second,
 			expectError:    false,
 			expectedResult: false,
@@ -54,7 +53,7 @@ func TestPods_Wait(t *testing.T) {
 		{
 			test:           "wait failed pod",
 			name:           "pod-running",
-			status:         corev1.PodFailed,
+			phase:          corev1.PodFailed,
 			delay:          1 * time.Second,
 			expectError:    true,
 			expectedResult: false,
@@ -67,17 +66,32 @@ func TestPods_Wait(t *testing.T) {
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
-			client := fake.NewSimpleClientset()
-			watcher := watch.NewRaceFreeFake()
-			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
-			go func(tc TestCase) {
-				pod := builders.NewPodBuilder(tc.name).
-					WithNamespace(testNamespace).
-					WithPhase(tc.status).
-					Build()
+			// update status after delay
+			observer := func(event builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
 				time.Sleep(tc.delay)
-				watcher.Modify(pod)
-			}(tc)
+				pod.Status.Phase = tc.phase
+				// update pod and stop watching updates
+				return pod, false, nil
+			}
+
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			client, err := builders.NewClientBuilder().
+				WithContext(ctx).
+				WithPodObserver(testNamespace, builders.ObjectEventAdded, observer).
+				Build()
+			if err != nil {
+				t.Errorf("failed to create k8s client %v", err)
+				return
+			}
+
+			pod := builders.NewPodBuilder(tc.name).WithNamespace(testNamespace).Build()
+			_, err = client.CoreV1().Pods(testNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 
 			h := NewPodHelper(client, nil, testNamespace)
 			result, err := h.WaitPodRunning(
@@ -108,10 +122,9 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 	type TestCase struct {
 		test        string
 		podName     string
-		delay       time.Duration
 		expectError bool
 		container   string
-		state       corev1.ContainerState
+		status      corev1.ContainerStatus
 		options     AttachOptions
 	}
 
@@ -120,11 +133,13 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		{
 			test:        "Create ephemeral container not waiting",
 			podName:     "test-pod",
-			delay:       1 * time.Second,
 			expectError: false,
 			container:   "ephemeral",
-			state: corev1.ContainerState{
-				Waiting: &corev1.ContainerStateWaiting{},
+			status: corev1.ContainerStatus{
+				Name: "ephemeral",
+				State: corev1.ContainerState{
+					Waiting: &corev1.ContainerStateWaiting{},
+				},
 			},
 			options: AttachOptions{
 				Timeout:        0,
@@ -134,11 +149,12 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		{
 			test:        "Create ephemeral container waiting",
 			podName:     "test-pod",
-			delay:       3 * time.Second,
 			expectError: false,
-			container:   "ephemeral",
-			state: corev1.ContainerState{
-				Running: &corev1.ContainerStateRunning{},
+			status: corev1.ContainerStatus{
+				Name: "ephemeral",
+				State: corev1.ContainerState{
+					Running: &corev1.ContainerStateRunning{},
+				},
 			},
 			options: AttachOptions{
 				Timeout:        5 * time.Second,
@@ -148,14 +164,15 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		{
 			test:        "Fail waiting for container",
 			podName:     "test-pod",
-			delay:       3 * time.Second,
 			expectError: true,
-			container:   "ephemeral",
-			state: corev1.ContainerState{
-				Waiting: &corev1.ContainerStateWaiting{},
+			status: corev1.ContainerStatus{
+				Name: "ephemeral",
+				State: corev1.ContainerState{
+					Waiting: &corev1.ContainerStateWaiting{},
+				},
 			},
 			options: AttachOptions{
-				Timeout:        5 * time.Second,
+				Timeout:        3 * time.Second,
 				IgnoreIfExists: true,
 			},
 		},
@@ -169,24 +186,34 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			pod := builders.NewPodBuilder(tc.podName).
 				WithNamespace(testNamespace).
 				Build()
-			client := fake.NewSimpleClientset(pod)
-			watcher := watch.NewRaceFreeFake()
-			client.PrependWatchReactor("pods", k8stest.DefaultWatchReactor(watcher, nil))
 
-			// add watcher to update ephemeral container's status
-			go func(tc TestCase) {
-				time.Sleep(tc.delay)
-				pod.Status.EphemeralContainerStatuses = []corev1.ContainerStatus{
-					{
-						Name:  tc.container,
-						State: tc.state,
-					},
+			// wait for pod to updated with ephemeral container and update status
+			observer := func(event builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
+				if len(pod.Spec.EphemeralContainers) == 0 {
+					return nil, true, nil
 				}
-				watcher.Modify(pod)
-			}(tc)
+				pod.Status.EphemeralContainerStatuses = []corev1.ContainerStatus{
+					tc.status,
+				}
+				// update pod and stop watching updates
+				return pod, false, nil
+			}
+
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			client, err := builders.NewClientBuilder().
+				WithContext(ctx).
+				WithPods(pod).
+				WithPodObserver(testNamespace, builders.ObjectEventModified, observer).
+				Build()
+			if err != nil {
+				t.Errorf("failed to create k8s client %v", err)
+				return
+			}
 
 			h := NewPodHelper(client, nil, testNamespace)
-			err := h.AttachEphemeralContainer(
+			err = h.AttachEphemeralContainer(
 				context.TODO(),
 				tc.podName,
 				corev1.EphemeralContainer{},
