@@ -69,7 +69,7 @@ jobs:
           VERSION: ${{ env.VERSION }}
           PKG_VERSION: ${{ env.PKG_VERSION }}
         run: |
-          if [[ ! -z $VERSION ]]; then 
+          if [[ -n $VERSION ]]; then 
             VERSION="-v $VERSION"
           fi
           ./release.sh $VERSION -r $PKG_VERSION

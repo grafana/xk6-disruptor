@@ -87,7 +87,7 @@ if [[ -z $ARCH ]]; then
   error "target architecture is required"
 fi
 
-if [[ ! -z $REPLACE_MOD && -z $VERSION ]]; then
+if [[ -n $REPLACE_MOD && -z $VERSION ]]; then
   error "replace module must be versioned. Version option missing"
 fi
 
@@ -98,7 +98,7 @@ fi
 # set disruptor version to use for build
 MOD=$(go list -m)
 REPLACE="."
-if [[ ! -z $VERSION ]]; then
+if [[ -n $VERSION ]]; then
   REPLACE_MOD=${REPLACE_MOD:-$MOD}
   REPLACE=${REPLACE_MOD}@${VERSION}
 fi
@@ -114,7 +114,4 @@ fi
   export XK6_BUILD_FLAGS='-ldflags "-w -s'
   xk6 build --with $MOD=${REPLACE} --output $BUILD/$BINARY
 )
-
-
-
 
