@@ -19,6 +19,7 @@ options:
   -b, --build: directory for building binaries (defaults to 'build. Created if it does not exist)
   -n, --name: package base name. Defaults to 'xk6-disruptor'
   -o, --os: target operating systems (valid options linux, darwing, windows. Defaults to GOOS)
+  -r, --replace: module that replaces xk6-distruptor module
   -v, --version: xk6-disruptor version in semver format
   -y, --binary: name of the binary (default is name-os-arch)
 
@@ -52,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       fi
       shift
       ;;
+    -r|--replace)
+      REPLACE_MOD="$2"
+      shift
+      ;;
     -v|--version)
       VERSION="$2"
       shift
@@ -82,6 +87,10 @@ if [[ -z $ARCH ]]; then
   error "target architecture is required"
 fi
 
+if [[ ! -z $REPLACE_MOD && -z $VERSION ]]; then
+  error "replace module must be versioned. Version option missing"
+fi
+
 if [[ -z $BINARY ]]; then
   BINARY="$NAME-$OS-$ARCH"
 fi
@@ -90,7 +99,8 @@ fi
 MOD=$(go list -m)
 REPLACE="."
 if [[ ! -z $VERSION ]]; then
-  REPLACE=${MOD}@${VERSION}
+  REPLACE_MOD=${REPLACE_MOD:-$MOD}
+  REPLACE=${REPLACE_MOD}@${VERSION}
 fi
 
 #start sub shell to create its own environment
