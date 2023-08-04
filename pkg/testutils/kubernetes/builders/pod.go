@@ -13,6 +13,8 @@ type PodBuilder interface {
 	WithNamespace(namespace string) PodBuilder
 	// WithLabels sets the labels for the pod to be built
 	WithLabels(labels map[string]string) PodBuilder
+	// WithAnnotation adds an annotation
+	WithAnnotation(name string, value string) PodBuilder
 	// WithPhase sets the PodPhase for the pod to be built
 	WithPhase(status corev1.PodPhase) PodBuilder
 	// WithIP sets the IP address for the pod to be built
@@ -28,6 +30,7 @@ type podBuilder struct {
 	name        string
 	namespace   string
 	labels      map[string]string
+	annotations map[string]string
 	phase       corev1.PodPhase
 	ip          string
 	hostNetwork bool
@@ -38,7 +41,8 @@ type podBuilder struct {
 // and default attributes such as containers and namespace
 func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
-		name: name,
+		name:        name,
+		annotations: map[string]string{},
 	}
 }
 
@@ -62,6 +66,11 @@ func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	return b
 }
 
+func (b *podBuilder) WithAnnotation(name string, value string) PodBuilder {
+	b.annotations[name] = value
+	return b
+}
+
 func (b *podBuilder) WithHostNetwork(hostNetwork bool) PodBuilder {
 	b.hostNetwork = hostNetwork
 	return b
@@ -79,9 +88,10 @@ func (b *podBuilder) Build() *corev1.Pod {
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      b.name,
-			Namespace: b.namespace,
-			Labels:    b.labels,
+			Name:        b.name,
+			Namespace:   b.namespace,
+			Labels:      b.labels,
+			Annotations: b.annotations,
 		},
 		Spec: corev1.PodSpec{
 			Containers:          b.containers,
