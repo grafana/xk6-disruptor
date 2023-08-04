@@ -127,7 +127,7 @@ func (b *clientBuilder) WithServices(services ...*corev1.Service) ClientBuilder 
 	return b
 }
 
-//nolint:gocognit,nestif
+//nolint:gocognit
 func (b *clientBuilder) WithPodObserver(namespace string, event ObjectEvent, observer PodObserver) ClientBuilder {
 	// goroutine that watches for events that match the observer's subscription
 	obsFunc := func() {
@@ -158,31 +158,33 @@ func (b *clientBuilder) WithPodObserver(namespace string, event ObjectEvent, obs
 					continue
 				}
 				objectEvent := ObjectEvent(watcherEvent.Type)
-				if event == ObjectEventAll || objectEvent == event {
-					// call observer
-					updated, cont, err := observer(objectEvent, pod)
-					// if observer returns error notify and stop watching
+				if event != ObjectEventAll && objectEvent != event {
+					continue
+				}
+
+				// call observer
+				updated, cont, err := observer(objectEvent, pod)
+				// if observer returns error notify and stop watching
+				if err != nil {
+					b.errCh <- fmt.Errorf("observer returned error: %w", err)
+					return
+				}
+
+				// if observer returns a non nul pod, update it
+				if updated != nil {
+					_, err := b.client.
+						CoreV1().
+						Pods(namespace).
+						Update(context.TODO(), updated, metav1.UpdateOptions{})
 					if err != nil {
-						b.errCh <- fmt.Errorf("observer returned error: %w", err)
+						b.errCh <- fmt.Errorf("failed updating pod %w", err)
 						return
 					}
+				}
 
-					// if observer returns a non nul pod, update it
-					if updated != nil {
-						_, err := b.client.
-							CoreV1().
-							Pods(namespace).
-							Update(context.TODO(), updated, metav1.UpdateOptions{})
-						if err != nil {
-							b.errCh <- fmt.Errorf("failed updating pod %w", err)
-							return
-						}
-					}
-
-					// observer does not want to continue watching actions, stop watching
-					if !cont {
-						return
-					}
+				// observer does not want to continue watching actions, stop watching
+				if !cont {
+					return
 				}
 			}
 		}
