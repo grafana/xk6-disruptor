@@ -171,16 +171,25 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// writer is used to write the response
 	var writer func(rw http.ResponseWriter)
-	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-		h.metrics.Inc(protocol.MetricRequestsDisrupted)
-		writer = h.injectError
-	} else {
-		//nolint:contextcheck // Unclear which context the linter requires us to propagate here.
-		writer = h.forward(req)
-	}
+
+	// forward request
+	done := make(chan struct{})
+	go func() {
+		if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
+			h.metrics.Inc(protocol.MetricRequestsDisrupted)
+			writer = h.injectError
+		} else {
+			writer = h.forward(req)
+		}
+
+		done <- struct{}{}
+	}()
 
 	// wait for delay
 	<-time.After(h.delay())
+
+	// wait for upstream request
+	<-done
 
 	// return response
 	writer(rw)
