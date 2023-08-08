@@ -116,6 +116,7 @@ func TestPods_Wait(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // serialize tests until issue #280 is fixed
 func TestPods_AddEphemeralContainer(t *testing.T) {
 	t.Parallel()
 
@@ -157,7 +158,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				},
 			},
 			options: AttachOptions{
-				Timeout:        5 * time.Second,
+				Timeout:        1 * time.Second,
 				IgnoreIfExists: true,
 			},
 		},
@@ -172,16 +173,17 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				},
 			},
 			options: AttachOptions{
-				Timeout:        3 * time.Second,
+				Timeout:        1 * time.Second,
 				IgnoreIfExists: true,
 			},
 		},
 	}
+	//nolint:paralleltest // serialize tests until issue #280 is fixed
 	for _, tc := range testCases {
 		tc := tc
 
 		t.Run(tc.test, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 
 			pod := builders.NewPodBuilder(tc.podName).
 				WithNamespace(testNamespace).
