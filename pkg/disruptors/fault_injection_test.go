@@ -78,20 +78,20 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 	return pod
 }
 
-func Test_PodHTTPFaultInjection(t *testing.T) {
-	t.Parallel()
+type httpFaultTestCase struct {
+	title       string
+	selector    PodSelector
+	target      *corev1.Pod
+	expectedCmd string
+	expectError bool
+	cmdError    error
+	fault       HTTPFault
+	opts        HTTPDisruptionOptions
+	duration    time.Duration
+}
 
-	testCases := []struct {
-		title       string
-		selector    PodSelector
-		target      *corev1.Pod
-		expectedCmd string
-		expectError bool
-		cmdError    error
-		fault       HTTPFault
-		opts        HTTPDisruptionOptions
-		duration    time.Duration
-	}{
+func httpFaultTestCases() []httpFaultTestCase {
+	return []httpFaultTestCase{
 		{
 			title: "Test error 500",
 			selector: PodSelector{
@@ -278,63 +278,22 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			duration: 60,
 		},
 	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.title, func(t *testing.T) {
-			t.Parallel()
-
-			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
-
-			controller := &fakeAgentController{
-				namespace: tc.selector.Namespace,
-				targets:   []corev1.Pod{*tc.target},
-				executor:  executor,
-			}
-
-			client := fake.NewSimpleClientset(tc.target)
-			k, _ := kubernetes.NewFakeKubernetes(client)
-
-			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
-
-			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
-
-			if tc.expectError && err != nil {
-				return
-			}
-
-			if tc.expectError && err == nil {
-				t.Errorf("should had failed")
-				return
-			}
-
-			if !tc.expectError && err != nil {
-				t.Errorf("unexpected error : %v", err)
-				return
-			}
-
-			cmd := executor.Cmd()
-			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
-			}
-		})
-	}
 }
 
-func Test_PodGrpcPFaultInjection(t *testing.T) {
-	t.Parallel()
+type grpcFaultTestCase struct {
+	title       string
+	selector    PodSelector
+	target      *corev1.Pod
+	fault       GrpcFault
+	opts        GrpcDisruptionOptions
+	duration    time.Duration
+	expectedCmd string
+	expectError bool
+	cmdError    error
+}
 
-	testCases := []struct {
-		title       string
-		selector    PodSelector
-		target      *corev1.Pod
-		fault       GrpcFault
-		opts        GrpcDisruptionOptions
-		duration    time.Duration
-		expectedCmd string
-		expectError bool
-		cmdError    error
-	}{
+func grpcFaultTestCases() []grpcFaultTestCase {
+	return []grpcFaultTestCase{
 		{
 			title: "Test error",
 			selector: PodSelector{
@@ -457,8 +416,57 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			duration:    60,
 		},
 	}
+}
 
-	for _, tc := range testCases {
+func Test_PodHTTPFaultInjection(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range httpFaultTestCases() {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
+
+			controller := &fakeAgentController{
+				namespace: tc.selector.Namespace,
+				targets:   []corev1.Pod{*tc.target},
+				executor:  executor,
+			}
+
+			client := fake.NewSimpleClientset(tc.target)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
+
+			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error : %v", err)
+				return
+			}
+
+			cmd := executor.Cmd()
+			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
+			}
+		})
+	}
+}
+
+func Test_PodGrpcPFaultInjection(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range grpcFaultTestCases() {
 		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
