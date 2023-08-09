@@ -3,6 +3,7 @@ package disruptors
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
@@ -208,35 +210,28 @@ func Test_ExecCommand(t *testing.T) {
 				return
 			}
 
-			pods := map[string]bool{}
+			// expect same command to be executed for each pod
+			expected := []helpers.Command{}
 			for _, p := range targets {
-				pods[p.Name] = true
+				expected = append(expected, helpers.Command{
+					Pod:       p.Name,
+					Container: "xk6-agent",
+					Command:   tc.command,
+					Stdin:     []byte{},
+				})
 			}
 
 			history := executor.GetHistory()
-			if len(history) != len(targets) {
-				t.Errorf("invalid number of exec invocations. Expected %d got %d", len(targets), len(history))
-			}
-			for _, c := range history {
-				if _, found := pods[c.Pod]; !found {
-					podNames := []string{}
-					for _, p := range targets {
-						podNames = append(podNames, p.Name)
-					}
-					t.Errorf("invalid pod name. Expected to be in %s got %s", podNames, c.Pod)
-					return
-				}
-				// TODO: don't use hard-coded agent name
-				if c.Container != "xk6-agent" {
-					t.Errorf("invalid container name. Expected %s got %s", "xk6-agent", c.Container)
-					return
-				}
-				ec := strings.Join(tc.command, " ")
-				ac := strings.Join(c.Command, " ")
-				if ac != ec {
-					t.Errorf("invalid command executed. Expected %s got %s", ec, ac)
-					return
-				}
+
+			sort.Slice(expected, func(i, j int) bool {
+				return expected[i].Pod < expected[j].Pod
+			})
+			sort.Slice(history, func(i, j int) bool {
+				return history[i].Pod < history[j].Pod
+			})
+
+			if diff := cmp.Diff(expected, history); diff != "" {
+				t.Errorf("Expected headers did not match returned:\n%s", diff)
 			}
 		})
 	}
