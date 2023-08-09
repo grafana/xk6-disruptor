@@ -12,6 +12,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -63,6 +64,19 @@ func newPodDisruptorForTesting(controller AgentController, podHelper helpers.Pod
 	}
 }
 
+func newServiceDisruptorForTesting(
+	controller AgentController,
+	helper helpers.ServiceHelper,
+	service *corev1.Service,
+) ServiceDisruptor {
+	return &serviceDisruptor{
+		service:    *service,
+		namespace:  service.Namespace,
+		helper:     helper,
+		controller: controller,
+	}
+}
+
 func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 	container := builders.NewContainerBuilder(name).
 		WithPort(portName, port).
@@ -75,6 +89,18 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 		Build()
 
 	return pod
+}
+
+func buildServiceWithPort(name string, portName string, port int32, targetPort int) *corev1.Service {
+	return builders.NewServiceBuilder(name).
+		WithPorts([]corev1.ServicePort{
+			{
+				Name:       portName,
+				Port:       port,
+				TargetPort: intstr.FromInt(targetPort),
+			},
+		}).
+		Build()
 }
 
 // podSelectorForPod returns a PodSelector that matches the given Pod
@@ -98,7 +124,7 @@ type httpFaultTestCase struct {
 func httpFaultTestCases() []httpFaultTestCase {
 	return []httpFaultTestCase{
 		{
-			title:  "Test error 500",
+			title: "Test error 500",
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
@@ -109,7 +135,7 @@ func httpFaultTestCases() []httpFaultTestCase {
 			expectError: false,
 		},
 		{
-			title:  "Test error 500 with error body",
+			title: "Test error 500 with error body",
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
@@ -120,7 +146,7 @@ func httpFaultTestCases() []httpFaultTestCase {
 				ErrorBody: "{\"error\": 500}",
 				Port:      80,
 			},
-			opts:     HTTPDisruptionOptions{},
+			opts: HTTPDisruptionOptions{},
 		},
 		{
 			title:       "Test Average delay",
@@ -130,7 +156,7 @@ func httpFaultTestCases() []httpFaultTestCase {
 				AverageDelay: 100 * time.Millisecond,
 				Port:         80,
 			},
-			opts:     HTTPDisruptionOptions{},
+			opts: HTTPDisruptionOptions{},
 		},
 		{
 			title:       "Test exclude list",
@@ -140,7 +166,7 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Exclude: "/path1,/path2",
 				Port:    80,
 			},
-			opts:     HTTPDisruptionOptions{},
+			opts: HTTPDisruptionOptions{},
 		},
 		{
 			title:       "Container port not found",
@@ -148,7 +174,7 @@ func httpFaultTestCases() []httpFaultTestCase {
 			fault: HTTPFault{
 				Port: 8080,
 			},
-			opts:     HTTPDisruptionOptions{},
+			opts: HTTPDisruptionOptions{},
 		},
 	}
 }
@@ -207,7 +233,7 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			expectError: false,
 		},
 		{
-			title:  "Container port not found",
+			title:       "Container port not found",
 			expectError: true,
 			fault:       GrpcFault{Port: 8080},
 			opts:        GrpcDisruptionOptions{},
@@ -243,7 +269,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				selector,
 			)
 
-			err := d.InjectHTTPFaults(context.TODO(), tc.fault, 60 * time.Second, tc.opts)
+			err := d.InjectHTTPFaults(context.TODO(), tc.fault, 60*time.Second, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
@@ -295,7 +321,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				selector,
 			)
 
-			err := d.InjectGrpcFaults(context.TODO(), tc.fault, 60 * time.Second, tc.opts)
+			err := d.InjectGrpcFaults(context.TODO(), tc.fault, 60*time.Second, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
@@ -366,5 +392,109 @@ func Test_PodWithHostNetwork(t *testing.T) {
 	if err == nil {
 		t.Errorf("should had failed")
 		return
+	}
+}
+
+func Test_ServiceHTTPFaultInjection(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range httpFaultTestCases() {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			executor := runtime.NewFakeExecutor([]byte{}, nil)
+
+			service := buildServiceWithPort("my-app-svc", "http", 80, 80)
+			target := buildPodWithPort("my-app-pod", "http", 80)
+
+			controller := &fakeAgentController{
+				namespace: target.Namespace,
+				targets:   []corev1.Pod{*target},
+				executor:  executor,
+			}
+
+			client := fake.NewSimpleClientset(target)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			d := newServiceDisruptorForTesting(
+				controller,
+				k.ServiceHelper(service.Namespace),
+				service,
+			)
+
+			err := d.InjectHTTPFaults(context.TODO(), tc.fault, 60*time.Second, tc.opts)
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error : %v", err)
+				return
+			}
+
+			cmd := executor.Cmd()
+			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
+			}
+		})
+	}
+}
+
+func Test_ServiceGrpcFaultInjection(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range grpcFaultTestCases() {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			executor := runtime.NewFakeExecutor([]byte{}, nil)
+
+			service := buildServiceWithPort("my-app-svc", "grpc", 3000, 3000)
+			target := buildPodWithPort("my-app-pod", "grpc", 3000)
+
+			controller := &fakeAgentController{
+				namespace: target.Namespace,
+				targets:   []corev1.Pod{*target},
+				executor:  executor,
+			}
+
+			client := fake.NewSimpleClientset(target)
+			k, _ := kubernetes.NewFakeKubernetes(client)
+
+			d := newServiceDisruptorForTesting(
+				controller,
+				k.ServiceHelper(service.Namespace),
+				service,
+			)
+
+			err := d.InjectGrpcFaults(context.TODO(), tc.fault, 60*time.Second, tc.opts)
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error : %v", err)
+				return
+			}
+
+			cmd := executor.Cmd()
+			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
+			}
+		})
 	}
 }
