@@ -89,7 +89,6 @@ func podSelectorForPod(pod *corev1.Pod) PodSelector {
 
 type httpFaultTestCase struct {
 	title       string
-	target      *corev1.Pod
 	expectedCmd string
 	expectError bool
 	fault       HTTPFault
@@ -101,7 +100,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 	return []httpFaultTestCase{
 		{
 			title:  "Test error 500",
-			target: buildPodWithPort("my-app-pod", "http", 80),
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
@@ -114,7 +112,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 		},
 		{
 			title:  "Test error 500 with error body",
-			target: buildPodWithPort("my-app-pod", "http", 80),
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
@@ -130,7 +127,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 		},
 		{
 			title:       "Test Average delay",
-			target:      buildPodWithPort("my-app-pod", "http", 80),
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
 			fault: HTTPFault{
@@ -142,7 +138,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 		},
 		{
 			title:       "Test exclude list",
-			target:      buildPodWithPort("my-app-pod", "http", 80),
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6",
 			expectError: false,
 			fault: HTTPFault{
@@ -154,7 +149,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 		},
 		{
 			title:       "Container port not found",
-			target:      buildPodWithPort("my-app-pod", "http", 80),
 			expectError: true,
 			fault: HTTPFault{
 				Port: 8080,
@@ -167,7 +161,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 
 type grpcFaultTestCase struct {
 	title       string
-	target      *corev1.Pod
 	fault       GrpcFault
 	opts        GrpcDisruptionOptions
 	duration    time.Duration
@@ -179,7 +172,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 	return []grpcFaultTestCase{
 		{
 			title: "Test error",
-			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				ErrorRate:  0.1,
 				StatusCode: 14,
@@ -192,7 +184,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 		},
 		{
 			title: "Test error with status message",
-			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				ErrorRate:     0.1,
 				StatusCode:    14,
@@ -206,7 +197,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 		},
 		{
 			title: "Test Average delay",
-			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				AverageDelay: 100 * time.Millisecond,
 				Port:         3000,
@@ -218,7 +208,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 		},
 		{
 			title: "Test exclude list",
-			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				Exclude: "service1,service2",
 				Port:    3000,
@@ -230,7 +219,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 		},
 		{
 			title:  "Container port not found",
-			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			expectError: true,
 			fault:       GrpcFault{Port: 8080},
 			opts:        GrpcDisruptionOptions{},
@@ -249,19 +237,21 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 
 			executor := runtime.NewFakeExecutor([]byte{}, nil)
 
+			target := buildPodWithPort("my-app-pod", "http", 80)
+
 			controller := &fakeAgentController{
-				namespace: tc.target.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				namespace: target.Namespace,
+				targets:   []corev1.Pod{*target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
-			selector := podSelectorForPod(tc.target)
+			selector := podSelectorForPod(target)
 			d := newPodDisruptorForTesting(
 				controller,
-				k.PodHelper(tc.target.Namespace),
+				k.PodHelper(target.Namespace),
 				selector,
 			)
 
@@ -299,19 +289,21 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 
 			executor := runtime.NewFakeExecutor([]byte{}, nil)
 
+			target := buildPodWithPort("my-app-pod", "grpc", 3000)
+
 			controller := &fakeAgentController{
-				namespace: tc.target.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				namespace: target.Namespace,
+				targets:   []corev1.Pod{*target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
-			selector := podSelectorForPod(tc.target)
+			selector := podSelectorForPod(target)
 			d := newPodDisruptorForTesting(
 				controller,
-				k.PodHelper(tc.target.Namespace),
+				k.PodHelper(target.Namespace),
 				selector,
 			)
 
