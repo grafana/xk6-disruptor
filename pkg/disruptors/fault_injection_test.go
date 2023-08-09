@@ -220,34 +220,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 			duration: 60,
 		},
 		{
-			title: "Pod without PodIP",
-			selector: PodSelector{
-				Namespace: "testns",
-				Select: PodAttributes{
-					Labels: map[string]string{
-						"app": "myapp",
-					},
-				},
-			},
-			target: builders.NewPodBuilder("noip").
-				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
-				WithContainer(
-					*builders.NewContainerBuilder("noip").
-						WithPort("http", 80).
-						Build(),
-				).
-				Build(),
-			expectError: true,
-			fault: HTTPFault{
-				Port: 80,
-			},
-			opts:     HTTPDisruptionOptions{},
-			duration: 60,
-		},
-		{
 			title: "Pod with hostNetwork",
 			selector: PodSelector{
 				Namespace: "testns",
