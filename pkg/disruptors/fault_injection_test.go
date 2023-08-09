@@ -93,7 +93,6 @@ type httpFaultTestCase struct {
 	expectError bool
 	fault       HTTPFault
 	opts        HTTPDisruptionOptions
-	duration    time.Duration
 }
 
 func httpFaultTestCases() []httpFaultTestCase {
@@ -106,7 +105,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Port:      80,
 			},
 			opts:        HTTPDisruptionOptions{},
-			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6",
 			expectError: false,
 		},
@@ -123,7 +121,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Port:      80,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60 * time.Second,
 		},
 		{
 			title:       "Test Average delay",
@@ -134,7 +131,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Port:         80,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60 * time.Second,
 		},
 		{
 			title:       "Test exclude list",
@@ -145,7 +141,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Port:    80,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60 * time.Second,
 		},
 		{
 			title:       "Container port not found",
@@ -154,7 +149,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 				Port: 8080,
 			},
 			opts:     HTTPDisruptionOptions{},
-			duration: 60,
 		},
 	}
 }
@@ -163,7 +157,6 @@ type grpcFaultTestCase struct {
 	title       string
 	fault       GrpcFault
 	opts        GrpcDisruptionOptions
-	duration    time.Duration
 	expectedCmd string
 	expectError bool
 }
@@ -178,7 +171,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 				Port:       3000,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 --upstream-host 192.0.2.6",
 			expectError: false,
 		},
@@ -191,7 +183,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 				Port:          3000,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 -m internal error --upstream-host 192.0.2.6",
 			expectError: false,
 		},
@@ -202,7 +193,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 				Port:         3000,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
 		},
@@ -213,7 +203,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 				Port:    3000,
 			},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -x service1,service2 --upstream-host 192.0.2.6",
 			expectError: false,
 		},
@@ -222,7 +211,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			expectError: true,
 			fault:       GrpcFault{Port: 8080},
 			opts:        GrpcDisruptionOptions{},
-			duration:    60,
 		},
 	}
 }
@@ -255,7 +243,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				selector,
 			)
 
-			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
+			err := d.InjectHTTPFaults(context.TODO(), tc.fault, 60 * time.Second, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
@@ -307,7 +295,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				selector,
 			)
 
-			err := d.InjectGrpcFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
+			err := d.InjectGrpcFaults(context.TODO(), tc.fault, 60 * time.Second, tc.opts)
 
 			if tc.expectError && err != nil {
 				return
