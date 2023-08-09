@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // ServiceHelper implements functions for dealing with services
@@ -26,16 +25,14 @@ type ServiceHelper interface {
 
 // helpers struct holds the data required by the helpers
 type serviceHelper struct {
-	config    *rest.Config
 	client    kubernetes.Interface
 	namespace string
 }
 
 // NewServiceHelper returns a ServiceHelper
-func NewServiceHelper(client kubernetes.Interface, config *rest.Config, namespace string) ServiceHelper {
+func NewServiceHelper(client kubernetes.Interface, namespace string) ServiceHelper {
 	return &serviceHelper{
 		client:    client,
-		config:    config,
 		namespace: namespace,
 	}
 }

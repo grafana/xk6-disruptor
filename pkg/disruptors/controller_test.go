@@ -78,7 +78,7 @@ func Test_InjectAgent(t *testing.T) {
 
 			client := fake.NewSimpleClientset(objs...)
 			executor := helpers.NewFakePodCommandExecutor()
-			helper := helpers.NewFakePodHelper(client, tc.namespace, executor)
+			helper := helpers.NewPodHelper(client, executor, tc.namespace)
 			controller := NewAgentController(
 				context.TODO(),
 				helper,
@@ -182,7 +182,7 @@ func Test_ExecCommand(t *testing.T) {
 			}
 			client := fake.NewSimpleClientset(objs...)
 			executor := helpers.NewFakePodCommandExecutor()
-			helper := helpers.NewFakePodHelper(client, tc.namespace, executor)
+			helper := helpers.NewPodHelper(client, executor, tc.namespace)
 			controller := NewAgentController(
 				context.TODO(),
 				helper,
@@ -215,6 +215,7 @@ func Test_ExecCommand(t *testing.T) {
 			for _, p := range targets {
 				expected = append(expected, helpers.Command{
 					Pod:       p.Name,
+					Namespace: p.Namespace,
 					Container: "xk6-agent",
 					Command:   tc.command,
 					Stdin:     []byte{},
