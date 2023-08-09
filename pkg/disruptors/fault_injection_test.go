@@ -162,28 +162,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
 		},
-		{
-			title: "Pod with hostNetwork",
-			target: builders.NewPodBuilder("hostnet").
-				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
-				WithHostNetwork(true).
-				WithIP("192.0.2.6").
-				WithContainer(
-					*builders.NewContainerBuilder("myapp").
-						WithPort("http", 80).
-						Build(),
-				).
-				Build(),
-			expectError: true,
-			fault: HTTPFault{
-				Port: 80,
-			},
-			opts:     HTTPDisruptionOptions{},
-			duration: 60,
-		},
 	}
 }
 
@@ -358,5 +336,55 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
 			}
 		})
+	}
+}
+
+func Test_PodWithHostNetwork(t *testing.T) {
+	t.Parallel()
+
+	target := builders.NewPodBuilder("hostnet").
+		WithNamespace("test-ns").
+		WithLabels(map[string]string{
+			"app": "myapp",
+		}).
+		WithHostNetwork(true).
+		WithIP("192.0.2.6").
+		WithContainer(
+			*builders.NewContainerBuilder("myapp").
+				WithPort("http", 80).
+				Build(),
+		).
+		Build()
+
+	executor := runtime.NewFakeExecutor([]byte{}, nil)
+
+	controller := &fakeAgentController{
+		namespace: target.Namespace,
+		targets:   []corev1.Pod{*target},
+		executor:  executor,
+	}
+
+	client := fake.NewSimpleClientset(target)
+	k, _ := kubernetes.NewFakeKubernetes(client)
+
+	selector := podSelectorForPod(target)
+	d := newPodDisruptorForTesting(
+		controller,
+		k.PodHelper(target.Namespace),
+		selector,
+	)
+
+	err := d.InjectHTTPFaults(
+		context.TODO(),
+		HTTPFault{
+			Port: 80,
+		},
+		10,
+		HTTPDisruptionOptions{},
+	)
+
+	if err == nil {
+		t.Errorf("should had failed")
+		return
 	}
 }
