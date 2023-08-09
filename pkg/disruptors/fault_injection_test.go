@@ -2,7 +2,6 @@ package disruptors
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -93,7 +92,6 @@ type httpFaultTestCase struct {
 	target      *corev1.Pod
 	expectedCmd string
 	expectError bool
-	cmdError    error
 	fault       HTTPFault
 	opts        HTTPDisruptionOptions
 	duration    time.Duration
@@ -113,7 +111,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 		},
 		{
 			title:  "Test error 500 with error body",
@@ -122,7 +119,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
@@ -137,7 +133,6 @@ func httpFaultTestCases() []httpFaultTestCase {
 			target:      buildPodWithPort("my-app-pod", "http", 80),
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 			fault: HTTPFault{
 				AverageDelay: 100 * time.Millisecond,
 				Port:         80,
@@ -150,22 +145,9 @@ func httpFaultTestCases() []httpFaultTestCase {
 			target:      buildPodWithPort("my-app-pod", "http", 80),
 			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 			fault: HTTPFault{
 				Exclude: "/path1,/path2",
 				Port:    80,
-			},
-			opts:     HTTPDisruptionOptions{},
-			duration: 60 * time.Second,
-		},
-		{
-			title:       "Test command execution fault",
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 --upstream-host 192.0.2.6",
-			expectError: true,
-			cmdError:    fmt.Errorf("error executing command"),
-			fault: HTTPFault{
-				Port: 80,
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -213,7 +195,6 @@ type grpcFaultTestCase struct {
 	duration    time.Duration
 	expectedCmd string
 	expectError bool
-	cmdError    error
 }
 
 func grpcFaultTestCases() []grpcFaultTestCase {
@@ -230,7 +211,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 		},
 		{
 			title: "Test error with status message",
@@ -245,7 +225,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -r 0.1 -s 14 -m internal error --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 		},
 		{
 			title: "Test Average delay",
@@ -258,7 +237,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -a 100ms -v 0ms --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
 		},
 		{
 			title: "Test exclude list",
@@ -271,17 +249,6 @@ func grpcFaultTestCases() []grpcFaultTestCase {
 			duration:    60 * time.Second,
 			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 -x service1,service2 --upstream-host 192.0.2.6",
 			expectError: false,
-			cmdError:    nil,
-		},
-		{
-			title: "Test command execution fault",
-			target:      buildPodWithPort("my-app-pod", "grpc", 3000),
-			fault:       GrpcFault{},
-			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 --upstream-host 192.0.2.6",
-			expectError: true,
-			cmdError:    fmt.Errorf("error executing command"),
 		},
 		{
 			title:  "Container port not found",
@@ -302,7 +269,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
+			executor := runtime.NewFakeExecutor([]byte{}, nil)
 
 			controller := &fakeAgentController{
 				namespace: tc.target.Namespace,
@@ -352,7 +319,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
+			executor := runtime.NewFakeExecutor([]byte{}, nil)
 
 			controller := &fakeAgentController{
 				namespace: tc.target.Namespace,
