@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,9 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
 )
 
 // PodHelper defines helper methods for handling Pods
@@ -42,17 +38,17 @@ type PodHelper interface {
 
 // helpers struct holds the data required by the helpers
 type podHelper struct {
-	config    *rest.Config
 	client    kubernetes.Interface
+	executor  PodCommandExecutor
 	namespace string
 }
 
 // NewPodHelper returns a PodHelper
-func NewPodHelper(client kubernetes.Interface, config *rest.Config, namespace string) PodHelper {
+func NewPodHelper(client kubernetes.Interface, executor PodCommandExecutor, namespace string) PodHelper {
 	return &podHelper{
 		client:    client,
-		config:    config,
 		namespace: namespace,
+		executor:  executor,
 	}
 }
 
@@ -140,41 +136,14 @@ func (h *podHelper) WaitPodRunning(ctx context.Context, name string, timeout tim
 	)
 }
 
-func (h *podHelper) Exec(
-	pod string,
-	container string,
-	command []string,
-	stdin []byte,
-) ([]byte, []byte, error) {
-	req := h.client.CoreV1().RESTClient().
-		Post().
-		Namespace(h.namespace).
-		Resource("pods").
-		Name(pod).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: container,
-			Command:   command,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(h.config, "POST", req.URL())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var stdout, stderr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  bytes.NewReader(stdin),
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	})
-
-	return stdout.Bytes(), stderr.Bytes(), err
+func (h *podHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
+	return h.executor.Exec(
+		pod,
+		h.namespace,
+		container,
+		command,
+		stdin,
+	)
 }
 
 func (h *podHelper) AttachEphemeralContainer(

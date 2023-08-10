@@ -143,7 +143,7 @@ func Test_WaitServiceReady(t *testing.T) {
 				}
 			}(tc)
 
-			h := NewServiceHelper(client, nil, "default")
+			h := NewServiceHelper(client, "default")
 
 			err := h.WaitServiceReady(context.TODO(), "service", tc.timeout)
 			if !tc.expectError && err != nil {
@@ -241,7 +241,7 @@ func Test_WaitIngressReady(t *testing.T) {
 				}
 			}(tc)
 
-			h := NewServiceHelper(client, nil, "default")
+			h := NewServiceHelper(client, "default")
 
 			err := h.WaitIngressReady(context.TODO(), "ingress", tc.timeout)
 			if !tc.expectError && err != nil {
@@ -345,7 +345,7 @@ func Test_Targets(t *testing.T) {
 				}
 			}
 
-			helper := NewServiceHelper(client, nil, tc.namespace)
+			helper := NewServiceHelper(client, tc.namespace)
 			targets, err := helper.GetTargets(context.TODO(), tc.serviceName)
 			if !tc.expectError && err != nil {
 				t.Errorf("failed: %v", err)

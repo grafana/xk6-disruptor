@@ -27,19 +27,18 @@ func NewFakeKubernetes(clientset *fake.Clientset) (*FakeKubernetes, error) {
 
 // PodHelper returns a PodHelper for the given namespace
 func (f *FakeKubernetes) PodHelper(namespace string) helpers.PodHelper {
-	return helpers.NewFakePodHelper(
+	return helpers.NewPodHelper(
 		f.client,
-		namespace,
 		f.executor,
+		namespace,
 	)
 }
 
 // ServiceHelper returns a ServiceHelper for the given namespace
 func (f *FakeKubernetes) ServiceHelper(namespace string) helpers.ServiceHelper {
-	return helpers.NewFakeServiceHelper(
+	return helpers.NewServiceHelper(
 		f.client,
 		namespace,
-		f.executor,
 	)
 }
 

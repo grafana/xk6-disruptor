@@ -111,16 +111,16 @@ func checkK8sVersion(config *rest.Config) error {
 func (k *k8s) ServiceHelper(namespace string) helpers.ServiceHelper {
 	return helpers.NewServiceHelper(
 		k.Interface,
-		k.config,
 		namespace,
 	)
 }
 
 // PodHelper returns a PodHelper for the given namespace
 func (k *k8s) PodHelper(namespace string) helpers.PodHelper {
+	executor := helpers.NewRestExecutor(k.CoreV1().RESTClient(), k.config)
 	return helpers.NewPodHelper(
-		k.Interface,
-		k.config,
+		k,
+		executor,
 		namespace,
 	)
 }

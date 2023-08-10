@@ -2,13 +2,12 @@ package helpers
 
 import (
 	"sync"
-
-	"k8s.io/client-go/kubernetes"
 )
 
 // Command records the execution of a command in a Pod
 type Command struct {
 	Pod       string
+	Namespace string
 	Container string
 	Command   []string
 	Stdin     []byte
@@ -27,6 +26,7 @@ type FakePodCommandExecutor struct {
 // Exec records the execution of a command and returns the pre-defined
 func (f *FakePodCommandExecutor) Exec(
 	pod string,
+	namespace string,
 	container string,
 	cmd []string,
 	stdin []byte,
@@ -34,6 +34,7 @@ func (f *FakePodCommandExecutor) Exec(
 	f.mutex.Lock()
 	f.history = append(f.history, Command{
 		Pod:       pod,
+		Namespace: namespace,
 		Container: container,
 		Command:   cmd,
 		Stdin:     stdin,
@@ -59,45 +60,4 @@ func (f *FakePodCommandExecutor) GetHistory() []Command {
 // with default attributes
 func NewFakePodCommandExecutor() *FakePodCommandExecutor {
 	return &FakePodCommandExecutor{}
-}
-
-// fakePodHelper is an fake instance of a PodHelpers. It can delegate to the actual
-// helper the execution of actions or override them when needed
-type fakePodHelper struct {
-	PodHelper
-	executor *FakePodCommandExecutor
-}
-
-// NewFakePodHelper creates a set of a FakePodHelper on the default namespace
-func NewFakePodHelper(client kubernetes.Interface, namespace string, executor *FakePodCommandExecutor) PodHelper {
-	h := NewPodHelper(client, nil, namespace)
-	return &fakePodHelper{
-		h,
-		executor,
-	}
-}
-
-// Fakes the execution of a command in a pod
-func (f *fakePodHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
-	return f.executor.Exec(pod, container, command, stdin)
-}
-
-// fakePodHelper is an fake instance of a PodHelpers. It can delegate to the actual
-// helper the execution of actions or override them when needed
-type fakeServiceHelper struct {
-	ServiceHelper
-	executor *FakePodCommandExecutor
-}
-
-// NewFakeServiceHelper creates a set of a FakeServiceHelper on the default namespace
-func NewFakeServiceHelper(
-	client kubernetes.Interface,
-	namespace string,
-	executor *FakePodCommandExecutor,
-) ServiceHelper {
-	h := NewServiceHelper(client, nil, namespace)
-	return &fakeServiceHelper{
-		h,
-		executor,
-	}
 }
