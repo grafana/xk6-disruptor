@@ -26,6 +26,7 @@ func NewRootCommand(env runtime.Environment) *RootCommand {
 	rootCmd := buildRootCmd(config)
 	rootCmd.AddCommand(BuildHTTPCmd(env, config))
 	rootCmd.AddCommand(BuildGrpcCmd(env, config))
+	rootCmd.AddCommand(BuiltCleanupCmd(env))
 
 	return &RootCommand{
 		cmd: rootCmd,
