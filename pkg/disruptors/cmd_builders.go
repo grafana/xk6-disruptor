@@ -113,3 +113,7 @@ func buildHTTPFaultCmd(
 
 	return cmd
 }
+
+func buildCleanupCmd() []string {
+	return []string{"xk6-disruptor-agent", "cleanup"}
+}

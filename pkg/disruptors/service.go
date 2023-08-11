@@ -90,14 +90,14 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 ) error {
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
 		port, err := utils.MapPort(d.service, fault.Port, pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
 		if utils.HasHostNetwork(pod) {
-			return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
 		}
 
 		// copy fault to change target port for the pod
@@ -106,11 +106,15 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
-		cmd := buildHTTPFaultCmd(targetAddress, podFault, duration, options)
-		return cmd, nil
+		visitCommands := VisitCommands{
+			Exec:    buildHTTPFaultCmd(targetAddress, podFault, duration, options),
+			Cleanup: buildCleanupCmd(),
+		}
+
+		return visitCommands, nil
 	})
 }
 
@@ -122,10 +126,10 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 ) error {
 	// for each target, the port to inject the fault can be different
 	// we use the Visit function and generate a command for each pod
-	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
 		port, err := utils.MapPort(d.service, fault.Port, pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
 		podFault := fault
@@ -133,11 +137,15 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
-		cmd := buildGrpcFaultCmd(targetAddress, podFault, duration, options)
-		return cmd, nil
+		visitCommands := VisitCommands{
+			Exec:    buildGrpcFaultCmd(targetAddress, podFault, duration, options),
+			Cleanup: buildCleanupCmd(),
+		}
+
+		return visitCommands, nil
 	})
 }
 

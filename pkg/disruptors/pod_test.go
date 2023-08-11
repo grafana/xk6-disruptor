@@ -39,14 +39,18 @@ func (f *fakeAgentController) ExecCommand(_ context.Context, cmd []string) error
 	return err
 }
 
-func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) ([]string, error)) error {
+func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) (VisitCommands, error)) error {
 	for _, t := range f.targets {
-		cmd, err := visitor(t)
+		visitCommands, err := visitor(t)
 		if err != nil {
 			return err
 		}
+
+		cmd := visitCommands.Exec
 		_, err = f.executor.Exec(cmd[0], cmd[1:]...)
-		if err != nil {
+		if err != nil && visitCommands.Cleanup != nil {
+			cleanup := visitCommands.Cleanup
+			_, _ = f.executor.Exec(cleanup[0], cleanup[1:]...)
 			return err
 		}
 	}
@@ -82,15 +86,15 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title       string
-		selector    PodSelector
-		target      *corev1.Pod
-		expectedCmd string
-		expectError bool
-		cmdError    error
-		fault       HTTPFault
-		opts        HTTPDisruptionOptions
-		duration    time.Duration
+		title        string
+		selector     PodSelector
+		target       *corev1.Pod
+		expectedCmds []string
+		expectError  bool
+		cmdError     error
+		fault        HTTPFault
+		opts         HTTPDisruptionOptions
+		duration     time.Duration
 	}{
 		{
 			title: "Test error 500",
@@ -108,11 +112,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				ErrorCode: 500,
 				Port:      80,
 			},
-			opts:        HTTPDisruptionOptions{},
-			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6",
-			expectError: false,
-			cmdError:    nil,
+			opts:         HTTPDisruptionOptions{},
+			duration:     60 * time.Second,
+			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6"},
+			expectError:  false,
+			cmdError:     nil,
 		},
 		{
 			title: "Test error 500 with error body",
@@ -127,9 +131,9 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			target: buildPodWithPort("my-app-pod", "http", 80),
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
-			expectError: false,
-			cmdError:    nil,
+			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6"},
+			expectError:  false,
+			cmdError:     nil,
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
@@ -149,10 +153,10 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 					},
 				},
 			},
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6",
-			expectError: false,
-			cmdError:    nil,
+			target:       buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6"},
+			expectError:  false,
+			cmdError:     nil,
 			fault: HTTPFault{
 				AverageDelay: 100 * time.Millisecond,
 				Port:         80,
@@ -170,10 +174,10 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 					},
 				},
 			},
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6",
-			expectError: false,
-			cmdError:    nil,
+			target:       buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6"},
+			expectError:  false,
+			cmdError:     nil,
 			fault: HTTPFault{
 				Exclude: "/path1,/path2",
 				Port:    80,
@@ -191,8 +195,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 					},
 				},
 			},
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 --upstream-host 192.0.2.6",
+			target: buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmds: []string{
+				"xk6-disruptor-agent http -d 60s -t 80 --upstream-host 192.0.2.6",
+				"xk6-disruptor-agent cleanup",
+			},
 			expectError: true,
 			cmdError:    fmt.Errorf("error executing command"),
 			fault: HTTPFault{
@@ -211,8 +218,9 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 					},
 				},
 			},
-			target:      buildPodWithPort("my-app-pod", "http", 80),
-			expectError: true,
+			target:       buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmds: []string{},
+			expectError:  true,
 			fault: HTTPFault{
 				Port: 8080,
 			},
@@ -240,7 +248,8 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 						Build(),
 				).
 				Build(),
-			expectError: true,
+			expectedCmds: []string{},
+			expectError:  true,
 			fault: HTTPFault{
 				Port: 80,
 			},
@@ -270,7 +279,8 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 						Build(),
 				).
 				Build(),
-			expectError: true,
+			expectedCmds: []string{},
+			expectError:  true,
 			fault: HTTPFault{
 				Port: 80,
 			},
@@ -299,10 +309,6 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 
 			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
 
-			if tc.expectError && err != nil {
-				return
-			}
-
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -313,9 +319,16 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				return
 			}
 
-			cmd := executor.Cmd()
-			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
+			history := executor.CmdHistory()
+			if len(tc.expectedCmds) != len(history) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmds, history)
+				return
+			}
+
+			for i, cmd := range tc.expectedCmds {
+				if !command.AssertCmdEquals(cmd, history[i]) {
+					t.Errorf("expected command: %s got: %s", cmd, history[i])
+				}
 			}
 		})
 	}
