@@ -102,36 +102,51 @@ func (c *agentController) ExecCommand(ctx context.Context, cmd []string) error {
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *agentController) Visit(_ context.Context, visitor func(corev1.Pod) ([]string, error)) error {
-	var wg sync.WaitGroup
+func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) ([]string, error)) error {
+	// if there are no targets, nothing to do
+	if len(c.targets) == 0 {
+		return nil
+	}
+
+	execContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// ensure errors channel has enough space to avoid blocking gorutines
 	errors := make(chan error, len(c.targets))
 	for _, pod := range c.targets {
-		wg.Add(1)
 		// attach each container asynchronously
 		go func(pod corev1.Pod) {
 			// get the command to execute in the target
 			cmd, err := visitor(pod)
 			if err != nil {
 				errors <- fmt.Errorf("error building command for pod %s: %w", pod.Name, err)
+				return
 			}
 
-			_, stderr, err := c.helper.Exec(pod.Name, "xk6-agent", cmd, []byte{})
+			_, stderr, err := c.helper.Exec(execContext, pod.Name, "xk6-agent", cmd, []byte{})
 			if err != nil {
 				errors <- fmt.Errorf("error invoking agent: %w \n%s", err, string(stderr))
+				return
 			}
 
-			wg.Done()
+			errors <- nil
 		}(pod)
 	}
 
-	wg.Wait()
-
-	select {
-	case err := <-errors:
-		return err
-	default:
-		return nil
+	pending := len(c.targets)
+	for {
+		select {
+		case err := <-errors:
+			if err != nil {
+				return err
+			}
+			pending--
+			if pending == 0 {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 

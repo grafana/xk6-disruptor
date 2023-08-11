@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"sync"
 )
 
@@ -25,6 +26,7 @@ type FakePodCommandExecutor struct {
 
 // Exec records the execution of a command and returns the pre-defined
 func (f *FakePodCommandExecutor) Exec(
+	_ context.Context,
 	pod string,
 	namespace string,
 	container string,

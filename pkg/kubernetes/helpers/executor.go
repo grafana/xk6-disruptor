@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -13,7 +14,14 @@ import (
 // PodCommandExecutor defines a method for executing commands in a target Pod
 type PodCommandExecutor interface {
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
-	Exec(pod string, namespace string, container string, command []string, stdin []byte) ([]byte, []byte, error)
+	Exec(
+		ctx context.Context,
+		pod string,
+		namespace string,
+		container string,
+		command []string,
+		stdin []byte,
+	) ([]byte, []byte, error)
 }
 
 type restExecutor struct {
@@ -31,6 +39,7 @@ func NewRestExecutor(client rest.Interface, config *rest.Config) PodCommandExecu
 }
 
 func (h *restExecutor) Exec(
+	ctx context.Context,
 	pod string,
 	namespace string,
 	container string,
@@ -58,12 +67,15 @@ func (h *restExecutor) Exec(
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  bytes.NewReader(stdin),
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	})
+	err = exec.StreamWithContext(
+		ctx,
+		remotecommand.StreamOptions{
+			Stdin:  bytes.NewReader(stdin),
+			Stdout: &stdout,
+			Stderr: &stderr,
+			Tty:    false,
+		},
+	)
 
 	return stdout.Bytes(), stderr.Bytes(), err
 }

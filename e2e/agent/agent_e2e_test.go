@@ -308,6 +308,7 @@ func Test_Agent(t *testing.T) {
 			return
 		}
 		_, stderr, err := k8s.PodHelper(namespace).Exec(
+			context.TODO(),
 			"httpbin",
 			"xk6-disruptor-agent",
 			injectHTTP500,
