@@ -125,6 +125,7 @@ func (p *FakeProfiler) Close() error {
 type FakeLock struct {
 	locked   bool
 	unlocked bool
+	owner    int
 }
 
 // NewFakeLock returns a default FakeProcess for testing
@@ -135,6 +136,7 @@ func NewFakeLock() *FakeLock {
 // Acquire implements Acquire method from Lock interface
 func (p *FakeLock) Acquire() (bool, error) {
 	p.locked = true
+	p.owner = os.Getpid()
 	return true, nil
 }
 
@@ -142,6 +144,15 @@ func (p *FakeLock) Acquire() (bool, error) {
 func (p *FakeLock) Release() error {
 	p.unlocked = true
 	return nil
+}
+
+// Owner implements Owner method from Lock interface
+func (p *FakeLock) Owner() int {
+	if !p.locked {
+		return -1
+	}
+
+	return p.owner
 }
 
 // FakeRuntime holds the state of a fake runtime for testing
