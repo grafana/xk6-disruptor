@@ -1,6 +1,8 @@
 package builders
 
 import (
+	"fmt"
+
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -92,7 +94,7 @@ func (b *ingressBuilder) Build() *networking.Ingress {
 			IngressClassName: b.class,
 			Rules: []networking.IngressRule{
 				{
-					Host: b.host,
+					Host: fmt.Sprintf("%s.%s", b.host, b.namespace),
 					IngressRuleValue: networking.IngressRuleValue{
 						HTTP: &networking.HTTPIngressRuleValue{
 							Paths: []networking.HTTPIngressPath{
