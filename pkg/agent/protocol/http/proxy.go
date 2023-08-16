@@ -109,7 +109,7 @@ func (h *httpHandler) forward(rw http.ResponseWriter, req *http.Request, delay t
 	upstreamReq.URL.Scheme = h.upstreamURL.Scheme
 	upstreamReq.RequestURI = "" // It is an error to set this field in an HTTP client request.
 
-	response, err := h.client.Do(req)
+	response, err := h.client.Do(upstreamReq)
 	<-timer
 	if err != nil {
 		rw.WriteHeader(http.StatusBadGateway)
