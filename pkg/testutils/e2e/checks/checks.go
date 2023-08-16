@@ -59,7 +59,7 @@ type GrpcCheck struct {
 }
 
 // Verify verifies a HTTPCheck
-func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) error {
+func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace string) error {
 	time.Sleep(c.Delay)
 
 	url := fmt.Sprintf("http://%s", ingress)
@@ -67,7 +67,7 @@ func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) err
 	if err != nil {
 		return err
 	}
-	request.Host = c.Service
+	request.Host = fmt.Sprintf("%s.%s", c.Service, namespace)
 
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -85,14 +85,14 @@ func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) err
 }
 
 // Verify verifies a GrpcServiceCheck
-func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) error {
+func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace string) error {
 	time.Sleep(c.Delay)
 
 	client, err := dynamic.NewClientWithDialOptions(
 		ingress,
 		c.GrpcService,
 		grpc.WithInsecure(),
-		grpc.WithAuthority(c.Service),
+		grpc.WithAuthority(fmt.Sprintf("%s.%s", c.Service, namespace)),
 	)
 	if err != nil {
 		return fmt.Errorf("error creating client for service %s: %w", c.Service, err)
