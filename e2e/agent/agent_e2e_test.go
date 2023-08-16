@@ -24,63 +24,79 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var injectHTTP500 = []string{
-	"xk6-disruptor-agent",
-	"http",
-	"--duration",
-	"300s",
-	"--rate",
-	"1.0",
-	"--error",
-	"418",
-	"--port",
-	"8080",
-	"--target",
-	"80",
-	"--upstream-host",
-	// POD_IP is injected in the container and take its value from status.podIP
-	"$(POD_IP)",
-}
+var (
+	injectHTTP418 = []string{
+		"xk6-disruptor-agent",
+		"http",
+		"--duration",
+		"300s",
+		"--rate",
+		"1.0",
+		"--error",
+		"418",
+		"--port",
+		"8080",
+		"--target",
+		"80",
+		"--upstream-host",
+		// POD_IP is injected in the container and take its value from status.podIP
+		"$(POD_IP)",
+	}
 
-var injectGrpcInternal = []string{
-	"xk6-disruptor-agent",
-	"grpc",
-	"--duration",
-	"300s",
-	"--rate",
-	"1.0",
-	"--status",
-	"14",
-	"--message",
-	"Internal error",
-	"--port",
-	"4000",
-	"--target",
-	"9000",
-	"--upstream-host",
-	// POD_IP is injected in the container and take its value from status.podIP
-	"$(POD_IP)",
-	"-x",
-	// exclude reflection service otherwise the dynamic client will not work
-	"grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
-}
+	injectNothing = []string{
+		"xk6-disruptor-agent",
+		"http",
+		"--duration",
+		"300s",
+		"--port",
+		"8080",
+		"--target",
+		"80",
+		"--upstream-host",
+		// POD_IP is injected in the container and take its value from status.podIP
+		"$(POD_IP)",
+	}
 
-var injectUpstreamHTTP500 = []string{
-	"xk6-disruptor-agent",
-	"http",
-	"--duration",
-	"300s",
-	"--rate",
-	"1.0",
-	"--error",
-	"500",
-	"--port",
-	"80",
-	"--target",
-	"80",
-	"--transparent=false",
-	"--upstream-host=httpbin.default.svc.cluster.local",
-}
+	injectGrpcInternal = []string{
+		"xk6-disruptor-agent",
+		"grpc",
+		"--duration",
+		"300s",
+		"--rate",
+		"1.0",
+		"--status",
+		"14",
+		"--message",
+		"Internal error",
+		"--port",
+		"4000",
+		"--target",
+		"9000",
+		"--upstream-host",
+		// POD_IP is injected in the container and take its value from status.podIP
+		"$(POD_IP)",
+		"-x",
+		// exclude reflection service otherwise the dynamic client will not work
+		"grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
+	}
+
+	injectUpstreamHTTP500 = []string{
+		"xk6-disruptor-agent",
+		"http",
+		"--duration",
+		"300s",
+		"--rate",
+		"1.0",
+		"--error",
+		"500",
+		"--port",
+		"80",
+		"--target",
+		"80",
+		"--transparent=false",
+		"--upstream-host=httpbin.default.svc.cluster.local",
+	}
+)
 
 // deploy pod with [httpbin] and the xk6-disruptor as sidekick container
 func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
@@ -200,8 +216,20 @@ func Test_Agent(t *testing.T) {
 			check checks.Check
 		}{
 			{
+				title: "HTTP request is passed through",
+				pod:   buildHttpbinPodWithDisruptorAgent(injectNothing),
+				svc:   fixtures.BuildHttpbinService(),
+				port:  80,
+				check: checks.HTTPCheck{
+					Service:      "httpbin",
+					Port:         80,
+					Path:         "/status/200",
+					ExpectedCode: 200,
+				},
+			},
+			{
 				title: "Inject HTTP 500",
-				pod:   buildHttpbinPodWithDisruptorAgent(injectHTTP500),
+				pod:   buildHttpbinPodWithDisruptorAgent(injectHTTP418),
 				svc:   fixtures.BuildHttpbinService(),
 				port:  80,
 				check: checks.HTTPCheck{
@@ -300,7 +328,7 @@ func Test_Agent(t *testing.T) {
 		err = deploy.RunPod(
 			k8s,
 			namespace,
-			buildHttpbinPodWithDisruptorAgent(injectHTTP500),
+			buildHttpbinPodWithDisruptorAgent(injectHTTP418),
 			30*time.Second,
 		)
 		if err != nil {
@@ -310,7 +338,7 @@ func Test_Agent(t *testing.T) {
 		_, stderr, err := k8s.PodHelper(namespace).Exec(
 			"httpbin",
 			"xk6-disruptor-agent",
-			injectHTTP500,
+			injectHTTP418,
 			[]byte{},
 		)
 		if err == nil {
