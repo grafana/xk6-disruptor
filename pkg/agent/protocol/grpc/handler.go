@@ -61,28 +61,29 @@ func (h *handler) streamHandler(_ interface{}, serverStream grpc.ServerStream) e
 	if !ok {
 		return status.Errorf(codes.Internal, "ServerTransportStream not exists in context")
 	}
+
 	// full method name has the form /service/method, we want the service
 	serviceName := strings.Split(fullMethodName, "/")[1]
-	excluded := contains(h.disruption.Excluded, serviceName)
-	if !excluded {
-		if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-			h.metrics.Inc(protocol.MetricRequestsFaulted)
-			return h.injectError(serverStream)
-		}
-
-		// add delay
-		if h.disruption.AverageDelay > 0 {
-			h.metrics.Inc(protocol.MetricRequestsFaulted)
-
-			delay := int64(h.disruption.AverageDelay)
-			if h.disruption.DelayVariation > 0 {
-				variation := int64(h.disruption.DelayVariation)
-				delay = delay + variation - 2*rand.Int63n(variation)
-			}
-			time.Sleep(time.Duration(delay))
-		}
-	} else {
+	if contains(h.disruption.Excluded, serviceName) {
 		h.metrics.Inc(protocol.MetricRequestsExcluded)
+		return h.transparentForward(serverStream)
+	}
+
+	if rand.Float32() < h.disruption.ErrorRate {
+		h.metrics.Inc(protocol.MetricRequestsFaulted)
+		return h.injectError(serverStream)
+	}
+
+	// add delay
+	if h.disruption.AverageDelay > 0 {
+		h.metrics.Inc(protocol.MetricRequestsFaulted)
+
+		delay := int64(h.disruption.AverageDelay)
+		if h.disruption.DelayVariation > 0 {
+			variation := int64(h.disruption.DelayVariation)
+			delay = delay + variation - 2*rand.Int63n(variation)
+		}
+		time.Sleep(time.Duration(delay))
 	}
 
 	return h.transparentForward(serverStream)
