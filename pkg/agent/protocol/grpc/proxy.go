@@ -44,6 +44,7 @@ type proxy struct {
 	config     ProxyConfig
 	disruption Disruption
 	srv        *grpc.Server
+	metrics    *protocol.MetricMap
 }
 
 // NewProxy return a new Proxy
@@ -79,6 +80,7 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 	return &proxy{
 		disruption: d,
 		config:     c,
+		metrics:    &protocol.MetricMap{},
 	}, nil
 }
 
@@ -93,7 +95,7 @@ func (p *proxy) Start() error {
 	if err != nil {
 		return fmt.Errorf("error dialing %s: %w", p.config.UpstreamAddress, err)
 	}
-	handler := NewHandler(p.disruption, conn)
+	handler := NewHandler(p.disruption, conn, p.metrics)
 
 	p.srv = grpc.NewServer(
 		grpc.UnknownServiceHandler(handler),
@@ -123,7 +125,7 @@ func (p *proxy) Stop() error {
 // Metrics returns runtime metrics for the proxy.
 // TODO: Add metrics.
 func (p *proxy) Metrics() map[string]uint {
-	return nil
+	return p.metrics.Map()
 }
 
 // Force stops the proxy without waiting for connections to drain
