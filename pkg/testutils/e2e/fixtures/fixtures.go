@@ -9,7 +9,7 @@ import (
 )
 
 // BuildHttpbinPod returns the definition for deploying Httpbin as a Pod
-func BuildHttpbinPod() *corev1.Pod {
+func BuildHttpbinPod() corev1.Pod {
 	c := builders.NewContainerBuilder("httpbin").
 		WithImage("kennethreitz/httpbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -23,7 +23,7 @@ func BuildHttpbinPod() *corev1.Pod {
 }
 
 // BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
-func BuildGrpcpbinPod() *corev1.Pod {
+func BuildGrpcpbinPod() corev1.Pod {
 	c := builders.NewContainerBuilder("grpcbin").
 		WithImage("moul/grpcbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -37,7 +37,7 @@ func BuildGrpcpbinPod() *corev1.Pod {
 }
 
 // BuildHttpbinService returns a Service definition that exposes httpbin pods
-func BuildHttpbinService() *corev1.Service {
+func BuildHttpbinService() corev1.Service {
 	return builders.NewServiceBuilder("httpbin").
 		WithSelectorLabel("app", "httpbin").
 		WithPort("http", 80, intstr.FromString("http")).
@@ -45,7 +45,7 @@ func BuildHttpbinService() *corev1.Service {
 }
 
 // BuildGrpcbinService returns a Service definition that exposes grpcbin pods at the node port 30000
-func BuildGrpcbinService() *corev1.Service {
+func BuildGrpcbinService() corev1.Service {
 	return builders.NewServiceBuilder("grpcbin").
 		WithSelectorLabel("app", "grpcbin").
 		WithServiceType(corev1.ServiceTypeClusterIP).
@@ -55,7 +55,7 @@ func BuildGrpcbinService() *corev1.Service {
 }
 
 // BuildBusyBoxPod returns the definition of a Pod that runs busybox and waits 5min before completing
-func BuildBusyBoxPod() *corev1.Pod {
+func BuildBusyBoxPod() corev1.Pod {
 	c := builders.NewContainerBuilder("busybox").
 		WithImage("busybox").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -70,7 +70,7 @@ func BuildBusyBoxPod() *corev1.Pod {
 
 // BuildPausedPod returns the definition of a Pod that runs the paused image in a container
 // creating a "no-op" dummy Pod.
-func BuildPausedPod() *corev1.Pod {
+func BuildPausedPod() corev1.Pod {
 	c := builders.NewContainerBuilder("paused").
 		WithImage("k8s.gcr.io/pause").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -82,7 +82,7 @@ func BuildPausedPod() *corev1.Pod {
 }
 
 // BuildNginxPod returns the definition of a Pod that runs Nginx
-func BuildNginxPod() *corev1.Pod {
+func BuildNginxPod() corev1.Pod {
 	c := builders.NewContainerBuilder("busybox").
 		WithImage("nginx").
 		WithPullPolicy(corev1.PullIfNotPresent).
@@ -96,7 +96,7 @@ func BuildNginxPod() *corev1.Pod {
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
-func BuildNginxService() *corev1.Service {
+func BuildNginxService() corev1.Service {
 	return builders.NewServiceBuilder("nginx").
 		WithSelectorLabel("app", "nginx").
 		WithPort("http", 80, intstr.FromInt(80)).

@@ -23,7 +23,9 @@ type IngressBuilder interface {
 	// WithAddress sets the ingress loadbalancer address
 	WithAddress(addr string) IngressBuilder
 	// Build returns the Ingress
-	Build() *networking.Ingress
+	Build() networking.Ingress
+	// BuildAsPtr returns a reference to the Ingress
+	BuildAsPtr() *networking.Ingress
 }
 
 // ingressBuilder maintains the configuration for building an Ingress
@@ -78,10 +80,10 @@ func (b *ingressBuilder) WithAddress(addr string) IngressBuilder {
 	return b
 }
 
-func (b *ingressBuilder) Build() *networking.Ingress {
+func (b *ingressBuilder) Build() networking.Ingress {
 	pathType := networking.PathType("Prefix")
 
-	return &networking.Ingress{
+	return networking.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking/v1",
 			Kind:       "Ingress",
@@ -123,4 +125,9 @@ func (b *ingressBuilder) Build() *networking.Ingress {
 			},
 		},
 	}
+}
+
+func (b *ingressBuilder) BuildAsPtr() *networking.Ingress {
+	ingress := b.Build()
+	return &ingress
 }

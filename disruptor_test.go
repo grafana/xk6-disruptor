@@ -87,7 +87,7 @@ func Test_PodDisruptor(t *testing.T) {
 		WithDefaultNamespace().
 		WithLabel("app", "test").
 		Build()
-	client := fake.NewSimpleClientset(pod)
+	client := fake.NewSimpleClientset(&pod)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
 	err := setTestModule(k8s, vu)
@@ -130,7 +130,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		WithSubset("http", 80, []string{"app-pod"}).
 		Build()
 
-	client := fake.NewSimpleClientset(pod, svc, endpoints)
+	client := fake.NewSimpleClientset(&pod, &svc, &endpoints)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
 	err := setTestModule(k8s, vu)

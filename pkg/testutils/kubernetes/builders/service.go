@@ -12,7 +12,9 @@ import (
 // ServiceBuilder defines the methods for building a service
 type ServiceBuilder interface {
 	// Build returns a Service with the attributes defined in the ServiceBuilder
-	Build() *corev1.Service
+	Build() corev1.Service
+	// BuildAsPtr returns a Service with the attributes defined in the ServiceBuilder as a pointer
+	BuildAsPtr() *corev1.Service
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) ServiceBuilder
 	// WithPorts sets the ports exposed by the service
@@ -88,8 +90,8 @@ func (s *serviceBuilder) WithAnnotation(key string, value string) ServiceBuilder
 	return s
 }
 
-func (s *serviceBuilder) Build() *corev1.Service {
-	return &corev1.Service{
+func (s *serviceBuilder) Build() corev1.Service {
+	return corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -107,6 +109,11 @@ func (s *serviceBuilder) Build() *corev1.Service {
 	}
 }
 
+func (s *serviceBuilder) BuildAsPtr() *corev1.Service {
+	svc := s.Build()
+	return &svc
+}
+
 // EndpointsBuilder defines the methods for building a service EndPoints
 type EndpointsBuilder interface {
 	// WithNamespace sets namespace for the pod to be built
@@ -116,7 +123,9 @@ type EndpointsBuilder interface {
 	// WithNotReadyAddresses adds a subset with not ready addresses
 	WithNotReadyAddresses(name string, port int32, pods []string) EndpointsBuilder
 	// Build builds the Endpoints
-	Build() *corev1.Endpoints
+	Build() corev1.Endpoints
+	// BuildAsPtr builds the Endpoints and returns as a pointer
+	BuildAsPtr() *corev1.Endpoints
 }
 
 type endpointsBuilder struct {
@@ -192,8 +201,8 @@ func (b *endpointsBuilder) WithNotReadyAddresses(name string, port int32, pods [
 	return b
 }
 
-func (b *endpointsBuilder) Build() *corev1.Endpoints {
-	return &corev1.Endpoints{
+func (b *endpointsBuilder) Build() corev1.Endpoints {
+	return corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "EndPoints",
@@ -204,4 +213,9 @@ func (b *endpointsBuilder) Build() *corev1.Endpoints {
 		},
 		Subsets: b.subsets,
 	}
+}
+
+func (b *endpointsBuilder) BuildAsPtr() *corev1.Endpoints {
+	e := b.Build()
+	return &e
 }

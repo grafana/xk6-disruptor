@@ -506,8 +506,8 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			svc := builders.NewServiceBuilder("service").WithSelector(labels).Build()
 			ep := builders.NewEndPointsBuilder("service").Build()
 
-			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), svc, v1.CreateOptions{})
-			_, _ = env.client.CoreV1().Endpoints("default").Create(context.TODO(), ep, v1.CreateOptions{})
+			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), &svc, v1.CreateOptions{})
+			_, _ = env.client.CoreV1().Endpoints("default").Create(context.TODO(), &ep, v1.CreateOptions{})
 
 			_, err = env.rt.RunString(tc.script)
 

@@ -68,7 +68,7 @@ func newPodDisruptorForTesting(controller AgentController, podHelper helpers.Pod
 	}
 }
 
-func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
+func buildPodWithPort(name string, portName string, port int32) corev1.Pod {
 	container := builders.NewContainerBuilder(name).
 		WithPort(portName, port).
 		Build()
@@ -88,7 +88,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 	testCases := []struct {
 		title        string
 		selector     PodSelector
-		target       *corev1.Pod
+		target       corev1.Pod
 		expectedCmds []string
 		expectError  bool
 		cmdError     error
@@ -294,11 +294,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				targets:   []corev1.Pod{tc.target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(&tc.target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
 			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
@@ -336,7 +336,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 	testCases := []struct {
 		title       string
 		selector    PodSelector
-		target      *corev1.Pod
+		target      corev1.Pod
 		fault       GrpcFault
 		opts        GrpcDisruptionOptions
 		duration    time.Duration
@@ -476,11 +476,11 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				targets:   []corev1.Pod{tc.target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(&tc.target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
 			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)

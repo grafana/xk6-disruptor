@@ -23,9 +23,9 @@ func Test_NewServiceDisruptor(t *testing.T) {
 		title       string
 		name        string
 		namespace   string
-		service     *corev1.Service
-		pods        []*corev1.Pod
-		endpoints   []*corev1.Endpoints
+		service     corev1.Service
+		pods        []corev1.Pod
+		endpoints   []corev1.Endpoints
 		options     ServiceDisruptorOptions
 		expectError bool
 	}{
@@ -38,14 +38,14 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
 					WithIP("192.0.2.6").
 					Build(),
 			},
-			endpoints: []*corev1.Endpoints{
+			endpoints: []corev1.Endpoints{
 				builders.NewEndPointsBuilder("test-svc").
 					WithNamespace("test-ns").
 					WithSubset("http", 80, []string{"pod-1"}).
@@ -65,8 +65,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
-			pods:        []*corev1.Pod{},
-			endpoints:   []*corev1.Endpoints{},
+			pods:        []corev1.Pod{},
+			endpoints:   []corev1.Endpoints{},
 			options:     ServiceDisruptorOptions{},
 			expectError: false,
 		},
@@ -79,8 +79,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
-			pods:        []*corev1.Pod{},
-			endpoints:   []*corev1.Endpoints{},
+			pods:        []corev1.Pod{},
+			endpoints:   []corev1.Endpoints{},
 			options:     ServiceDisruptorOptions{},
 			expectError: true,
 		},
@@ -93,8 +93,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
-			pods:        []*corev1.Pod{},
-			endpoints:   []*corev1.Endpoints{},
+			pods:        []corev1.Pod{},
+			endpoints:   []corev1.Endpoints{},
 			options:     ServiceDisruptorOptions{},
 			expectError: true,
 		},
@@ -107,12 +107,12 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			t.Parallel()
 
 			objs := []kruntime.Object{}
-			objs = append(objs, tc.service)
-			for _, p := range tc.pods {
-				objs = append(objs, p)
+			objs = append(objs, &tc.service)
+			for p := range tc.pods {
+				objs = append(objs, &tc.pods[p])
 			}
-			for _, e := range tc.endpoints {
-				objs = append(objs, e)
+			for e := range tc.endpoints {
+				objs = append(objs, &tc.endpoints[e])
 			}
 
 			client := fake.NewSimpleClientset(objs...)

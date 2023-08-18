@@ -80,7 +80,7 @@ func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 }
 
 // buildBusyboxPod returns a pod specification for running Busybox from a local image
-func buildBusyboxPod() *corev1.Pod {
+func buildBusyboxPod() corev1.Pod {
 	busybox := builders.NewContainerBuilder("busybox").
 		WithImage("busybox").
 		WithPullPolicy(corev1.PullNever).
@@ -129,7 +129,7 @@ func Test_PreloadImages(t *testing.T) {
 	}
 
 	pod := buildBusyboxPod()
-	_, err = k8s.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
+	_, err = k8s.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return
@@ -137,13 +137,13 @@ func Test_PreloadImages(t *testing.T) {
 	// FIXME: using hardcoded waits is flaky
 	time.Sleep(time.Second * 5)
 
-	pod, err = k8s.CoreV1().Pods("default").Get(context.TODO(), "busybox", metav1.GetOptions{})
+	created, err := k8s.CoreV1().Pods("default").Get(context.TODO(), "busybox", metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("failed to get pod: %v", err)
 		return
 	}
 
-	waiting := pod.Status.ContainerStatuses[0].State.Waiting
+	waiting := created.Status.ContainerStatuses[0].State.Waiting
 	if waiting != nil && (waiting.Reason == "ErrImageNeverPull") {
 		t.Errorf("pod is waiting for image")
 		return

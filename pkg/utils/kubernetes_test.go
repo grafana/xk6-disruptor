@@ -10,7 +10,7 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
+func buildPodWithPort(name string, portName string, port int32) corev1.Pod {
 	container := builders.NewContainerBuilder(name).
 		WithPort(portName, port).
 		Build()
@@ -22,7 +22,7 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 	return pod
 }
 
-func buildServicWithPort(name string, portName string, port int32, target intstr.IntOrString) *corev1.Service {
+func buildServicWithPort(name string, portName string, port int32, target intstr.IntOrString) corev1.Service {
 	return builders.NewServiceBuilder(name).
 		WithNamespace("test-ns").
 		WithSelectorLabel("app", "test").
@@ -37,8 +37,8 @@ func Test_ServicePortMapping(t *testing.T) {
 		title       string
 		serviceName string
 		namespace   string
-		service     *corev1.Service
-		pod         *corev1.Pod
+		service     corev1.Service
+		pod         corev1.Pod
 		endpoints   *corev1.Endpoints
 		port        uint
 		expectError bool
@@ -102,7 +102,7 @@ func Test_ServicePortMapping(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			port, err := MapPort(*tc.service, tc.port, *tc.pod)
+			port, err := MapPort(tc.service, tc.port, tc.pod)
 			if !tc.expectError && err != nil {
 				t.Errorf(" failed: %v", err)
 				return
@@ -131,7 +131,7 @@ func Test_ValidatePort(t *testing.T) {
 	testCases := []struct {
 		title      string
 		namespace  string
-		pod        *corev1.Pod
+		pod        corev1.Pod
 		targetPort uint
 		expect     bool
 	}{
@@ -162,7 +162,7 @@ func Test_ValidatePort(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			validation := HasPort(*tc.pod, tc.targetPort)
+			validation := HasPort(tc.pod, tc.targetPort)
 			if validation != tc.expect {
 				t.Errorf("expected %t got %t", tc.expect, validation)
 			}

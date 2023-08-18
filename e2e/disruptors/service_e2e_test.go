@@ -44,8 +44,8 @@ func Test_ServiceDisruptor(t *testing.T) {
 
 		testCases := []struct {
 			title    string
-			pod      *corev1.Pod
-			service  *corev1.Service
+			pod      corev1.Pod
+			service  corev1.Service
 			port     int
 			injector func(d disruptors.ServiceDisruptor) error
 			check    checks.Check

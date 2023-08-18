@@ -28,8 +28,17 @@ func Test_WaitServiceReady(t *testing.T) {
 
 	testCases := []TestCase{
 		{
-			test:        "endpoint not created",
+			test:        "service does not exists",
 			endpoints:   nil,
+			updated:     nil,
+			delay:       time.Second * 0,
+			expectError: true,
+			timeout:     time.Second * 5,
+		},
+		{
+			test: "endpoint not created",
+			endpoints: builders.NewEndPointsBuilder("service").
+				BuildAsPtr(),
 			updated:     nil,
 			delay:       time.Second * 0,
 			expectError: true,
@@ -39,7 +48,7 @@ func Test_WaitServiceReady(t *testing.T) {
 			test: "endpoint ready",
 			endpoints: builders.NewEndPointsBuilder("service").
 				WithSubset("http", 80, []string{"pod1"}).
-				Build(),
+				BuildAsPtr(),
 			updated:     nil,
 			delay:       time.Second * 0,
 			expectError: false,
@@ -47,30 +56,30 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 		{
 			test:      "wait for endpoint to be ready",
-			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			endpoints: builders.NewEndPointsBuilder("service").BuildAsPtr(),
 			updated: builders.NewEndPointsBuilder("service").
 				WithSubset("http", 80, []string{"pod1"}).
-				Build(),
+				BuildAsPtr(),
 			delay:       time.Second * 2,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:      "not ready addresses",
-			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			endpoints: builders.NewEndPointsBuilder("service").BuildAsPtr(),
 			updated: builders.NewEndPointsBuilder("service").
 				WithNotReadyAddresses("http", 80, []string{"pod1"}).
-				Build(),
+				BuildAsPtr(),
 			delay:       time.Second * 2,
 			expectError: true,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:      "timeout waiting for addresses",
-			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			endpoints: builders.NewEndPointsBuilder("service").BuildAsPtr(),
 			updated: builders.NewEndPointsBuilder("service").
 				WithSubset("http", 80, []string{"pod1"}).
-				Build(),
+				BuildAsPtr(),
 			delay:       time.Second * 10,
 			expectError: true,
 			timeout:     time.Second * 5,
@@ -79,7 +88,7 @@ func Test_WaitServiceReady(t *testing.T) {
 			test: "other endpoint ready",
 			endpoints: builders.NewEndPointsBuilder("another-service").
 				WithSubset("http", 80, []string{"pod1"}).
-				Build(),
+				BuildAsPtr(),
 			updated:     nil,
 			delay:       time.Second * 10,
 			expectError: true,
@@ -153,21 +162,21 @@ func Test_WaitIngressReady(t *testing.T) {
 			test: "ingress ready",
 			ingress: builders.NewIngressBuilder("ingress", intstr.FromInt(80)).
 				WithAddress("loadbalancer").
-				Build(),
+				BuildAsPtr(),
 			delay:       time.Second * 0,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "wait for ingress to be ready",
-			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).Build(),
+			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).BuildAsPtr(),
 			delay:       time.Second * 2,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
 			test:        "timeout waiting",
-			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).Build(),
+			ingress:     builders.NewIngressBuilder("ingress", intstr.FromInt(80)).BuildAsPtr(),
 			delay:       time.Second * 10,
 			expectError: true,
 			timeout:     time.Second * 5,
@@ -235,8 +244,8 @@ func Test_Targets(t *testing.T) {
 		title        string
 		serviceName  string
 		namespace    string
-		service      *corev1.Service
-		pods         []*corev1.Pod
+		service      corev1.Service
+		pods         []corev1.Pod
 		expectError  bool
 		expectedPods []string
 	}{
@@ -249,7 +258,7 @@ func Test_Targets(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 8080, intstr.FromInt(80)).
 				Build(),
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
@@ -267,7 +276,7 @@ func Test_Targets(t *testing.T) {
 				WithSelectorLabel("app", "test").
 				WithPort("http", 8080, intstr.FromInt(80)).
 				Build(),
-			pods:         []*corev1.Pod{},
+			pods:         []corev1.Pod{},
 			expectError:  false,
 			expectedPods: []string{},
 		},
@@ -280,13 +289,13 @@ func Test_Targets(t *testing.T) {
 			t.Parallel()
 
 			client := fake.NewSimpleClientset()
-			_, err := client.CoreV1().Services(tc.service.Namespace).Create(context.TODO(), tc.service, metav1.CreateOptions{})
+			_, err := client.CoreV1().Services(tc.service.Namespace).Create(context.TODO(), &tc.service, metav1.CreateOptions{})
 			if err != nil {
 				t.Errorf("error creating service: %v", err)
 			}
 
-			for _, pod := range tc.pods {
-				_, err = client.CoreV1().Pods(tc.namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+			for p := range tc.pods {
+				_, err = client.CoreV1().Pods(tc.namespace).Create(context.TODO(), &tc.pods[p], metav1.CreateOptions{})
 				if err != nil {
 					t.Errorf("error creating endpoint: %v", err)
 				}

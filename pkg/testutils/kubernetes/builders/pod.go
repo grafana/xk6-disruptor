@@ -8,7 +8,7 @@ import (
 // PodBuilder defines the methods for building a Pod
 type PodBuilder interface {
 	// Build returns a Pod with the attributes defined in the PodBuilder
-	Build() *corev1.Pod
+	Build() corev1.Pod
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) PodBuilder
 	// WithDefaultNamespace sets namespace for the pod as "default"
@@ -97,7 +97,7 @@ func (b *podBuilder) WithContainer(c corev1.Container) PodBuilder {
 	return b
 }
 
-func (b *podBuilder) Build() *corev1.Pod {
+func (b *podBuilder) Build() corev1.Pod {
 	pod := corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -127,5 +127,5 @@ func (b *podBuilder) Build() *corev1.Pod {
 		pod.Status.PodIPs = []corev1.PodIP{{IP: b.ip}}
 	}
 
-	return &pod
+	return pod
 }

@@ -87,7 +87,7 @@ func TestPods_Wait(t *testing.T) {
 			}
 
 			pod := builders.NewPodBuilder(tc.name).WithNamespace(testNamespace).Build()
-			_, err = client.CoreV1().Pods(testNamespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+			_, err = client.CoreV1().Pods(testNamespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -233,7 +233,7 @@ func Test_ListPods(t *testing.T) {
 
 	testCases := []struct {
 		title        string
-		pods         []*corev1.Pod
+		pods         []corev1.Pod
 		namespace    string
 		filter       PodFilter
 		expectError  bool
@@ -241,7 +241,7 @@ func Test_ListPods(t *testing.T) {
 	}{
 		{
 			title: "No matching pod",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-without-labels").
 					WithNamespace("test-ns").
 					Build(),
@@ -258,7 +258,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "No matching namespace",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label-in-another-ns").
 					WithNamespace("anotherNamespace").
 					WithLabel("app", "test").
@@ -275,7 +275,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "one matching pod",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
@@ -294,7 +294,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "multiple matching pods",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
@@ -318,7 +318,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "multiple selector labels",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
@@ -348,7 +348,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "exclude labels",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-with-dev-label").
 					WithNamespace("test-ns").
 					WithLabel("app", "test").
@@ -376,7 +376,7 @@ func Test_ListPods(t *testing.T) {
 		{
 			title:     "Namespace selector",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-in-test-ns").
 					WithNamespace("test-ns").
 					Build(),
@@ -403,8 +403,8 @@ func Test_ListPods(t *testing.T) {
 			t.Parallel()
 
 			pods := []runtime.Object{}
-			for _, p := range tc.pods {
-				pods = append(pods, p)
+			for p := range tc.pods {
+				pods = append(pods, &tc.pods[p])
 			}
 			client := fake.NewSimpleClientset(pods...)
 

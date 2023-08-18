@@ -24,7 +24,7 @@ func Test_InjectAgent(t *testing.T) {
 	testCases := []struct {
 		title     string
 		namespace string
-		pods      []*corev1.Pod
+		pods      []corev1.Pod
 		// Set timeout to -1 to prevent waiting the ephemeral container to be ready,
 		// as the fake client will not update its status
 		timeout     time.Duration
@@ -33,7 +33,7 @@ func Test_InjectAgent(t *testing.T) {
 		{
 			title:     "Inject ephemeral container",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
 					WithIP("192.0.2.6").
@@ -49,7 +49,7 @@ func Test_InjectAgent(t *testing.T) {
 		{
 			title:     "ephemeral container not ready",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
 					Build(),
@@ -69,11 +69,8 @@ func Test_InjectAgent(t *testing.T) {
 			t.Parallel()
 
 			objs := []runtime.Object{}
-
-			targets := []corev1.Pod{}
-			for _, pod := range tc.pods {
-				objs = append(objs, pod)
-				targets = append(targets, *pod)
+			for p := range tc.pods {
+				objs = append(objs, &tc.pods[p])
 			}
 
 			client := fake.NewSimpleClientset(objs...)
@@ -83,7 +80,7 @@ func Test_InjectAgent(t *testing.T) {
 				context.TODO(),
 				helper,
 				tc.namespace,
-				targets,
+				tc.pods,
 				tc.timeout,
 			)
 
@@ -102,7 +99,7 @@ func Test_InjectAgent(t *testing.T) {
 				return
 			}
 
-			for _, p := range targets {
+			for _, p := range tc.pods {
 				pod, err := client.CoreV1().
 					Pods(tc.namespace).
 					Get(context.TODO(), p.Name, metav1.GetOptions{})
@@ -126,7 +123,7 @@ func Test_VisitPod(t *testing.T) {
 	testCases := []struct {
 		title       string
 		namespace   string
-		pods        []*corev1.Pod
+		pods        []corev1.Pod
 		visitCmds   VisitCommands
 		err         error
 		stdout      []byte
@@ -138,7 +135,7 @@ func Test_VisitPod(t *testing.T) {
 		{
 			title:     "successful execution",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
 					Build(),
@@ -160,7 +157,7 @@ func Test_VisitPod(t *testing.T) {
 		{
 			title:     "failed execution",
 			namespace: "test-ns",
-			pods: []*corev1.Pod{
+			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
 					Build(),
@@ -192,9 +189,9 @@ func Test_VisitPod(t *testing.T) {
 			objs := []runtime.Object{}
 
 			targets := []corev1.Pod{}
-			for _, pod := range tc.pods {
-				objs = append(objs, pod)
-				targets = append(targets, *pod)
+			for p := range tc.pods {
+				objs = append(objs, &tc.pods[p])
+				targets = append(targets, tc.pods[p])
 			}
 			client := fake.NewSimpleClientset(objs...)
 			executor := helpers.NewFakePodCommandExecutor()
