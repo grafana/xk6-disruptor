@@ -10,7 +10,7 @@ import (
 
 // BuildHttpbinPod returns the definition for deploying Httpbin as a Pod
 func BuildHttpbinPod() *corev1.Pod {
-	c := *builders.NewContainerBuilder("httpbin").
+	c := builders.NewContainerBuilder("httpbin").
 		WithImage("kennethreitz/httpbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).
@@ -24,7 +24,7 @@ func BuildHttpbinPod() *corev1.Pod {
 
 // BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
 func BuildGrpcpbinPod() *corev1.Pod {
-	c := *builders.NewContainerBuilder("grpcbin").
+	c := builders.NewContainerBuilder("grpcbin").
 		WithImage("moul/grpcbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("grpc", 9000).
@@ -56,7 +56,7 @@ func BuildGrpcbinService() *corev1.Service {
 
 // BuildBusyBoxPod returns the definition of a Pod that runs busybox and waits 5min before completing
 func BuildBusyBoxPod() *corev1.Pod {
-	c := *builders.NewContainerBuilder("busybox").
+	c := builders.NewContainerBuilder("busybox").
 		WithImage("busybox").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithCommand("sleep", "300").
@@ -71,7 +71,7 @@ func BuildBusyBoxPod() *corev1.Pod {
 // BuildPausedPod returns the definition of a Pod that runs the paused image in a container
 // creating a "no-op" dummy Pod.
 func BuildPausedPod() *corev1.Pod {
-	c := *builders.NewContainerBuilder("paused").
+	c := builders.NewContainerBuilder("paused").
 		WithImage("k8s.gcr.io/pause").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		Build()
@@ -83,7 +83,7 @@ func BuildPausedPod() *corev1.Pod {
 
 // BuildNginxPod returns the definition of a Pod that runs Nginx
 func BuildNginxPod() *corev1.Pod {
-	c := *builders.NewContainerBuilder("busybox").
+	c := builders.NewContainerBuilder("busybox").
 		WithImage("nginx").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).

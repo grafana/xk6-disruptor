@@ -48,7 +48,7 @@ func Test_Kubectl(t *testing.T) {
 		// Deploy nginx
 		nginx := builders.NewPodBuilder("nginx").
 			WithContainer(
-				*builders.NewContainerBuilder("nginx").
+				builders.NewContainerBuilder("nginx").
 				WithImage("nginx").
 				WithPort("http", 80).
 				Build(),

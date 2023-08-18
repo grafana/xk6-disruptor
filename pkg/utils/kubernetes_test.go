@@ -16,7 +16,7 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 		Build()
 
 	pod := builders.NewPodBuilder(name).
-		WithContainer(*container).
+		WithContainer(container).
 		Build()
 
 	return pod

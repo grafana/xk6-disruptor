@@ -75,7 +75,7 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 
 	pod := builders.NewPodBuilder(name).
 		WithNamespace("test-ns").
-		WithContainer(*container).
+		WithContainer(container).
 		WithIP("192.0.2.6").
 		Build()
 
@@ -241,7 +241,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				WithNamespace("test-ns").
 				WithLabel("app", "myapp").
 				WithContainer(
-					*builders.NewContainerBuilder("noip").
+					builders.NewContainerBuilder("noip").
 						WithPort("http", 80).
 						Build(),
 				).
@@ -270,7 +270,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				WithHostNetwork(true).
 				WithIP("192.0.2.6").
 				WithContainer(
-					*builders.NewContainerBuilder("myapp").
+					builders.NewContainerBuilder("myapp").
 						WithPort("http", 80).
 						Build(),
 				).

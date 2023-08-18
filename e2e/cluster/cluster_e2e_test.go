@@ -87,7 +87,7 @@ func buildBusyboxPod() *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("busybox").
-		WithContainer(*busybox).
+		WithContainer(busybox).
 		Build()
 }
 
