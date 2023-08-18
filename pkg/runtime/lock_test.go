@@ -192,3 +192,77 @@ func Test_Release(t *testing.T) {
 		})
 	}
 }
+
+func Test_Owner(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title      string
+		createLock bool
+		ownerPid   string
+		expected   int
+	}{
+		{
+			title:      "process is owner",
+			createLock: true,
+			ownerPid:   fmt.Sprintf("%d", os.Getpid()),
+			expected:   os.Getpid(),
+		},
+		{
+			title:      "lock does not exist",
+			createLock: false,
+			ownerPid:   "",
+			expected:   -1,
+		},
+		{
+			title:      "lock with empty owner",
+			createLock: true,
+			ownerPid:   "",
+			expected:   -1,
+		},
+		{
+			title:      "lock with other owner",
+			createLock: true,
+			ownerPid:   fmt.Sprintf("%d", os.Getppid()),
+			expected:   os.Getppid(),
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		i := i
+		tmpDir := t.TempDir()
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			// create file name for test lock file
+			testLock := filepath.Join(tmpDir, fmt.Sprintf("test-lockfile.%d", i))
+			defer func() {
+				_ = os.Remove(testLock)
+			}()
+
+			if tc.createLock {
+				lockFile, err := os.Create(testLock)
+				if err != nil {
+					t.Errorf("error in test setup: %v", err)
+					return
+				}
+
+				_, err = lockFile.WriteString(tc.ownerPid)
+				if err != nil {
+					t.Errorf("error in test setup: %v", err)
+					return
+				}
+			}
+
+			lock := NewFileLock(testLock)
+
+			owner := lock.Owner()
+			if owner != tc.expected {
+				t.Errorf("expected %d got: %d", tc.expected, owner)
+				return
+			}
+		})
+	}
+}

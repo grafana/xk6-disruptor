@@ -119,23 +119,26 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
 		if !utils.HasPort(pod, fault.Port) {
-			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
+			return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
 		if utils.HasHostNetwork(pod) {
-			return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
 		}
 
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
-		cmd := buildHTTPFaultCmd(targetAddress, fault, duration, options)
+		visitCommands := VisitCommands{
+			Exec:    buildHTTPFaultCmd(targetAddress, fault, duration, options),
+			Cleanup: buildCleanupCmd(),
+		}
 
-		return cmd, nil
+		return visitCommands, nil
 	})
 }
 
@@ -146,17 +149,21 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	return d.controller.Visit(ctx, func(pod corev1.Pod) ([]string, error) {
+	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
 		if !utils.HasPort(pod, fault.Port) {
-			return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
+			return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
 		}
 
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
-			return nil, err
+			return VisitCommands{}, err
 		}
 
-		cmd := buildGrpcFaultCmd(targetAddress, fault, duration, options)
-		return cmd, nil
+		visitCommands := VisitCommands{
+			Exec:    buildGrpcFaultCmd(targetAddress, fault, duration, options),
+			Cleanup: buildCleanupCmd(),
+		}
+
+		return visitCommands, nil
 	})
 }

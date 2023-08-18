@@ -15,6 +15,8 @@ type Lock interface {
 	Acquire() (bool, error)
 	// Release releases the execution lock
 	Release() error
+	// Owner returns the pid of the current owner. -1 means lock is not currently owned
+	Owner() int
 }
 
 // filelock maintains the state of a file based lock
@@ -76,10 +78,7 @@ func (l *filelock) Acquire() (bool, error) {
 
 	// some other process already own the lock, let's check this is a legit lock
 	if os.IsExist(err) {
-		owner, errOwner := getOwner(l.path)
-		if errOwner != nil {
-			return false, fmt.Errorf("could not get lock owner: %w", err)
-		}
+		owner := l.Owner()
 
 		// process is the current owner
 		if owner == os.Getpid() {
@@ -106,13 +105,10 @@ func (l *filelock) Acquire() (bool, error) {
 	return true, nil
 }
 
-// Unlock releases the ownership of a lock.
+// Release releases the ownership of a lock.
 // Returns an error if the invoking process is not the current owner
 func (l *filelock) Release() error {
-	owner, err := getOwner(l.path)
-	if err != nil {
-		return err
-	}
+	owner := l.Owner()
 
 	if owner != os.Getpid() {
 		return fmt.Errorf("process is not owner of lock file")
@@ -121,26 +117,25 @@ func (l *filelock) Release() error {
 	return os.Remove(l.path)
 }
 
-// getOwner returns the owner of the lockfile.
+// Owner returns the owner of the lockfile.
 // return -1 if the owner is invalid (e.g the file is empty)
-func getOwner(path string) (int, error) {
-	content, err := os.ReadFile(path)
+func (l *filelock) Owner() int {
+	content, err := os.ReadFile(l.path)
 	if err != nil {
-		return -1, err
+		return -1
 	}
 
 	if len(content) == 0 {
-		return -1, nil
+		return -1
 	}
 
 	var pid int
 	_, err = fmt.Sscanf(string(content), "%d", &pid)
 	if err != nil {
-		//nolint:nilerr  // return value -1 covers case of error scanning pid
-		return -1, nil
+		return -1
 	}
 
-	return pid, nil
+	return pid
 }
 
 // isAlive checks if the process with the given pid is running

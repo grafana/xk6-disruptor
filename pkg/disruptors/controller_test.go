@@ -120,19 +120,20 @@ func Test_InjectAgent(t *testing.T) {
 	}
 }
 
-func Test_ExecCommand(t *testing.T) {
+func Test_VisitPod(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title       string
 		namespace   string
 		pods        []*corev1.Pod
-		command     []string
+		visitCmds   VisitCommands
 		err         error
 		stdout      []byte
 		stderr      []byte
 		timeout     time.Duration
 		expectError bool
+		expected    []helpers.Command
 	}{
 		{
 			title:     "successful execution",
@@ -145,9 +146,16 @@ func Test_ExecCommand(t *testing.T) {
 					WithNamespace("test-ns").
 					Build(),
 			},
-			command:     []string{"echo", "-n", "hello", "world"},
+			visitCmds: VisitCommands{
+				Exec:    []string{"command"},
+				Cleanup: []string{"cleanup"},
+			},
 			err:         nil,
 			expectError: false,
+			expected: []helpers.Command{
+				{Pod: "pod1", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"command"}, Stdin: []byte{}},
+				{Pod: "pod2", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"command"}, Stdin: []byte{}},
+			},
 		},
 		{
 			title:     "failed execution",
@@ -160,10 +168,18 @@ func Test_ExecCommand(t *testing.T) {
 					WithNamespace("test-ns").
 					Build(),
 			},
-			command:     []string{"echo", "-n", "hello", "world"},
-			err:         fmt.Errorf("fake error"),
+			visitCmds: VisitCommands{
+				Exec:    []string{"echo", "-n", "hello", "world"},
+				Cleanup: []string{"cleanup"},
+			}, err: fmt.Errorf("fake error"),
 			stderr:      []byte("error output"),
 			expectError: true,
+			expected: []helpers.Command{
+				{Pod: "pod1", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"command"}, Stdin: []byte{}},
+				{Pod: "pod1", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"cleanup"}, Stdin: []byte{}},
+				{Pod: "pod2", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"command"}, Stdin: []byte{}},
+				{Pod: "pod2", Container: "xk6-agent", Namespace: "test-ns", Command: []string{"cleanup"}, Stdin: []byte{}},
+			},
 		},
 	}
 
@@ -192,7 +208,9 @@ func Test_ExecCommand(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			err := controller.ExecCommand(context.TODO(), tc.command)
+			err := controller.Visit(context.TODO(), func(target corev1.Pod) (VisitCommands, error) {
+				return tc.visitCmds, nil
+			})
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -210,29 +228,18 @@ func Test_ExecCommand(t *testing.T) {
 				return
 			}
 
-			// expect same command to be executed for each pod
-			expected := []helpers.Command{}
-			for _, p := range targets {
-				expected = append(expected, helpers.Command{
-					Pod:       p.Name,
-					Namespace: p.Namespace,
-					Container: "xk6-agent",
-					Command:   tc.command,
-					Stdin:     []byte{},
-				})
-			}
+			sort.Slice(tc.expected, func(i, j int) bool {
+				return tc.expected[i].Pod < tc.expected[j].Pod
+			})
 
 			history := executor.GetHistory()
 
-			sort.Slice(expected, func(i, j int) bool {
-				return expected[i].Pod < expected[j].Pod
-			})
 			sort.Slice(history, func(i, j int) bool {
 				return history[i].Pod < history[j].Pod
 			})
 
-			if diff := cmp.Diff(expected, history); diff != "" {
-				t.Errorf("Expected headers did not match returned:\n%s", diff)
+			if diff := cmp.Diff(tc.expected, history); diff != "" {
+				t.Errorf("Expected command did not match returned:\n%s", diff)
 			}
 		})
 	}

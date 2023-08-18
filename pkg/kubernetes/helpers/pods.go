@@ -24,7 +24,7 @@ type PodHelper interface {
 	// if the status was reached. If the pod is Failed returns error.
 	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
-	Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
+	Exec(ctx context.Context, pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod
 	AttachEphemeralContainer(
 		ctx context.Context,
@@ -136,8 +136,15 @@ func (h *podHelper) WaitPodRunning(ctx context.Context, name string, timeout tim
 	)
 }
 
-func (h *podHelper) Exec(pod string, container string, command []string, stdin []byte) ([]byte, []byte, error) {
+func (h *podHelper) Exec(
+	ctx context.Context,
+	pod string,
+	container string,
+	command []string,
+	stdin []byte,
+) ([]byte, []byte, error) {
 	return h.executor.Exec(
+		ctx,
 		pod,
 		h.namespace,
 		container,
