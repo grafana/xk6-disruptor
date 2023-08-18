@@ -34,8 +34,6 @@ type PodDisruptorOptions struct {
 // podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
 type podDisruptor struct {
 	controller AgentController
-	podFilter  helpers.PodFilter
-	podHelper  helpers.PodHelper
 }
 
 // PodSelector defines the criteria for selecting a pod for disruption
@@ -98,8 +96,6 @@ func NewPodDisruptor(
 
 	return &podDisruptor{
 		controller: controller,
-		podFilter:  filter,
-		podHelper:  helper,
 	}, nil
 }
 
