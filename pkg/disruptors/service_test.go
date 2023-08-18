@@ -49,9 +49,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
-					WithLabels(map[string]string{
-						"app": "test",
-					}).
+					WithLabel("app", "test").
 					WithIP("192.0.2.6").
 					Build(),
 			},

@@ -113,11 +113,7 @@ func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
-		WithLabels(
-			map[string]string{
-				"app": "httpbin",
-			},
-		).
+		WithLabel("app", "httpbin").
 		WithContainer(*httpbin).
 		WithContainer(*agent).
 		Build()
@@ -138,11 +134,7 @@ func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("grpcbin").
-		WithLabels(
-			map[string]string{
-				"app": "grpcbin",
-			},
-		).
+		WithLabel("app", "grpcbin").
 		WithContainer(*grpcbin).
 		WithContainer(*agent).
 		Build()
@@ -158,11 +150,7 @@ func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("xk6-disruptor").
-		WithLabels(
-			map[string]string{
-				"app": "xk6-disruptor",
-			},
-		).
+		WithLabel("app", "xk6-disruptor").
 		WithContainer(*agent).
 		Build()
 }

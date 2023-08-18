@@ -261,11 +261,7 @@ func Test_ListPods(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label-in-another-ns").
 					WithNamespace("anotherNamespace").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).
+					WithLabel("app", "test").
 					Build(),
 			},
 			filter: PodFilter{
@@ -282,11 +278,7 @@ func Test_ListPods(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).
+					WithLabel("app", "test").
 					Build(),
 			},
 			filter: PodFilter{
@@ -305,19 +297,11 @@ func Test_ListPods(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).
+					WithLabel("app", "test").
 					Build(),
 				builders.NewPodBuilder("another-pod-with-app-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).
+					WithLabel("app", "test").
 					Build(),
 			},
 			filter: PodFilter{
@@ -337,29 +321,17 @@ func Test_ListPods(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-with-app-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).
+					WithLabel("app", "test").
 					Build(),
 				builders.NewPodBuilder("pod-with-dev-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-							"env": "dev",
-						},
-					).
+					WithLabel("app", "test").
+					WithLabel("env", "dev").
 					Build(),
 				builders.NewPodBuilder("pod-with-prod-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-							"env": "prod",
-						},
-					).
+					WithLabel("app", "test").
+					WithLabel("env", "prod").
 					Build(),
 			},
 			filter: PodFilter{
@@ -379,21 +351,13 @@ func Test_ListPods(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-with-dev-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-							"env": "dev",
-						},
-					).
+					WithLabel("app", "test").
+					WithLabel("env", "dev").
 					Build(),
 				builders.NewPodBuilder("pod-with-prod-label").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-							"env": "prod",
-						},
-					).
+					WithLabel("app", "test").
+					WithLabel("env", "prod").
 					Build(),
 			},
 			filter: PodFilter{

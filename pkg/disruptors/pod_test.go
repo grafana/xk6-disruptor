@@ -239,9 +239,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			},
 			target: builders.NewPodBuilder("noip").
 				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
+				WithLabel("app", "myapp").
 				WithContainer(
 					*builders.NewContainerBuilder("noip").
 						WithPort("http", 80).
@@ -268,9 +266,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			},
 			target: builders.NewPodBuilder("hostnet").
 				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
+				WithLabel("app", "myapp").
 				WithHostNetwork(true).
 				WithIP("192.0.2.6").
 				WithContainer(

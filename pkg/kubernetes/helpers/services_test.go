@@ -293,11 +293,8 @@ func Test_Targets(t *testing.T) {
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
-					WithLabels(
-						map[string]string{
-							"app": "test",
-						},
-					).Build(),
+					WithLabel("app", "test").
+					Build(),
 			},
 			expectError:  false,
 			expectedPods: []string{"pod-1"},

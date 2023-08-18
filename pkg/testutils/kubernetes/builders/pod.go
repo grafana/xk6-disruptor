@@ -11,8 +11,13 @@ type PodBuilder interface {
 	Build() *corev1.Pod
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) PodBuilder
-	// WithLabels sets the labels for the pod to be built
+	// WithDefaultNamespace sets namespace for the pod as "default"
+	// By default, the Pod has no namespace set to allow overriding it when creating the resource in k8s
+	WithDefaultNamespace() PodBuilder
+	// WithLabels sets the labels to the pod (overrides any previously set labels)
 	WithLabels(labels map[string]string) PodBuilder
+	// WithLabel adds a label to the Pod
+	WithLabel(name string, value string) PodBuilder
 	// WithAnnotation adds an annotation
 	WithAnnotation(name string, value string) PodBuilder
 	// WithPhase sets the PodPhase for the pod to be built
@@ -43,11 +48,17 @@ func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
 		name:        name,
 		annotations: map[string]string{},
+		labels:      map[string]string{},
 	}
 }
 
 func (b *podBuilder) WithNamespace(namespace string) PodBuilder {
 	b.namespace = namespace
+	return b
+}
+
+func (b *podBuilder) WithDefaultNamespace() PodBuilder {
+	b.namespace = metav1.NamespaceDefault
 	return b
 }
 
@@ -63,6 +74,11 @@ func (b *podBuilder) WithIP(ip string) PodBuilder {
 
 func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	b.labels = labels
+	return b
+}
+
+func (b *podBuilder) WithLabel(name string, value string) PodBuilder {
+	b.labels[name] = value
 	return b
 }
 

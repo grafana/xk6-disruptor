@@ -17,11 +17,7 @@ func BuildHttpbinPod() *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
-		WithLabels(
-			map[string]string{
-				"app": "httpbin",
-			},
-		).
+		WithLabel("app", "httpbin").
 		WithContainer(c).
 		Build()
 }
@@ -35,11 +31,7 @@ func BuildGrpcpbinPod() *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("grpcbin").
-		WithLabels(
-			map[string]string{
-				"app": "grpcbin",
-			},
-		).
+		WithLabel("app", "grpcbin").
 		WithContainer(c).
 		Build()
 }
@@ -94,11 +86,7 @@ func BuildBusyBoxPod() *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("busybox").
-		WithLabels(
-			map[string]string{
-				"app": "busybox",
-			},
-		).
+		WithLabel("app", "busybox").
 		WithContainer(c).
 		Build()
 }
@@ -125,11 +113,7 @@ func BuildNginxPod() *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("nginx").
-		WithLabels(
-			map[string]string{
-				"app": "nginx",
-			},
-		).
+		WithLabel("app", "nginx").
 		WithContainer(c).
 		Build()
 }
