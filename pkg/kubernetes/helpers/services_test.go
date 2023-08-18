@@ -14,28 +14,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func buildEndpointsWithNotReadyAddresses() *corev1.Endpoints {
-	return &corev1.Endpoints{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "EndPoints",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "service",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				NotReadyAddresses: []corev1.EndpointAddress{
-					{
-						IP: "1.1.1.1",
-					},
-				},
-			},
-		},
-	}
-}
-
 func Test_WaitServiceReady(t *testing.T) {
 	t.Parallel()
 
@@ -60,10 +38,7 @@ func Test_WaitServiceReady(t *testing.T) {
 		{
 			test: "endpoint ready",
 			endpoints: builders.NewEndPointsBuilder("service").
-				WithSubset(
-					[]corev1.EndpointPort{},
-					[]string{"pod1"},
-				).
+				WithSubset("http", 80, []string{"pod1"}).
 				Build(),
 			updated:     nil,
 			delay:       time.Second * 0,
@@ -74,19 +49,18 @@ func Test_WaitServiceReady(t *testing.T) {
 			test:      "wait for endpoint to be ready",
 			endpoints: builders.NewEndPointsBuilder("service").Build(),
 			updated: builders.NewEndPointsBuilder("service").
-				WithSubset(
-					[]corev1.EndpointPort{},
-					[]string{"pod1"},
-				).
+				WithSubset("http", 80, []string{"pod1"}).
 				Build(),
 			delay:       time.Second * 2,
 			expectError: false,
 			timeout:     time.Second * 5,
 		},
 		{
-			test:        "not ready addresses",
-			endpoints:   builders.NewEndPointsBuilder("service").Build(),
-			updated:     buildEndpointsWithNotReadyAddresses(),
+			test:      "not ready addresses",
+			endpoints: builders.NewEndPointsBuilder("service").Build(),
+			updated: builders.NewEndPointsBuilder("service").
+				WithNotReadyAddresses("http", 80, []string{"pod1"}).
+				Build(),
 			delay:       time.Second * 2,
 			expectError: true,
 			timeout:     time.Second * 5,
@@ -95,10 +69,7 @@ func Test_WaitServiceReady(t *testing.T) {
 			test:      "timeout waiting for addresses",
 			endpoints: builders.NewEndPointsBuilder("service").Build(),
 			updated: builders.NewEndPointsBuilder("service").
-				WithSubset(
-					[]corev1.EndpointPort{},
-					[]string{"pod1"},
-				).
+				WithSubset("http", 80, []string{"pod1"}).
 				Build(),
 			delay:       time.Second * 10,
 			expectError: true,
@@ -107,10 +78,7 @@ func Test_WaitServiceReady(t *testing.T) {
 		{
 			test: "other endpoint ready",
 			endpoints: builders.NewEndPointsBuilder("another-service").
-				WithSubset(
-					[]corev1.EndpointPort{},
-					[]string{"pod1"},
-				).
+				WithSubset("http", 80, []string{"pod1"}).
 				Build(),
 			updated:     nil,
 			delay:       time.Second * 10,
@@ -278,18 +246,9 @@ func Test_Targets(t *testing.T) {
 			namespace:   "test-ns",
 			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts(
-					[]corev1.ServicePort{
-						{
-							Name:       "http",
-							Port:       8080,
-							TargetPort: intstr.FromInt(80),
-						},
-					},
-				).Build(),
+				WithSelectorLabel("app", "test").
+				WithPort("http", 8080, intstr.FromInt(80)).
+				Build(),
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
@@ -305,18 +264,9 @@ func Test_Targets(t *testing.T) {
 			namespace:   "test-ns",
 			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts(
-					[]corev1.ServicePort{
-						{
-							Name:       "http",
-							Port:       8080,
-							TargetPort: intstr.FromInt(80),
-						},
-					},
-				).Build(),
+				WithSelectorLabel("app", "test").
+				WithPort("http", 8080, intstr.FromInt(80)).
+				Build(),
 			pods:         []*corev1.Pod{},
 			expectError:  false,
 			expectedPods: []string{},

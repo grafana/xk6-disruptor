@@ -25,18 +25,9 @@ func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
 func buildServicWithPort(name string, portName string, port int32, target intstr.IntOrString) *corev1.Service {
 	return builders.NewServiceBuilder(name).
 		WithNamespace("test-ns").
-		WithSelector(map[string]string{
-			"app": "test",
-		}).
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name:       portName,
-					Port:       port,
-					TargetPort: target,
-				},
-			},
-		).Build()
+		WithSelectorLabel("app", "test").
+		WithPort(portName, port, target).
+		Build()
 }
 
 func Test_ServicePortMapping(t *testing.T) {

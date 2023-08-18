@@ -158,20 +158,8 @@ func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 // builDisruptorService returns a Service definition that exposes httpbin pods
 func builDisruptorService() *corev1.Service {
 	return builders.NewServiceBuilder("xk6-disruptor").
-		WithSelector(
-			map[string]string{
-				"app": "xk6-disruptor",
-			},
-		).
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					TargetPort: intstr.FromString("http"),
-				},
-			},
-		).
+		WithSelectorLabel("app", "xk6-disruptor").
+		WithPort("http", 80, intstr.FromString("http")).
 		Build()
 }
 

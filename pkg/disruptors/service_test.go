@@ -35,16 +35,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			namespace: "test-ns",
 			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts([]corev1.ServicePort{
-					{
-						Name:       "http",
-						Port:       80,
-						TargetPort: intstr.FromInt(80),
-					},
-				}).
+				WithSelectorLabel("app", "test").
+				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
 			pods: []*corev1.Pod{
 				builders.NewPodBuilder("pod-1").
@@ -56,14 +48,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			endpoints: []*corev1.Endpoints{
 				builders.NewEndPointsBuilder("test-svc").
 					WithNamespace("test-ns").
-					WithSubset(
-						[]corev1.EndpointPort{
-							{
-								Name: "http",
-								Port: 80,
-							},
-						},
-						[]string{"pod-1"}).
+					WithSubset("http", 80, []string{"pod-1"}).
 					Build(),
 			},
 			options: ServiceDisruptorOptions{
@@ -77,16 +62,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			namespace: "test-ns",
 			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts([]corev1.ServicePort{
-					{
-						Name:       "http",
-						Port:       80,
-						TargetPort: intstr.FromInt(80),
-					},
-				}).
+				WithSelectorLabel("app", "test").
+				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
 			pods:        []*corev1.Pod{},
 			endpoints:   []*corev1.Endpoints{},
@@ -99,16 +76,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			namespace: "test-ns",
 			service: builders.NewServiceBuilder("other-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts([]corev1.ServicePort{
-					{
-						Name:       "http",
-						Port:       80,
-						TargetPort: intstr.FromInt(80),
-					},
-				}).
+				WithSelectorLabel("app", "test").
+				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
 			pods:        []*corev1.Pod{},
 			endpoints:   []*corev1.Endpoints{},
@@ -121,16 +90,8 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			namespace: "test-ns",
 			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
-				WithSelector(map[string]string{
-					"app": "test",
-				}).
-				WithPorts([]corev1.ServicePort{
-					{
-						Name:       "http",
-						Port:       80,
-						TargetPort: intstr.FromInt(80),
-					},
-				}).
+				WithSelectorLabel("app", "test").
+				WithPort("http", 80, intstr.FromInt(80)).
 				Build(),
 			pods:        []*corev1.Pod{},
 			endpoints:   []*corev1.Endpoints{},

@@ -39,41 +39,18 @@ func BuildGrpcpbinPod() *corev1.Pod {
 // BuildHttpbinService returns a Service definition that exposes httpbin pods
 func BuildHttpbinService() *corev1.Service {
 	return builders.NewServiceBuilder("httpbin").
-		WithSelector(
-			map[string]string{
-				"app": "httpbin",
-			},
-		).
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					TargetPort: intstr.FromString("http"),
-				},
-			},
-		).
+		WithSelectorLabel("app", "httpbin").
+		WithPort("http", 80, intstr.FromString("http")).
 		Build()
 }
 
 // BuildGrpcbinService returns a Service definition that exposes grpcbin pods at the node port 30000
 func BuildGrpcbinService() *corev1.Service {
 	return builders.NewServiceBuilder("grpcbin").
-		WithSelector(
-			map[string]string{
-				"app": "grpcbin",
-			},
-		).
+		WithSelectorLabel("app", "grpcbin").
 		WithServiceType(corev1.ServiceTypeClusterIP).
 		WithAnnotation("projectcontour.io/upstream-protocol.h2c", "9000").
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name: "grpc",
-					Port: 9000,
-				},
-			},
-		).
+		WithPort("grpc", 9000, intstr.FromInt(9000)).
 		Build()
 }
 
@@ -121,18 +98,7 @@ func BuildNginxPod() *corev1.Pod {
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
 func BuildNginxService() *corev1.Service {
 	return builders.NewServiceBuilder("nginx").
-		WithSelector(
-			map[string]string{
-				"app": "nginx",
-			},
-		).
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name: "http",
-					Port: 80,
-				},
-			},
-		).
+		WithSelectorLabel("app", "nginx").
+		WithPort("http", 80, intstr.FromInt(80)).
 		Build()
 }

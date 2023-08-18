@@ -17,7 +17,6 @@ import (
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -128,7 +127,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		WithSelector(labels).
 		Build()
 	endpoints := builders.NewEndPointsBuilder("app-service").
-		WithSubset([]corev1.EndpointPort{{Name: "http", Port: 80}}, []string{"app-pod"}).
+		WithSubset("http", 80, []string{"app-pod"}).
 		Build()
 
 	client := fake.NewSimpleClientset(pod, svc, endpoints)
