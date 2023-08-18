@@ -40,8 +40,8 @@ const (
 	MetricRequests = "requests_total"
 	// MetricRequestsExcluded is the total number of requests passed through due to exclusion rules.
 	MetricRequestsExcluded = "requests_excluded"
-	// MetricRequestsFaulted is the total number requests for which the proxy returned an error.
-	MetricRequestsFaulted = "requests_faulted"
+	// MetricRequestsDisrupted is the total number requests that the proxy altered in any way.
+	MetricRequestsDisrupted = "requests_disrupted"
 )
 
 // disruptor is an instance of a Disruptor that applies a disruption

@@ -369,8 +369,8 @@ func Test_ProxyMetrics(t *testing.T) {
 				StatusMessage:  "Internal server error",
 			},
 			expectedMetrics: map[string]uint{
-				protocol.MetricRequests:        1,
-				protocol.MetricRequestsFaulted: 1,
+				protocol.MetricRequests:          1,
+				protocol.MetricRequestsDisrupted: 1,
 			},
 		},
 	}

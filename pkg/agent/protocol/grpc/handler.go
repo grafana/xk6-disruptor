@@ -70,13 +70,13 @@ func (h *handler) streamHandler(_ interface{}, serverStream grpc.ServerStream) e
 	}
 
 	if rand.Float32() < h.disruption.ErrorRate {
-		h.metrics.Inc(protocol.MetricRequestsFaulted)
+		h.metrics.Inc(protocol.MetricRequestsDisrupted)
 		return h.injectError(serverStream)
 	}
 
 	// add delay
 	if h.disruption.AverageDelay > 0 {
-		h.metrics.Inc(protocol.MetricRequestsFaulted)
+		h.metrics.Inc(protocol.MetricRequestsDisrupted)
 
 		delay := int64(h.disruption.AverageDelay)
 		if h.disruption.DelayVariation > 0 {

@@ -442,9 +442,9 @@ func Test_Metrics(t *testing.T) {
 			},
 			endpoints: []string{"/included", "/excluded"},
 			expectedMetrics: map[string]uint{
-				protocol.MetricRequests:         2,
-				protocol.MetricRequestsExcluded: 1,
-				protocol.MetricRequestsFaulted:  1,
+				protocol.MetricRequests:          2,
+				protocol.MetricRequestsExcluded:  1,
+				protocol.MetricRequestsDisrupted: 1,
 			},
 		},
 	} {

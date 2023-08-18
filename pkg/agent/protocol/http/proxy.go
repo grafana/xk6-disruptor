@@ -164,7 +164,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-		h.metrics.Inc(protocol.MetricRequestsFaulted)
+		h.metrics.Inc(protocol.MetricRequestsDisrupted)
 		h.injectError(rw, delay)
 		return
 	}
