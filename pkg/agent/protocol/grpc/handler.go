@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -24,10 +25,11 @@ func clientStreamDescForProxy() *grpc.StreamDesc {
 }
 
 // NewHandler returns a StreamHandler that attempts to proxy all requests that are not registered in the server.
-func NewHandler(disruption Disruption, forwardConn *grpc.ClientConn) grpc.StreamHandler {
+func NewHandler(disruption Disruption, forwardConn *grpc.ClientConn, metrics *protocol.MetricMap) grpc.StreamHandler {
 	handler := &handler{
 		disruption:  disruption,
 		forwardConn: forwardConn,
+		metrics:     metrics,
 	}
 
 	// return the handler function
@@ -37,6 +39,7 @@ func NewHandler(disruption Disruption, forwardConn *grpc.ClientConn) grpc.Stream
 type handler struct {
 	disruption  Disruption
 	forwardConn *grpc.ClientConn
+	metrics     *protocol.MetricMap
 }
 
 // contains verifies if a list of strings contains the given string
@@ -52,27 +55,35 @@ func contains(list []string, target string) bool {
 // handles requests from the client. If selected for error injection, returns an error,
 // otherwise, forwards to the server transparently
 func (h *handler) streamHandler(_ interface{}, serverStream grpc.ServerStream) error {
+	h.metrics.Inc(protocol.MetricRequests)
+
 	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
 	if !ok {
 		return status.Errorf(codes.Internal, "ServerTransportStream not exists in context")
 	}
+
 	// full method name has the form /service/method, we want the service
 	serviceName := strings.Split(fullMethodName, "/")[1]
-	excluded := contains(h.disruption.Excluded, serviceName)
-	if !excluded {
-		if h.disruption.ErrorRate > 0 && rand.Float32() <= h.disruption.ErrorRate {
-			return h.injectError(serverStream)
-		}
+	if contains(h.disruption.Excluded, serviceName) {
+		h.metrics.Inc(protocol.MetricRequestsExcluded)
+		return h.transparentForward(serverStream)
+	}
 
-		// add delay
-		if h.disruption.AverageDelay > 0 {
-			delay := int64(h.disruption.AverageDelay)
-			if h.disruption.DelayVariation > 0 {
-				variation := int64(h.disruption.DelayVariation)
-				delay = delay + variation - 2*rand.Int63n(variation)
-			}
-			time.Sleep(time.Duration(delay))
+	if rand.Float32() < h.disruption.ErrorRate {
+		h.metrics.Inc(protocol.MetricRequestsDisrupted)
+		return h.injectError(serverStream)
+	}
+
+	// add delay
+	if h.disruption.AverageDelay > 0 {
+		h.metrics.Inc(protocol.MetricRequestsDisrupted)
+
+		delay := int64(h.disruption.AverageDelay)
+		if h.disruption.DelayVariation > 0 {
+			variation := int64(h.disruption.DelayVariation)
+			delay = delay + variation - 2*rand.Int63n(variation)
 		}
+		time.Sleep(time.Duration(delay))
 	}
 
 	return h.transparentForward(serverStream)
