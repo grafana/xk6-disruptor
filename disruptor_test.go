@@ -126,11 +126,8 @@ func Test_ServiceDisruptor(t *testing.T) {
 		WithNamespace("default").
 		WithSelector(labels).
 		Build()
-	endpoints := builders.NewEndPointsBuilder("app-service").
-		WithSubset("http", 80, []string{"app-pod"}).
-		Build()
 
-	client := fake.NewSimpleClientset(&pod, &svc, &endpoints)
+	client := fake.NewSimpleClientset(&pod, &svc)
 	k8s, _ := kubernetes.NewFakeKubernetes(client)
 	vu := testVU()
 	err := setTestModule(k8s, vu)
