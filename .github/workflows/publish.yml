@@ -100,7 +100,7 @@ jobs:
           echo "image_version=$IMAGE_VERSION" >> $GITHUB_OUTPUT
 
   build-windows-installer:
-    runs-on: windows-2019
+    runs-on: windows-2022
     needs: [build-binaries]
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     defaults:
