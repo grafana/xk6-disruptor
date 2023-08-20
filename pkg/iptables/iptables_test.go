@@ -87,6 +87,7 @@ func Test_Commands(t *testing.T) {
 				"iptables -D INPUT -p tcp --dport 8080 -j REJECT --reject-with tcp-reset",
 				"iptables -A OUTPUT -t nat -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -j REDIRECT --to-port 8080",
 				"iptables -A PREROUTING -t nat ! -i lo -p tcp --dport 80 -j REDIRECT --to-port 8080",
+				//nolint:lll
 				"iptables -A INPUT -i lo -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 				"iptables -A INPUT ! -i lo -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 			},
@@ -106,6 +107,7 @@ func Test_Commands(t *testing.T) {
 			expectedCmds: []string{
 				"iptables -D OUTPUT -t nat -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -j REDIRECT --to-port 8080",
 				"iptables -D PREROUTING -t nat ! -i lo -p tcp --dport 80 -j REDIRECT --to-port 8080",
+				//nolint:lll
 				"iptables -D INPUT -i lo -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 				"iptables -D INPUT ! -i lo -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
 				"iptables -A INPUT -p tcp --dport 8080 -j REJECT --reject-with tcp-reset",

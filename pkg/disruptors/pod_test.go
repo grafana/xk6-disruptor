@@ -57,7 +57,11 @@ func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) 
 	return nil
 }
 
-func newPodDisruptorForTesting(controller AgentController, podHelper helpers.PodHelper, podSelector PodSelector) PodDisruptor {
+func newPodDisruptorForTesting(
+	controller AgentController,
+	podHelper helpers.PodHelper,
+	podSelector PodSelector,
+) PodDisruptor {
 	return &podDisruptor{
 		controller: controller,
 		podFilter: helpers.PodFilter{
@@ -131,6 +135,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			target: buildPodWithPort("my-app-pod", "http", 80),
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
+			//nolint:lll
 			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6"},
 			expectError:  false,
 			cmdError:     nil,

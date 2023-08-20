@@ -103,7 +103,13 @@ func Test_WaitServiceReady(t *testing.T) {
 
 			client := fake.NewSimpleClientset()
 			if tc.endpoints != nil {
-				_, err := client.CoreV1().Endpoints("default").Create(context.TODO(), tc.endpoints, metav1.CreateOptions{})
+				_, err := client.CoreV1().
+					Endpoints("default").
+					Create(
+						context.TODO(),
+						tc.endpoints,
+						metav1.CreateOptions{},
+					)
 				if err != nil {
 					t.Errorf("error updating endpoint: %v", err)
 				}
@@ -114,7 +120,13 @@ func Test_WaitServiceReady(t *testing.T) {
 					return
 				}
 				time.Sleep(tc.delay)
-				_, err := client.CoreV1().Endpoints("default").Update(context.TODO(), tc.updated, metav1.UpdateOptions{})
+				_, err := client.CoreV1().
+					Endpoints("default").
+					Update(
+						context.TODO(),
+						tc.updated,
+						metav1.UpdateOptions{},
+					)
 				if err != nil {
 					t.Errorf("error updating endpoint: %v", err)
 				}
@@ -289,13 +301,25 @@ func Test_Targets(t *testing.T) {
 			t.Parallel()
 
 			client := fake.NewSimpleClientset()
-			_, err := client.CoreV1().Services(tc.service.Namespace).Create(context.TODO(), &tc.service, metav1.CreateOptions{})
+			_, err := client.CoreV1().
+				Services(tc.service.Namespace).
+				Create(
+					context.TODO(),
+					&tc.service,
+					metav1.CreateOptions{},
+				)
 			if err != nil {
 				t.Errorf("error creating service: %v", err)
 			}
 
 			for p := range tc.pods {
-				_, err = client.CoreV1().Pods(tc.namespace).Create(context.TODO(), &tc.pods[p], metav1.CreateOptions{})
+				_, err = client.CoreV1().
+					Pods(tc.namespace).
+					Create(
+						context.TODO(),
+						&tc.pods[p],
+						metav1.CreateOptions{},
+					)
 				if err != nil {
 					t.Errorf("error creating endpoint: %v", err)
 				}
