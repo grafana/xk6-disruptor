@@ -11,9 +11,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
-	"github.com/grafana/xk6-disruptor/pkg/utils"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -168,27 +166,12 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
-		if !utils.HasPort(pod, fault.Port) {
-			return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
-		}
-
-		if utils.HasHostNetwork(pod) {
-			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
-		}
-
-		targetAddress, err := utils.PodIP(pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
-
-		visitCommands := VisitCommands{
-			Exec:    buildHTTPFaultCmd(targetAddress, fault, duration, options),
-			Cleanup: buildCleanupCmd(),
-		}
-
-		return visitCommands, nil
-	})
+	injector := PodHTTPFaultInjector{
+		fault:    fault,
+		duration: duration,
+		options:  options,
+	}
+	return d.controller.Visit(ctx, injector)
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
@@ -198,25 +181,11 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
-		if !utils.HasPort(pod, fault.Port) {
-			return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, fault.Port)
-		}
+	injector := PodGrpcFaultInjector{
+		fault:    fault,
+		duration: duration,
+		options:  options,
+	}
 
-		if utils.HasHostNetwork(pod) {
-			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
-		}
-
-		targetAddress, err := utils.PodIP(pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
-
-		visitCommands := VisitCommands{
-			Exec:    buildGrpcFaultCmd(targetAddress, fault, duration, options),
-			Cleanup: buildCleanupCmd(),
-		}
-
-		return visitCommands, nil
-	})
+	return d.controller.Visit(ctx, injector)
 }

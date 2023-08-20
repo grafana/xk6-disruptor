@@ -2,61 +2,20 @@ package disruptors
 
 import (
 	"context"
-	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+
 	corev1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
-
-type fakeAgentController struct {
-	namespace string
-	targets   []corev1.Pod
-	executor  *runtime.FakeExecutor
-}
-
-func (f *fakeAgentController) Targets(_ context.Context) ([]string, error) {
-	names := []string{}
-	for _, p := range f.targets {
-		names = append(names, p.Name)
-	}
-	return names, nil
-}
-
-func (f *fakeAgentController) InjectDisruptorAgent(_ context.Context) error {
-	return nil
-}
-
-func (f *fakeAgentController) ExecCommand(_ context.Context, cmd []string) error {
-	_, err := f.executor.Exec(cmd[0], cmd[1:]...)
-	return err
-}
-
-func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) (VisitCommands, error)) error {
-	for _, t := range f.targets {
-		visitCommands, err := visitor(t)
-		if err != nil {
-			return err
-		}
-
-		cmd := visitCommands.Exec
-		_, err = f.executor.Exec(cmd[0], cmd[1:]...)
-		if err != nil && visitCommands.Cleanup != nil {
-			cleanup := visitCommands.Cleanup
-			_, _ = f.executor.Exec(cleanup[0], cleanup[1:]...)
-			return err
-		}
-	}
-	return nil
-}
 
 func buildPodWithPort(name string, portName string, port int32) corev1.Pod {
 	container := builders.NewContainerBuilder(name).
@@ -76,14 +35,14 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title        string
-		target       corev1.Pod
-		expectedCmds []string
-		expectError  bool
-		cmdError     error
-		fault        HTTPFault
-		opts         HTTPDisruptionOptions
-		duration     time.Duration
+		title       string
+		target      corev1.Pod
+		expectedCmd string
+		expectError bool
+		cmdError    error
+		fault       HTTPFault
+		opts        HTTPDisruptionOptions
+		duration    time.Duration
 	}{
 		{
 			title:  "Test error 500",
@@ -93,21 +52,20 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				ErrorCode: 500,
 				Port:      80,
 			},
-			opts:         HTTPDisruptionOptions{},
-			duration:     60 * time.Second,
-			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6"},
-			expectError:  false,
-			cmdError:     nil,
+			opts:        HTTPDisruptionOptions{},
+			duration:    60 * time.Second,
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 --upstream-host 192.0.2.6",
+			expectError: false,
+			cmdError:    nil,
 		},
 		{
 			title:  "Test error 500 with error body",
 			target: buildPodWithPort("my-app-pod", "http", 80),
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
-			//nolint:lll
-			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6"},
-			expectError:  false,
-			cmdError:     nil,
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6",
+			expectError: false,
+			cmdError:    nil,
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
@@ -118,11 +76,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			duration: 60 * time.Second,
 		},
 		{
-			title:        "Test Average delay",
-			target:       buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6"},
-			expectError:  false,
-			cmdError:     nil,
+			title:       "Test Average delay",
+			target:      buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -a 100ms -v 0ms --upstream-host 192.0.2.6",
+			expectError: false,
+			cmdError:    nil,
 			fault: HTTPFault{
 				AverageDelay: 100 * time.Millisecond,
 				Port:         80,
@@ -131,11 +89,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			duration: 60 * time.Second,
 		},
 		{
-			title:        "Test exclude list",
-			target:       buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6"},
-			expectError:  false,
-			cmdError:     nil,
+			title:       "Test exclude list",
+			target:      buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmd: "xk6-disruptor-agent http -d 60s -t 80 -x /path1,/path2 --upstream-host 192.0.2.6",
+			expectError: false,
+			cmdError:    nil,
 			fault: HTTPFault{
 				Exclude: "/path1,/path2",
 				Port:    80,
@@ -144,25 +102,10 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			duration: 60 * time.Second,
 		},
 		{
-			title:  "Test command execution fault",
-			target: buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmds: []string{
-				"xk6-disruptor-agent http -d 60s -t 80 --upstream-host 192.0.2.6",
-				"xk6-disruptor-agent cleanup",
-			},
+			title:       "Container port not found",
+			target:      buildPodWithPort("my-app-pod", "http", 80),
+			expectedCmd: "",
 			expectError: true,
-			cmdError:    fmt.Errorf("error executing command"),
-			fault: HTTPFault{
-				Port: 80,
-			},
-			opts:     HTTPDisruptionOptions{},
-			duration: 60 * time.Second,
-		},
-		{
-			title:        "Container port not found",
-			target:       buildPodWithPort("my-app-pod", "http", 80),
-			expectedCmds: []string{},
-			expectError:  true,
 			fault: HTTPFault{
 				Port: 8080,
 			},
@@ -180,8 +123,8 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 						Build(),
 				).
 				Build(),
-			expectedCmds: []string{},
-			expectError:  true,
+			expectedCmd: "",
+			expectError: true,
 			fault: HTTPFault{
 				Port: 80,
 			},
@@ -201,8 +144,8 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 						Build(),
 				).
 				Build(),
-			expectedCmds: []string{},
-			expectError:  true,
+			expectedCmd: "",
+			expectError: true,
 			fault: HTTPFault{
 				Port: 80,
 			},
@@ -216,19 +159,13 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
-
-			controller := &fakeAgentController{
-				namespace: "test-ns",
-				targets:   []corev1.Pod{tc.target},
-				executor:  executor,
+			injector := PodHTTPFaultInjector{
+				fault:    tc.fault,
+				duration: tc.duration,
+				options:  tc.opts,
 			}
 
-			d := podDisruptor{
-				controller: controller,
-			}
-
-			err := d.InjectHTTPFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
+			cmds, err := injector.Visit(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -240,16 +177,9 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 				return
 			}
 
-			history := executor.CmdHistory()
-			if len(tc.expectedCmds) != len(history) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmds, history)
-				return
-			}
-
-			for i, cmd := range tc.expectedCmds {
-				if !command.AssertCmdEquals(cmd, history[i]) {
-					t.Errorf("expected command: %s got: %s", cmd, history[i])
-				}
+			exec := strings.Join(cmds.Exec, " ")
+			if !command.AssertCmdEquals(exec, tc.expectedCmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
 			}
 		})
 	}
@@ -324,16 +254,6 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			cmdError:    nil,
 		},
 		{
-			title:       "Test command execution fault",
-			target:      buildPodWithPort("my-app-pod", "grpc", 3000),
-			fault:       GrpcFault{},
-			opts:        GrpcDisruptionOptions{},
-			duration:    60 * time.Second,
-			expectedCmd: "xk6-disruptor-agent grpc -d 60s -t 3000 --upstream-host 192.0.2.6",
-			expectError: true,
-			cmdError:    fmt.Errorf("error executing command"),
-		},
-		{
 			title:       "Container port not found",
 			target:      buildPodWithPort("my-app-pod", "grpc", 3000),
 			expectError: true,
@@ -348,21 +268,13 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			executor := runtime.NewFakeExecutor([]byte{}, tc.cmdError)
-
-			controller := &fakeAgentController{
-				namespace: "test-ns",
-				targets:   []corev1.Pod{tc.target},
-				executor:  executor,
+			injector := PodGrpcFaultInjector{
+				fault:    tc.fault,
+				duration: tc.duration,
+				options:  tc.opts,
 			}
 
-			d := podDisruptor{controller: controller}
-
-			err := d.InjectGrpcFaults(context.TODO(), tc.fault, tc.duration, tc.opts)
-
-			if tc.expectError && err != nil {
-				return
-			}
+			cmds, err := injector.Visit(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -370,13 +282,13 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 			}
 
 			if !tc.expectError && err != nil {
-				t.Errorf("unexpected error: %v", err)
+				t.Errorf("unexpected error : %v", err)
 				return
 			}
 
-			cmd := executor.Cmd()
-			if !command.AssertCmdEquals(tc.expectedCmd, cmd) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmd)
+			exec := strings.Join(cmds.Exec, " ")
+			if !command.AssertCmdEquals(exec, tc.expectedCmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
 			}
 		})
 	}

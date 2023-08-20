@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,33 +88,14 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	// for each target, the port to inject the fault can be different
-	// we use the Visit function and generate a command for each pod
-	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
-		port, err := utils.MapPort(d.service, fault.Port, pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
+	injector := ServiceHTTPFaultInjector{
+		service:  d.service,
+		fault:    fault,
+		duration: duration,
+		options:  options,
+	}
 
-		if utils.HasHostNetwork(pod) {
-			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
-		}
-
-		targetAddress, err := utils.PodIP(pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
-
-		// copy fault to change target port for the pod
-		podFault := fault
-		podFault.Port = port
-		visitCommands := VisitCommands{
-			Exec:    buildHTTPFaultCmd(targetAddress, podFault, duration, options),
-			Cleanup: buildCleanupCmd(),
-		}
-
-		return visitCommands, nil
-	})
+	return d.controller.Visit(ctx, injector)
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
@@ -124,33 +104,14 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	// for each target, the port to inject the fault can be different
-	// we use the Visit function and generate a command for each pod
-	return d.controller.Visit(ctx, func(pod corev1.Pod) (VisitCommands, error) {
-		port, err := utils.MapPort(d.service, fault.Port, pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
+	injector := ServiceGrpcFaultInjector{
+		service:  d.service,
+		fault:    fault,
+		duration: duration,
+		options:  options,
+	}
 
-		if utils.HasHostNetwork(pod) {
-			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
-		}
-
-		targetAddress, err := utils.PodIP(pod)
-		if err != nil {
-			return VisitCommands{}, err
-		}
-
-		// copy fault to change target port for the pod
-		podFault := fault
-		podFault.Port = port
-		visitCommands := VisitCommands{
-			Exec:    buildGrpcFaultCmd(targetAddress, podFault, duration, options),
-			Cleanup: buildCleanupCmd(),
-		}
-
-		return visitCommands, nil
-	})
+	return d.controller.Visit(ctx, injector)
 }
 
 func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {
