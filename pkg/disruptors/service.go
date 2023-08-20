@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,9 +28,6 @@ type ServiceDisruptorOptions struct {
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
 	service    corev1.Service
-	namespace  string
-	options    ServiceDisruptorOptions
-	helper     helpers.ServiceHelper
 	controller AgentController
 }
 
@@ -75,9 +71,6 @@ func NewServiceDisruptor(
 
 	return &serviceDisruptor{
 		service:    *svc,
-		namespace:  namespace,
-		options:    options,
-		helper:     sh,
 		controller: controller,
 	}, nil
 }
