@@ -2,14 +2,16 @@ package disruptors
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 
-	kruntime "k8s.io/apimachinery/pkg/runtime"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
@@ -23,10 +25,11 @@ func Test_NewServiceDisruptor(t *testing.T) {
 		title       string
 		name        string
 		namespace   string
-		service     corev1.Service
+		service     *corev1.Service
 		pods        []corev1.Pod
 		options     ServiceDisruptorOptions
 		expectError bool
+		expected    []string
 	}{
 		{
 			title:     "one endpoint",
@@ -36,7 +39,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithNamespace("test-ns").
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
-				Build(),
+				BuildAsPtr(),
 			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
@@ -48,16 +51,54 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				InjectTimeout: -1,
 			},
 			expectError: false,
+			expected:    []string{"pod-1"},
 		},
 		{
-			title:     "service does not exist",
+			title:     "multiple endpoints",
 			name:      "test-svc",
 			namespace: "test-ns",
-			service: builders.NewServiceBuilder("other-svc").
+			service: builders.NewServiceBuilder("test-svc").
 				WithNamespace("test-ns").
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
-				Build(),
+				BuildAsPtr(),
+			pods: []corev1.Pod{
+				builders.NewPodBuilder("pod-1").
+					WithNamespace("test-ns").
+					WithLabel("app", "test").
+					WithIP("192.0.2.6").
+					Build(),
+				builders.NewPodBuilder("pod-2").
+					WithNamespace("test-ns").
+					WithLabel("app", "test").
+					WithIP("192.0.2.7").
+					Build(),
+			},
+			options: ServiceDisruptorOptions{
+				InjectTimeout: -1,
+			},
+			expectError: false,
+			expected:    []string{"pod-1", "pod-2"},
+		},
+		{
+			title:     "no endpoints",
+			name:      "test-svc",
+			namespace: "test-ns",
+			service: builders.NewServiceBuilder("test-svc").
+				WithNamespace("test-ns").
+				WithSelectorLabel("app", "test").
+				WithPort("http", 80, intstr.FromInt(80)).
+				BuildAsPtr(),
+			pods:        []corev1.Pod{},
+			options:     ServiceDisruptorOptions{},
+			expectError: false,
+			expected:    []string{},
+		},
+		{
+			title:       "service does not exist",
+			name:        "test-svc",
+			namespace:   "test-ns",
+			service:     nil,
 			pods:        []corev1.Pod{},
 			options:     ServiceDisruptorOptions{},
 			expectError: true,
@@ -70,7 +111,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				WithNamespace("test-ns").
 				WithSelectorLabel("app", "test").
 				WithPort("http", 80, intstr.FromInt(80)).
-				Build(),
+				BuildAsPtr(),
 			pods:        []corev1.Pod{},
 			options:     ServiceDisruptorOptions{},
 			expectError: true,
@@ -83,8 +124,10 @@ func Test_NewServiceDisruptor(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			objs := []kruntime.Object{}
-			objs = append(objs, &tc.service)
+			objs := []runtime.Object{}
+			if tc.service != nil {
+				objs = append(objs, tc.service)
+			}
 			for p := range tc.pods {
 				objs = append(objs, &tc.pods[p])
 			}
@@ -92,13 +135,17 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			client := fake.NewSimpleClientset(objs...)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
-			_, err := NewServiceDisruptor(
+			d, err := NewServiceDisruptor(
 				context.TODO(),
 				k,
 				tc.name,
 				tc.namespace,
 				tc.options,
 			)
+
+			if tc.expectError && err != nil {
+				return
+			}
 
 			if !tc.expectError && err != nil {
 				t.Errorf(" unexpected error creating service disruptor: %v", err)
@@ -110,7 +157,10 @@ func Test_NewServiceDisruptor(t *testing.T) {
 				return
 			}
 
-			if tc.expectError && err != nil {
+			targets, _ := d.Targets(context.TODO())
+			sort.Strings(targets)
+			if diff := cmp.Diff(targets, tc.expected); diff != "" {
+				t.Errorf("expected targets dot not match returned\n%s", diff)
 				return
 			}
 		})
