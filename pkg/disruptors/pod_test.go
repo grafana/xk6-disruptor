@@ -57,7 +57,11 @@ func (f *fakeAgentController) Visit(_ context.Context, visitor func(corev1.Pod) 
 	return nil
 }
 
-func newPodDisruptorForTesting(controller AgentController, podHelper helpers.PodHelper, podSelector PodSelector) PodDisruptor {
+func newPodDisruptorForTesting(
+	controller AgentController,
+	podHelper helpers.PodHelper,
+	podSelector PodSelector,
+) PodDisruptor {
 	return &podDisruptor{
 		controller: controller,
 		podFilter: helpers.PodFilter{
@@ -68,14 +72,14 @@ func newPodDisruptorForTesting(controller AgentController, podHelper helpers.Pod
 	}
 }
 
-func buildPodWithPort(name string, portName string, port int32) *corev1.Pod {
+func buildPodWithPort(name string, portName string, port int32) corev1.Pod {
 	container := builders.NewContainerBuilder(name).
 		WithPort(portName, port).
 		Build()
 
 	pod := builders.NewPodBuilder(name).
 		WithNamespace("test-ns").
-		WithContainer(*container).
+		WithContainer(container).
 		WithIP("192.0.2.6").
 		Build()
 
@@ -88,7 +92,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 	testCases := []struct {
 		title        string
 		selector     PodSelector
-		target       *corev1.Pod
+		target       corev1.Pod
 		expectedCmds []string
 		expectError  bool
 		cmdError     error
@@ -131,6 +135,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			target: buildPodWithPort("my-app-pod", "http", 80),
 			// TODO: Make expectedCmd better represent the actual result ([]string), as it currently looks like we
 			// are asserting a broken behavior (e.g. lack of quotes in -b) which is not the case.
+			//nolint:lll
 			expectedCmds: []string{"xk6-disruptor-agent http -d 60s -t 80 -r 0.1 -e 500 -b {\"error\": 500} --upstream-host 192.0.2.6"},
 			expectError:  false,
 			cmdError:     nil,
@@ -239,11 +244,9 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			},
 			target: builders.NewPodBuilder("noip").
 				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
+				WithLabel("app", "myapp").
 				WithContainer(
-					*builders.NewContainerBuilder("noip").
+					builders.NewContainerBuilder("noip").
 						WithPort("http", 80).
 						Build(),
 				).
@@ -268,13 +271,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 			},
 			target: builders.NewPodBuilder("hostnet").
 				WithNamespace("test-ns").
-				WithLabels(map[string]string{
-					"app": "myapp",
-				}).
+				WithLabel("app", "myapp").
 				WithHostNetwork(true).
 				WithIP("192.0.2.6").
 				WithContainer(
-					*builders.NewContainerBuilder("myapp").
+					builders.NewContainerBuilder("myapp").
 						WithPort("http", 80).
 						Build(),
 				).
@@ -298,11 +299,11 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				targets:   []corev1.Pod{tc.target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(&tc.target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
 			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)
@@ -340,7 +341,7 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 	testCases := []struct {
 		title       string
 		selector    PodSelector
-		target      *corev1.Pod
+		target      corev1.Pod
 		fault       GrpcFault
 		opts        GrpcDisruptionOptions
 		duration    time.Duration
@@ -480,11 +481,11 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 
 			controller := &fakeAgentController{
 				namespace: tc.selector.Namespace,
-				targets:   []corev1.Pod{*tc.target},
+				targets:   []corev1.Pod{tc.target},
 				executor:  executor,
 			}
 
-			client := fake.NewSimpleClientset(tc.target)
+			client := fake.NewSimpleClientset(&tc.target)
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
 			d := newPodDisruptorForTesting(controller, k.PodHelper(tc.selector.Namespace), tc.selector)

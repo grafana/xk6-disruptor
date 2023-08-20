@@ -47,9 +47,10 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// Deploy nginx
+		nginx := fixtures.BuildNginxPod()
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxPod(),
+			&nginx,
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -80,9 +81,10 @@ func Test_Kubernetes(t *testing.T) {
 		// Deploy nginx and expose it as a service. Intentionally not using e2e fixures
 		// because these functions rely on WaitPodRunnin and WaitServiceReady which we
 		// are testing here.
+		nginxPod := fixtures.BuildNginxPod()
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxPod(),
+			&nginxPod,
 			metav1.CreateOptions{},
 		)
 		if err != nil {
@@ -90,9 +92,10 @@ func Test_Kubernetes(t *testing.T) {
 			return
 		}
 
+		nginxSvc := fixtures.BuildNginxService()
 		_, err = k8s.Client().CoreV1().Services(namespace).Create(
 			context.TODO(),
-			fixtures.BuildNginxService(),
+			&nginxSvc,
 			metav1.CreateOptions{},
 		)
 		if err != nil {

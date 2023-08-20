@@ -15,10 +15,10 @@ import (
 )
 
 // RunPod creates a pod and waits it for be running
-func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.Duration) error {
+func RunPod(k8s kubernetes.Kubernetes, ns string, pod corev1.Pod, timeout time.Duration) error {
 	_, err := k8s.Client().CoreV1().Pods(ns).Create(
 		context.TODO(),
-		pod,
+		&pod,
 		metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -45,8 +45,8 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod *corev1.Pod, timeout time.
 func ExposeApp(
 	k8s kubernetes.Kubernetes,
 	namespace string,
-	pod *corev1.Pod,
-	svc *corev1.Service,
+	pod corev1.Pod,
+	svc corev1.Service,
 	port intstr.IntOrString,
 	timeout time.Duration,
 ) error {
@@ -60,7 +60,7 @@ func ExposeApp(
 	timeLeft := timeout - time.Since(start)
 	_, err = k8s.Client().CoreV1().Services(namespace).Create(
 		context.TODO(),
-		svc,
+		&svc,
 		metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func ExposeApp(
 
 	_, err = k8s.Client().NetworkingV1().Ingresses(namespace).Create(
 		context.TODO(),
-		ingress,
+		&ingress,
 		metav1.CreateOptions{},
 	)
 	if err != nil {

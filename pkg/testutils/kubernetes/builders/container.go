@@ -15,7 +15,7 @@ type ContainerBuilder interface {
 	// WithCapabilites adds capabilities to the container's security context
 	WithCapabilities(capabilities ...corev1.Capability) ContainerBuilder
 	// Build returns a Pod with the attributes defined in the PodBuilder
-	Build() *corev1.Container
+	Build() corev1.Container
 	// WithEnvVarFromField adds an environment variable to the container
 	WithEnvVar(name string, value string) ContainerBuilder
 	// WithEnvVarFromField adds an environment variable to the container referencing a field
@@ -87,8 +87,8 @@ func (b *containerBuilder) WithEnvVarFromField(name string, path string) Contain
 	return b
 }
 
-func (b *containerBuilder) Build() *corev1.Container {
-	return &corev1.Container{
+func (b *containerBuilder) Build() corev1.Container {
+	return corev1.Container{
 		Name:            b.name,
 		Image:           b.image,
 		ImagePullPolicy: b.imagePolicy,

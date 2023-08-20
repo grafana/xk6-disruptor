@@ -99,7 +99,7 @@ var (
 )
 
 // deploy pod with [httpbin] and the xk6-disruptor as sidekick container
-func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
+func buildHttpbinPodWithDisruptorAgent(cmd []string) corev1.Pod {
 	httpbin := builders.NewContainerBuilder("httpbin").
 		WithImage("kennethreitz/httpbin").
 		WithPort("http", 80).
@@ -113,18 +113,14 @@ func buildHttpbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
-		WithLabels(
-			map[string]string{
-				"app": "httpbin",
-			},
-		).
-		WithContainer(*httpbin).
-		WithContainer(*agent).
+		WithLabel("app", "httpbin").
+		WithContainer(httpbin).
+		WithContainer(agent).
 		Build()
 }
 
 // deploy pod with grpcbin and the xk6-disruptor as sidekick container
-func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
+func buildGrpcbinPodWithDisruptorAgent(cmd []string) corev1.Pod {
 	grpcbin := builders.NewContainerBuilder("grpcbin").
 		WithImage("moul/grpcbin").
 		WithPort("grpc", 9000).
@@ -138,18 +134,14 @@ func buildGrpcbinPodWithDisruptorAgent(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("grpcbin").
-		WithLabels(
-			map[string]string{
-				"app": "grpcbin",
-			},
-		).
-		WithContainer(*grpcbin).
-		WithContainer(*agent).
+		WithLabel("app", "grpcbin").
+		WithContainer(grpcbin).
+		WithContainer(agent).
 		Build()
 }
 
 // deploy pod with the xk6-disruptor
-func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
+func buildDisruptorAgentPod(cmd []string) corev1.Pod {
 	agent := builders.NewContainerBuilder("xk6-disruptor-agent").
 		WithImage("ghcr.io/grafana/xk6-disruptor-agent").
 		WithPort("http", 80).
@@ -158,32 +150,16 @@ func buildDisruptorAgentPod(cmd []string) *corev1.Pod {
 		Build()
 
 	return builders.NewPodBuilder("xk6-disruptor").
-		WithLabels(
-			map[string]string{
-				"app": "xk6-disruptor",
-			},
-		).
-		WithContainer(*agent).
+		WithLabel("app", "xk6-disruptor").
+		WithContainer(agent).
 		Build()
 }
 
 // builDisruptorService returns a Service definition that exposes httpbin pods
-func builDisruptorService() *corev1.Service {
+func builDisruptorService() corev1.Service {
 	return builders.NewServiceBuilder("xk6-disruptor").
-		WithSelector(
-			map[string]string{
-				"app": "xk6-disruptor",
-			},
-		).
-		WithPorts(
-			[]corev1.ServicePort{
-				{
-					Name:       "http",
-					Port:       80,
-					TargetPort: intstr.FromString("http"),
-				},
-			},
-		).
+		WithSelectorLabel("app", "xk6-disruptor").
+		WithPort("http", 80, intstr.FromString("http")).
 		Build()
 }
 
@@ -210,8 +186,8 @@ func Test_Agent(t *testing.T) {
 
 		testCases := []struct {
 			title string
-			pod   *corev1.Pod
-			svc   *corev1.Service
+			pod   corev1.Pod
+			svc   corev1.Service
 			port  int
 			check checks.Check
 		}{

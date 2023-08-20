@@ -44,9 +44,9 @@ type ClientBuilder interface {
 	// WithNamespace initializes the client with the given namespace
 	WithNamespace(namespace string) ClientBuilder
 	// WithPods initializes the client with the given Pods
-	WithPods(pods ...*corev1.Pod) ClientBuilder
+	WithPods(pods ...corev1.Pod) ClientBuilder
 	// WithServices initializes the client with the given Services
-	WithServices(pods ...*corev1.Service) ClientBuilder
+	WithServices(pods ...corev1.Service) ClientBuilder
 	// WithPodObserver adds a PodObserver that receives notifications of specific events
 	WithPodObserver(namespace string, event ObjectEvent, observer PodObserver) ClientBuilder
 	// WithContext sets a context allows cancelling object observers
@@ -95,9 +95,15 @@ func (b *clientBuilder) WithObjects(objs ...runtime.Object) ClientBuilder {
 	return b
 }
 
-func (b *clientBuilder) WithPods(pods ...*corev1.Pod) ClientBuilder {
-	for _, p := range pods {
-		_, err := b.client.CoreV1().Pods(p.Namespace).Create(context.TODO(), p, metav1.CreateOptions{})
+func (b *clientBuilder) WithPods(pods ...corev1.Pod) ClientBuilder {
+	for p := range pods {
+		_, err := b.client.CoreV1().
+			Pods(pods[p].Namespace).
+			Create(
+				context.TODO(),
+				&pods[p],
+				metav1.CreateOptions{},
+			)
 		if err != nil {
 			b.errors = append(b.errors, err)
 		}
@@ -117,9 +123,16 @@ func (b *clientBuilder) WithNamespace(namespace string) ClientBuilder {
 	return b
 }
 
-func (b *clientBuilder) WithServices(services ...*corev1.Service) ClientBuilder {
-	for _, s := range services {
-		_, err := b.client.CoreV1().Services(s.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+func (b *clientBuilder) WithServices(services ...corev1.Service) ClientBuilder {
+	for s := range services {
+		_, err := b.client.CoreV1().
+			Services(services[s].
+				Namespace).
+			Create(
+				context.TODO(),
+				&services[s],
+				metav1.CreateOptions{},
+			)
 		if err != nil {
 			b.errors = append(b.errors, err)
 		}

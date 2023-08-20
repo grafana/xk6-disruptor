@@ -32,7 +32,7 @@ func Test_WithPodObservers(t *testing.T) {
 			expectTimeout: false,
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").Build()
-				_, err := client.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
+				_, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
 				return err
 			},
 		},
@@ -46,15 +46,15 @@ func Test_WithPodObservers(t *testing.T) {
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").WithAnnotation("test.updated", "").Build()
 
-				pod, err := client.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
+				created, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
 				if err != nil {
 					return err
 				}
 
 				time.Sleep(time.Second)
 
-				pod.Annotations["test.updated"] = "true"
-				_, err = client.CoreV1().Pods("default").Update(context.TODO(), pod, metav1.UpdateOptions{})
+				created.Annotations["test.updated"] = "true"
+				_, err = client.CoreV1().Pods("default").Update(context.TODO(), created, metav1.UpdateOptions{})
 				return err
 			},
 		},
@@ -67,7 +67,7 @@ func Test_WithPodObservers(t *testing.T) {
 			expectTimeout: true,
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").Build()
-				_, err := client.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
+				_, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
 				return err
 			},
 		},

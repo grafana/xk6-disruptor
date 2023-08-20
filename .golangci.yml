@@ -29,7 +29,6 @@ issues:
         - dupl
         - funlen
         - gocognit
-        - lll
         - bodyclose
         - maintidx
         - unparam

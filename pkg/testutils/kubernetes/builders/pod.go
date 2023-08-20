@@ -8,11 +8,16 @@ import (
 // PodBuilder defines the methods for building a Pod
 type PodBuilder interface {
 	// Build returns a Pod with the attributes defined in the PodBuilder
-	Build() *corev1.Pod
+	Build() corev1.Pod
 	// WithNamespace sets namespace for the pod to be built
 	WithNamespace(namespace string) PodBuilder
-	// WithLabels sets the labels for the pod to be built
+	// WithDefaultNamespace sets namespace for the pod as "default"
+	// By default, the Pod has no namespace set to allow overriding it when creating the resource in k8s
+	WithDefaultNamespace() PodBuilder
+	// WithLabels sets the labels to the pod (overrides any previously set labels)
 	WithLabels(labels map[string]string) PodBuilder
+	// WithLabel adds a label to the Pod
+	WithLabel(name string, value string) PodBuilder
 	// WithAnnotation adds an annotation
 	WithAnnotation(name string, value string) PodBuilder
 	// WithPhase sets the PodPhase for the pod to be built
@@ -43,11 +48,17 @@ func NewPodBuilder(name string) PodBuilder {
 	return &podBuilder{
 		name:        name,
 		annotations: map[string]string{},
+		labels:      map[string]string{},
 	}
 }
 
 func (b *podBuilder) WithNamespace(namespace string) PodBuilder {
 	b.namespace = namespace
+	return b
+}
+
+func (b *podBuilder) WithDefaultNamespace() PodBuilder {
+	b.namespace = metav1.NamespaceDefault
 	return b
 }
 
@@ -66,6 +77,11 @@ func (b *podBuilder) WithLabels(labels map[string]string) PodBuilder {
 	return b
 }
 
+func (b *podBuilder) WithLabel(name string, value string) PodBuilder {
+	b.labels[name] = value
+	return b
+}
+
 func (b *podBuilder) WithAnnotation(name string, value string) PodBuilder {
 	b.annotations[name] = value
 	return b
@@ -81,7 +97,7 @@ func (b *podBuilder) WithContainer(c corev1.Container) PodBuilder {
 	return b
 }
 
-func (b *podBuilder) Build() *corev1.Pod {
+func (b *podBuilder) Build() corev1.Pod {
 	pod := corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -111,5 +127,5 @@ func (b *podBuilder) Build() *corev1.Pod {
 		pod.Status.PodIPs = []corev1.PodIP{{IP: b.ip}}
 	}
 
-	return &pod
+	return pod
 }
