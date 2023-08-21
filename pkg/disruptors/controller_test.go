@@ -166,9 +166,10 @@ func Test_VisitPod(t *testing.T) {
 					Build(),
 			},
 			visitCmds: VisitCommands{
-				Exec:    []string{"echo", "-n", "hello", "world"},
+				Exec:    []string{"command"},
 				Cleanup: []string{"cleanup"},
-			}, err: fmt.Errorf("fake error"),
+			},
+			err:         fmt.Errorf("fake error"),
 			stderr:      []byte("error output"),
 			expectError: true,
 			expected: []helpers.Command{
@@ -209,21 +210,21 @@ func Test_VisitPod(t *testing.T) {
 				return tc.visitCmds, nil
 			})
 			if tc.expectError && err == nil {
-				t.Errorf("should had failed")
-				return
+				t.Fatalf("should had failed")
 			}
 
 			if !tc.expectError && err != nil {
-				t.Errorf("failed: %v", err)
-				return
+				t.Fatalf("failed unexpectedly: %v", err)
 			}
 
 			if tc.expectError && err != nil {
 				if !strings.Contains(err.Error(), string(tc.stderr)) {
-					t.Errorf("invalid error message. Expected to contain %s", string(tc.stderr))
+					t.Fatalf("returned error message should contain stderr (%q)", string(tc.stderr))
 				}
-				return
 			}
+
+			// At this point, we either expected no error and got no error, or we got the error we expected.
+			// In either case, we check the expected commands have been executed.
 
 			sort.Slice(tc.expected, func(i, j int) bool {
 				return tc.expected[i].Pod < tc.expected[j].Pod
