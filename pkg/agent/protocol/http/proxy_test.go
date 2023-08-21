@@ -323,7 +323,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 				_, err := rw.Write(tc.upstreamBody)
 				if err != nil {
-					t.Errorf("writing upstream body: %v", err)
+					t.Fatalf("writing upstream body: %v", err)
 				}
 			}))
 
@@ -351,8 +351,7 @@ func Test_ProxyHandler(t *testing.T) {
 			}
 
 			if tc.expectedStatus != resp.StatusCode {
-				t.Errorf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
-				return
+				t.Fatalf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
 			}
 
 			// Remove standard response headers so we don't need to specify them on every test case.
@@ -364,15 +363,14 @@ func Test_ProxyHandler(t *testing.T) {
 			// We have to check for length explicitly as otherwise a nil map would not be equal to an empty map.
 			if len(tc.upstreamHeaders) > 0 || len(tc.expectedHeaders) > 0 {
 				if diff := cmp.Diff(tc.expectedHeaders, resp.Header); diff != "" {
-					t.Errorf("Expected headers did not match returned:\n%s", diff)
+					t.Fatalf("Expected headers did not match returned:\n%s", diff)
 				}
 			}
 
 			var body bytes.Buffer
 			_, _ = io.Copy(&body, resp.Body)
 			if !bytes.Equal(tc.expectedBody, body.Bytes()) {
-				t.Errorf("expected body '%s' but '%s' received ", tc.expectedBody, body.Bytes())
-				return
+				t.Fatalf("expected body '%s' but '%s' received ", tc.expectedBody, body.Bytes())
 			}
 		})
 	}
