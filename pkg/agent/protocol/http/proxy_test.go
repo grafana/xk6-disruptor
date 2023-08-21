@@ -2,40 +2,15 @@ package http
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 )
-
-// fakeHTTPClient mocks the execution of a request returning the predefines
-// status and body
-type fakeHTTPClient struct {
-	status  int
-	headers http.Header
-	body    []byte
-}
-
-func (f *fakeHTTPClient) Do(_ *http.Request) (*http.Response, error) {
-	resp := &http.Response{
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		StatusCode:    f.status,
-		Status:        http.StatusText(f.status),
-		Header:        f.headers,
-		Body:          io.NopCloser(strings.NewReader(string(f.body))),
-		ContentLength: int64(len(f.body)),
-	}
-
-	return resp, nil
-}
 
 func Test_Validations(t *testing.T) {
 	t.Parallel()
@@ -195,7 +170,6 @@ func Test_ProxyHandler(t *testing.T) {
 	type TestCase struct {
 		title           string
 		disruption      Disruption
-		config          ProxyConfig
 		method          string
 		path            string
 		statusCode      int
@@ -216,10 +190,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      0,
 				Excluded:       nil,
 			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
-			},
 			path:           "",
 			statusCode:     200,
 			body:           []byte("content body"),
@@ -234,10 +204,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       nil,
-			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "",
 			statusCode:     200,
@@ -254,10 +220,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
 			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
-			},
 			path:           "/excluded/path",
 			statusCode:     200,
 			body:           []byte("content body"),
@@ -272,10 +234,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorRate:      1.0,
 				ErrorCode:      500,
 				Excluded:       []string{"/excluded/path"},
-			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:           "/non-excluded/path",
 			statusCode:     200,
@@ -293,10 +251,6 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorBody:      "{\"error\": 500, \"message\":\"internal server error\"}",
 				Excluded:       nil,
 			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
-			},
 			path:           "",
 			statusCode:     200,
 			body:           []byte("content body"),
@@ -307,10 +261,6 @@ func Test_ProxyHandler(t *testing.T) {
 			title: "Headers are preserved when endpoint is skipped",
 			disruption: Disruption{
 				Excluded: []string{"/excluded"},
-			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			path:       "/excluded",
 			statusCode: 200,
@@ -329,10 +279,6 @@ func Test_ProxyHandler(t *testing.T) {
 			disruption: Disruption{
 				ErrorRate: 0,
 			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
-			},
 			statusCode: 200,
 			headers: http.Header{
 				"X-Test-Header": []string{"A-Test"},
@@ -349,10 +295,6 @@ func Test_ProxyHandler(t *testing.T) {
 			disruption: Disruption{
 				ErrorRate: 1.0,
 				ErrorCode: 500,
-			},
-			config: ProxyConfig{
-				ListenAddress:   ":9080",
-				UpstreamAddress: "http://127.0.0.1:8080",
 			},
 			statusCode: 200,
 			headers: http.Header{
@@ -371,34 +313,53 @@ func Test_ProxyHandler(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			client := &fakeHTTPClient{
-				body:    tc.body,
-				status:  tc.expectedStatus,
-				headers: tc.headers,
+			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				for k, values := range tc.headers {
+					for _, v := range values {
+						rw.Header().Add(k, v)
+					}
+				}
+				rw.WriteHeader(tc.statusCode)
+
+				_, err := rw.Write(tc.body)
+				if err != nil {
+					t.Errorf("writing upstream body: %v", err)
+				}
+			}))
+
+			upstreamURL, err := url.Parse(upstreamServer.URL)
+			if err != nil {
+				t.Fatalf("error parsing httptest url")
 			}
 
-			upstreamURL, err := url.Parse(tc.config.UpstreamAddress)
-			if err != nil {
-				t.Errorf("error parsing upstream address %v", err)
-				return
-			}
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
-				client:      client,
+				client:      http.DefaultClient,
 				disruption:  tc.disruption,
 				metrics:     &protocol.MetricMap{},
 			}
 
-			reqURL := fmt.Sprintf("http://%s%s", tc.config.ListenAddress, tc.path)
-			req := httptest.NewRequest(tc.method, reqURL, strings.NewReader(string(tc.body)))
-			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, req)
-			resp := recorder.Result()
+			proxyServer := httptest.NewServer(handler)
+
+			req, err := http.NewRequest(tc.method, proxyServer.URL+tc.path, bytes.NewReader(tc.body))
+			if err != nil {
+				t.Fatalf("building request to proxy: %v", err)
+			}
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("making request to proxy: %v", err)
+			}
 
 			if tc.expectedStatus != resp.StatusCode {
 				t.Errorf("expected status code '%d' but '%d' received ", tc.expectedStatus, resp.StatusCode)
 				return
 			}
+
+			// Remove standard response headers so we don't need to specify them on every test case.
+			resp.Header.Del("content-length")
+			resp.Header.Del("content-type")
+			resp.Header.Del("date")
 
 			// Compare headers only if either expected or returned have items.
 			// We have to check for length explicitly as otherwise a nil map would not be equal to an empty map.
