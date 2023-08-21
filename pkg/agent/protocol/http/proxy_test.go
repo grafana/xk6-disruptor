@@ -173,8 +173,8 @@ func Test_ProxyHandler(t *testing.T) {
 		method          string
 		path            string
 		statusCode      int
-		headers         http.Header
-		body            []byte
+		upstreamHeaders http.Header
+		upstreamBody    []byte
 		expectedStatus  int
 		expectedHeaders http.Header
 		expectedBody    []byte
@@ -192,7 +192,7 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:           "",
 			statusCode:     200,
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 200,
 			expectedBody:   []byte("content body"),
 		},
@@ -207,7 +207,7 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:           "",
 			statusCode:     200,
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 500,
 			expectedBody:   []byte(""),
 		},
@@ -222,7 +222,7 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:           "/excluded/path",
 			statusCode:     200,
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 200,
 			expectedBody:   []byte("content body"),
 		},
@@ -237,7 +237,7 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:           "/non-excluded/path",
 			statusCode:     200,
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 500,
 			expectedBody:   []byte(""),
 		},
@@ -253,7 +253,7 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:           "",
 			statusCode:     200,
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 500,
 			expectedBody:   []byte("{\"error\": 500, \"message\":\"internal server error\"}"),
 		},
@@ -264,10 +264,10 @@ func Test_ProxyHandler(t *testing.T) {
 			},
 			path:       "/excluded",
 			statusCode: 200,
-			headers: http.Header{
+			upstreamHeaders: http.Header{
 				"X-Test-Header": []string{"A-Test"},
 			},
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 200,
 			expectedHeaders: http.Header{
 				"X-Test-Header": []string{"A-Test"},
@@ -280,10 +280,10 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorRate: 0,
 			},
 			statusCode: 200,
-			headers: http.Header{
+			upstreamHeaders: http.Header{
 				"X-Test-Header": []string{"A-Test"},
 			},
-			body:           []byte("content body"),
+			upstreamBody:   []byte("content body"),
 			expectedStatus: 200,
 			expectedHeaders: http.Header{
 				"X-Test-Header": []string{"A-Test"},
@@ -297,10 +297,10 @@ func Test_ProxyHandler(t *testing.T) {
 				ErrorCode: 500,
 			},
 			statusCode: 200,
-			headers: http.Header{
+			upstreamHeaders: http.Header{
 				"X-Test-Header": []string{"A-Test"},
 			},
-			body:            []byte("content body"),
+			upstreamBody:    []byte("content body"),
 			expectedStatus:  500,
 			expectedHeaders: http.Header{},
 			expectedBody:    nil,
@@ -314,14 +314,14 @@ func Test_ProxyHandler(t *testing.T) {
 			t.Parallel()
 
 			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-				for k, values := range tc.headers {
+				for k, values := range tc.upstreamHeaders {
 					for _, v := range values {
 						rw.Header().Add(k, v)
 					}
 				}
 				rw.WriteHeader(tc.statusCode)
 
-				_, err := rw.Write(tc.body)
+				_, err := rw.Write(tc.upstreamBody)
 				if err != nil {
 					t.Errorf("writing upstream body: %v", err)
 				}
@@ -340,7 +340,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 			proxyServer := httptest.NewServer(handler)
 
-			req, err := http.NewRequest(tc.method, proxyServer.URL+tc.path, bytes.NewReader(tc.body))
+			req, err := http.NewRequest(tc.method, proxyServer.URL+tc.path, nil)
 			if err != nil {
 				t.Fatalf("building request to proxy: %v", err)
 			}
@@ -362,7 +362,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 			// Compare headers only if either expected or returned have items.
 			// We have to check for length explicitly as otherwise a nil map would not be equal to an empty map.
-			if len(tc.headers) > 0 || len(tc.expectedHeaders) > 0 {
+			if len(tc.upstreamHeaders) > 0 || len(tc.expectedHeaders) > 0 {
 				if diff := cmp.Diff(tc.expectedHeaders, resp.Header); diff != "" {
 					t.Errorf("Expected headers did not match returned:\n%s", diff)
 				}
