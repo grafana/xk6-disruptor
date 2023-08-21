@@ -334,7 +334,6 @@ func Test_ProxyHandler(t *testing.T) {
 
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
-				client:      http.DefaultClient,
 				disruption:  tc.disruption,
 				metrics:     &protocol.MetricMap{},
 			}
@@ -427,7 +426,6 @@ func Test_Metrics(t *testing.T) {
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				disruption:  tc.config,
-				client:      http.DefaultClient,
 				metrics:     &metrics,
 			}
 

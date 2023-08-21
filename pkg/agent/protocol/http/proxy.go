@@ -75,17 +75,10 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 	}, nil
 }
 
-// httpClient defines the method for executing HTTP requests. It is used to allow mocking
-// the client in tests
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // httpHandler implements a http.Handler for disrupting request to a upstream server
 type httpHandler struct {
 	upstreamURL url.URL
 	disruption  Disruption
-	client      httpClient
 	metrics     *protocol.MetricMap
 }
 
@@ -111,7 +104,7 @@ func (h *httpHandler) forward(rw http.ResponseWriter, req *http.Request, delay t
 	upstreamReq.URL.Scheme = h.upstreamURL.Scheme
 	upstreamReq.RequestURI = "" // It is an error to set this field in an HTTP client request.
 
-	response, err := h.client.Do(upstreamReq)
+	response, err := http.DefaultClient.Do(upstreamReq)
 	<-timer
 	if err != nil {
 		rw.WriteHeader(http.StatusBadGateway)
@@ -183,7 +176,6 @@ func (p *proxy) Start() error {
 	handler := &httpHandler{
 		upstreamURL: *upstreamURL,
 		disruption:  p.disruption,
-		client:      http.DefaultClient,
 		metrics:     &p.metrics,
 	}
 
