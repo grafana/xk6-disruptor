@@ -230,3 +230,64 @@ func Test_GetCluster(t *testing.T) {
 		return
 	}
 }
+
+func Test_DeleteCluster(t *testing.T) {
+	// create cluster with  configuration
+	config, err := cluster.NewConfig(
+		"existing-cluster",
+		cluster.Options{
+			Wait: time.Second * 30,
+		},
+	)
+	if err != nil {
+		t.Errorf("failed creating cluster configuration: %v", err)
+		return
+	}
+
+	_, err = config.Create()
+	if err != nil {
+		t.Errorf("failed to create cluster: %v", err)
+		return
+	}
+
+	testCases := []struct {
+		test        string
+		name        string
+		quiet       bool
+		expectError bool
+	}{
+		{
+			test:        "delete existing cluster",
+			name:        "existing-cluster",
+			quiet:       false,
+			expectError: false,
+		},
+		{
+			test:        "delete non-existing cluster",
+			name:        "non-existing-cluster",
+			quiet:       false,
+			expectError: true,
+		},
+		{
+			test:        "delete non-existing cluster with quiet option",
+			name:        "non-existing-cluster",
+			quiet:       true,
+			expectError: false,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			err = cluster.DeleteCluster(tc.name, tc.quiet)
+			if err != nil && !tc.expectError {
+				t.Fatalf("failed deleting cluster: %v", err)
+			}
+
+			if err == nil && tc.expectError {
+				t.Fatalf("should had failed deleting cluster")
+			}
+		})
+	}
+
+}

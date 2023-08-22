@@ -327,3 +327,35 @@ func GetCluster(name string, kubeconfig string) (*Cluster, error) {
 		provider:   *provider,
 	}, nil
 }
+
+// DeleteCluster deletes an existing cluster
+func DeleteCluster(name string, silent bool) error {
+	if name == "" {
+		return fmt.Errorf("cluster name is required")
+	}
+
+	// create kubeconfig required by GetCluster. It is not used here
+	// but the provider requires ir for deleing the cluster (!?)
+	kubeconfig, err := os.CreateTemp(os.TempDir(), "kubeconfig")
+	if err != nil {
+		return fmt.Errorf("could not create kubeconfig file for cluster %w", err)
+	}
+	defer func() {
+		_ = os.Remove(kubeconfig.Name())
+	}()
+
+	cluster, err := GetCluster(name, kubeconfig.Name())
+	if err != nil {
+		return fmt.Errorf("could not retrieve cluster %q: %w", name, err)
+	}
+
+	if cluster != nil {
+		return cluster.Delete()
+	}
+
+	if !silent {
+		return fmt.Errorf("cluster %q does not exists", name)
+	}
+
+	return nil
+}
