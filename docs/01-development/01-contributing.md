@@ -273,26 +273,31 @@ This behavior is controlled by passing the `WithKeepOnFail` option when creating
 
 ### e2e-cluster tool
 
-The `e2e-cluster` tool allows the setup and cleanup of e2e clusters. It is convenient for creating a cluster that will be reused by multiple tests, and clean it up when it is no longer used:
+The `e2e-cluster` tool allows the setup and cleanup of e2e clusters. It is convenient for creating a cluster that will be reused by multiple tests, and clean it up when it is no longer used. 
+
+If you plan to create more than one test cluster, you should ensure each has an unique name and also, each one uses a different port for the ingress controller service.
+
+> In order to each test to use the cluster you must set the following environment variables: `E2E_REUSE=1` and `E2E_AUTOCLEANUP=0`
 
 ```sh
 # create cluster with default options
-e2e-cluster setup
+e2e-cluster setup --name e2e-test --port 30080
 cluster 'e2e-test' created
 
 # execute tests reusing cluster, do not delete it automatically
 # override the cluster name to ensure the test reuses the cluster created above
-E2E_REUSE=1 E2E_AUTOCLEANUP=0 E2E_NAME=e2e-test go test ...
+# override the ingress port to use the one configured in the cluster
+E2E_REUSE=1 E2E_AUTOCLEANUP=0 E2E_NAME=e2e-test E2E_PORT=30080 go test ...
 
 ## cleanup
 cluster cleanup --name e2e-test
 ```
 
-The tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`
 
-It offers two main subcommands:
-* setup: creates a cluster
-* cleanup: deletes a cluster
+
+
+
+The tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`
 
 For more details, install the tool and execute `e2e-cluster --help`
 

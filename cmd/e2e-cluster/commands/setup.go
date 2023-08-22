@@ -10,6 +10,7 @@ import (
 // BuildSetupCmd returns the setup command
 func BuildSetupCmd() *cobra.Command {
 	name := cluster.DefaultE2eClusterConfig().Name
+	port := cluster.DefaultE2eClusterConfig().IngressPort
 
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -20,6 +21,7 @@ func BuildSetupCmd() *cobra.Command {
 				cluster.DefaultE2eClusterConfig(),
 				cluster.WithEnvOverride(false),
 				cluster.WithName(name),
+				cluster.WithIngressPort(port),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create cluster: %w", err)
@@ -32,6 +34,7 @@ func BuildSetupCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", name, "name of the cluster")
+	cmd.Flags().Int32VarP(&port, "port", "p", port, "ingress port")
 
 	return cmd
 }

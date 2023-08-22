@@ -265,6 +265,7 @@ func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
 	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
 	config.UseEtcdRAMDisk = utils.GetBooleanEnvVar("E2E_ETCD_RAMDISK", config.UseEtcdRAMDisk)
 	config.Name = utils.GetStringEnvVar("E2E_NAME", config.Name)
+	config.IngressPort = utils.GetInt32EnvVar("E2E_PORT", config.IngressPort)
 	return config
 }
 
