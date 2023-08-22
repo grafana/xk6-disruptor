@@ -176,6 +176,7 @@ func WithAutoCleanup(autoCleanup bool) E2eClusterOption {
 }
 
 // WithReuse specifies if an existing cluster with the same name must be reused (true) or deleted (false)
+// WithReuse(true) implies WithAutoCleanup(false)
 func WithReuse(reuse bool) E2eClusterOption {
 	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
 		c.Reuse = reuse
@@ -299,7 +300,7 @@ func BuildE2eCluster(
 				cluster:     c,
 				ingress:     ingress,
 				name:        e2eConfig.Name,
-				autoCleanup: e2eConfig.AutoCleanup,
+				autoCleanup: false, // reuse implies no auto-cleanup
 			}, nil
 		}
 

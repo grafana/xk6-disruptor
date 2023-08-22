@@ -256,11 +256,12 @@ By default, each e2e test creates a new test cluster to ensure it is properly co
 
 However, in some circumstances, creating a new cluster for each test is time-consuming.
 
-It is possible to specify that we want to reuse a test cluster is one exists with the `Reuse` option in the `E2eClusterConfig`. This option can be set with the `WithReuse` configuration option or setting the `E2E_REUSE=1` in your environment.
+It is possible to specify that we want to reuse a test cluster if one exists using the `Reuse` option in the `E2eClusterConfig`. This option can be set with the `WithReuse` configuration option or setting the `E2E_REUSE=1` in your environment. Notice that `WithReuse(true)` forces `WithAutoCleanup(false)` as a reused cluster should be preserved until explicitly deleted.
 
 > Note: if you are testing changes in the agent, be sure you generate the image and [upload it to the cluster](#building-the-xk6-disruptor-agent-image) using kind
 
-When you don't longer needs the cluster, you can delete it using the [e2e-cluster tool](#e2e-cluster-tool) or directly `kind`:
+When you don't longer needs the cluster, you can delete it using the [e2e-cluster tool](#e2e-cluster-tool) or `kind`:
+
 ```sh
 kind delete cluster --name=<cluster name>
 ```
@@ -277,27 +278,23 @@ The `e2e-cluster` tool allows the setup and cleanup of e2e clusters. It is conve
 
 If you plan to create more than one test cluster, you should ensure each has an unique name and also, each one uses a different port for the ingress controller service.
 
-> In order to each test to use the cluster you must set the following environment variables: `E2E_REUSE=1` and `E2E_AUTOCLEANUP=0`
+> In order to each test to use the cluster you must set `E2E_REUSE=1` in the environment variables.
 
 ```sh
 # create cluster with default options
 e2e-cluster setup --name e2e-test --port 30080
 cluster 'e2e-test' created
 
-# execute tests reusing cluster, do not delete it automatically
+# execute tests reusing cluster
 # override the cluster name to ensure the test reuses the cluster created above
 # override the ingress port to use the one configured in the cluster
-E2E_REUSE=1 E2E_AUTOCLEANUP=0 E2E_NAME=e2e-test E2E_PORT=30080 go test ...
+E2E_REUSE=1 E2E_NAME=e2e-test E2E_PORT=30080 go test ...
 
 ## cleanup
 cluster cleanup --name e2e-test
 ```
 
-
-
-
-
-The tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`
+This tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`
 
 For more details, install the tool and execute `e2e-cluster --help`
 
