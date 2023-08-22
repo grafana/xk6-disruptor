@@ -18,6 +18,7 @@ func BuildSetupCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cluster, err := cluster.BuildE2eCluster(
 				cluster.DefaultE2eClusterConfig(),
+				cluster.WithEnvOverride(false),
 				cluster.WithName(name),
 			)
 			if err != nil {

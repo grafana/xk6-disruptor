@@ -30,6 +30,7 @@ type E2eClusterConfig struct {
 	AutoCleanup    bool
 	Kubeconfig     string
 	UseEtcdRAMDisk bool
+	EnvOverride    bool
 }
 
 // E2eCluster defines the interface for accessing an e2e cluster
@@ -119,6 +120,7 @@ func DefaultE2eClusterConfig() E2eClusterConfig {
 			InstallContourIngress,
 		},
 		UseEtcdRAMDisk: true,
+		EnvOverride:    true,
 	}
 }
 
@@ -189,6 +191,14 @@ func WithEtcdRAMDisk(ramdisk bool) E2eClusterOption {
 	}
 }
 
+// WithEnvOverride specifies if the cluster configuration can be overridden by environment variables
+func WithEnvOverride(override bool) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.EnvOverride = override
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster     *cluster.Cluster
@@ -248,6 +258,9 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 
 // merge options from environment variables
 func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
+	if !config.EnvOverride {
+		return config
+	}
 	config.AutoCleanup = utils.GetBooleanEnvVar("E2E_AUTOCLEANUP", config.AutoCleanup)
 	config.Reuse = utils.GetBooleanEnvVar("E2E_REUSE", config.Reuse)
 	config.UseEtcdRAMDisk = utils.GetBooleanEnvVar("E2E_ETCD_RAMDISK", config.UseEtcdRAMDisk)
