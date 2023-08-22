@@ -335,7 +335,7 @@ func Test_ProxyHandler(t *testing.T) {
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				disruption:  tc.disruption,
-				metrics:     &protocol.MetricMap{},
+				metrics:     protocol.NewMetricMap(supportedMetrics()...),
 			}
 
 			proxyServer := httptest.NewServer(handler)
@@ -388,8 +388,12 @@ func Test_Metrics(t *testing.T) {
 		expectedMetrics map[string]uint
 	}{
 		{
-			name:            "no requests",
-			expectedMetrics: map[string]uint{},
+			name: "no requests",
+			expectedMetrics: map[string]uint{
+				protocol.MetricRequests:          0,
+				protocol.MetricRequestsExcluded:  0,
+				protocol.MetricRequestsDisrupted: 0,
+			},
 		},
 		{
 			name: "requests",
@@ -419,12 +423,12 @@ func Test_Metrics(t *testing.T) {
 				t.Fatalf("error parsing httptest url")
 			}
 
-			metrics := protocol.MetricMap{}
+			metrics := protocol.NewMetricMap(supportedMetrics()...)
 
 			handler := &httpHandler{
 				upstreamURL: *upstreamURL,
 				disruption:  tc.config,
-				metrics:     &metrics,
+				metrics:     metrics,
 			}
 
 			proxyServer := httptest.NewServer(handler)

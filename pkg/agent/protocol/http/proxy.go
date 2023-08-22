@@ -44,7 +44,7 @@ type proxy struct {
 	config     ProxyConfig
 	disruption Disruption
 	srv        *http.Server
-	metrics    protocol.MetricMap
+	metrics    *protocol.MetricMap
 }
 
 // NewProxy return a new Proxy for HTTP requests
@@ -72,6 +72,7 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 	return &proxy{
 		disruption: d,
 		config:     c,
+		metrics:    protocol.NewMetricMap(supportedMetrics()...),
 	}, nil
 }
 
@@ -176,7 +177,7 @@ func (p *proxy) Start() error {
 	handler := &httpHandler{
 		upstreamURL: *upstreamURL,
 		disruption:  p.disruption,
-		metrics:     &p.metrics,
+		metrics:     p.metrics,
 	}
 
 	p.srv = &http.Server{
@@ -210,4 +211,15 @@ func (p *proxy) Force() error {
 		return p.srv.Close()
 	}
 	return nil
+}
+
+// supportedMetrics is a helper function that returns the metrics that the http proxy supports and thus should be
+// pre-initialized to zero. This function is defined due to the testing limitations mentioned in
+// https://github.com/grafana/xk6-disruptor/issues/314, as httpHandler tests currently need this information.
+func supportedMetrics() []string {
+	return []string{
+		protocol.MetricRequests,
+		protocol.MetricRequestsExcluded,
+		protocol.MetricRequestsDisrupted,
+	}
 }

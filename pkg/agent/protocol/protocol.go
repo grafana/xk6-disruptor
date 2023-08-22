@@ -30,7 +30,8 @@ type Proxy interface {
 	Start() error
 	Stop() error
 	// Metrics returns a map of counter-type metrics. Implementations may return zero or more of the metrics defined
-	// below, as well as any number of implementation-defined metrics.
+	// below, as well as any number of implementation-defined metrics. Callers can check if a metric exists in the map
+	// returned by Metrics to distinguish a counter with a value of zero from an unsupported metric.
 	Metrics() map[string]uint
 	Force() error
 }

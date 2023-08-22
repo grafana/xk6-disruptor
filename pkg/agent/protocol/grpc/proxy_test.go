@@ -341,11 +341,28 @@ func Test_ProxyMetrics(t *testing.T) {
 	type TestCase struct {
 		title           string
 		disruption      Disruption
+		skipRequest     bool
 		expectedMetrics map[string]uint
 	}
 
 	// TODO: Add test for excluded endpoints
 	testCases := []TestCase{
+		{
+			title: "no requests",
+			disruption: Disruption{
+				AverageDelay:   0,
+				DelayVariation: 0,
+				ErrorRate:      0.0,
+				StatusCode:     0,
+				StatusMessage:  "",
+			},
+			skipRequest: true,
+			expectedMetrics: map[string]uint{
+				protocol.MetricRequests:          0,
+				protocol.MetricRequestsDisrupted: 0,
+				protocol.MetricRequestsExcluded:  0,
+			},
+		},
 		{
 			title: "passthrough",
 			disruption: Disruption{
@@ -356,7 +373,9 @@ func Test_ProxyMetrics(t *testing.T) {
 				StatusMessage:  "",
 			},
 			expectedMetrics: map[string]uint{
-				protocol.MetricRequests: 1,
+				protocol.MetricRequests:          1,
+				protocol.MetricRequestsDisrupted: 0,
+				protocol.MetricRequestsExcluded:  0,
 			},
 		},
 		{
@@ -371,6 +390,7 @@ func Test_ProxyMetrics(t *testing.T) {
 			expectedMetrics: map[string]uint{
 				protocol.MetricRequests:          1,
 				protocol.MetricRequestsDisrupted: 1,
+				protocol.MetricRequestsExcluded:  0,
 			},
 		},
 	}
@@ -435,18 +455,20 @@ func Test_ProxyMetrics(t *testing.T) {
 				_ = conn.Close()
 			}()
 
-			client := ping.NewPingServiceClient(conn)
+			if !tc.skipRequest {
+				client := ping.NewPingServiceClient(conn)
 
-			var headers metadata.MD
-			_, _ = client.Ping(
-				context.TODO(),
-				&ping.PingRequest{
-					Error:   0,
-					Message: "ping",
-				},
-				grpc.Header(&headers),
-				grpc.WaitForReady(true),
-			)
+				var headers metadata.MD
+				_, _ = client.Ping(
+					context.TODO(),
+					&ping.PingRequest{
+						Error:   0,
+						Message: "ping",
+					},
+					grpc.Header(&headers),
+					grpc.WaitForReady(true),
+				)
+			}
 
 			metrics := proxy.Metrics()
 
