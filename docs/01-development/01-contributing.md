@@ -248,19 +248,19 @@ The port to be exposed by the test cluster can be changed using the `WithIngress
 
 In the examples above, once the e2e test is completed, the test cluster is deleted using the `Cleanup` method. This is inconvenient for debugging failed tests.
 
-This behavior is controlled by the `AutoCleanup` option in the `E2eClusterConfig`. By default it is true. This option can be disable using the `WithAutoCleanup(false)` option in the `BuildE2eCluster` function or by setting `E2E_AUTOCLEANUP=false` in your environment. When this option is disable, the `Cleanup` method will leave the cluster intact.
+This behavior is controlled by the `AutoCleanup` option in the `E2eClusterConfig`. By default it is true. This option can be disable using the `WithAutoCleanup(false)` option in the `BuildE2eCluster` function or by setting `E2E_AUTOCLEANUP=0` in your environment. When this option is disable, the `Cleanup` method will leave the cluster intact.
 
 ### Reusing e2e test clusters
 
 By default, each e2e test creates a new test cluster to ensure it is properly configured and prevent any left-over from previous runs to affect the test.
 
-However, when testing a solution to an issue, creating a new cluster for each test is time-consuming. 
+However, in some circumstances, creating a new cluster for each test is time-consuming.
 
-It is possible to specify that we want to reuse a test cluster is one exists with the `Reuse` option in the `E2eClusterConfig`. This option can be set with the `WithReuse` configuration option or setting the `E2E_REUSE=true` in your environment.
+It is possible to specify that we want to reuse a test cluster is one exists with the `Reuse` option in the `E2eClusterConfig`. This option can be set with the `WithReuse` configuration option or setting the `E2E_REUSE=1` in your environment.
 
 > Note: if you are testing changes in the agent, be sure you generate the image and [upload it to the cluster](#building-the-xk6-disruptor-agent-image) using kind
 
-When you don't longer needs the cluster, you can delete it using kind:
+When you don't longer needs the cluster, you can delete it using the [e2e-cluster tool](#e2e-cluster-tool) or directly `kind`:
 ```sh
 kind delete cluster --name=<cluster name>
 ```
@@ -269,4 +269,31 @@ kind delete cluster --name=<cluster name>
 
 By default, test namespaces created with `CreateTestNamespace` are automatically deleted when a test ends. This is inconvenient for debugging failed tests.
 
-This behavior is controlled by passing the `WithKeepOnFail` option when creating the namespace or by setting `E2E_KEEPONFAIL=true` in the environment when running an e2e test.
+This behavior is controlled by passing the `WithKeepOnFail` option when creating the namespace or by setting `E2E_KEEPONFAIL=1` in the environment when running an e2e test.
+
+### e2e-cluster tool
+
+The `e2e-cluster` tool allows the setup and cleanup of e2e clusters. It is convenient for creating a cluster that will be reused by multiple tests, and clean it up when it is no longer used:
+
+```sh
+# create cluster with default options
+e2e-cluster setup
+cluster 'e2e-test' created
+
+# execute tests reusing cluster, do not delete it automatically
+# override the cluster name to ensure the test reuses the cluster created above
+E2E_REUSE=1 E2E_AUTOCLEANUP=0 E2E_NAME=e2e-test go test ...
+
+## cleanup
+cluster cleanup --name e2e-test
+```
+
+The tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`
+
+It offers two main subcommands:
+* setup: creates a cluster
+* cleanup: deletes a cluster
+
+For more details, install the tool and execute `e2e-cluster --help`
+
+
