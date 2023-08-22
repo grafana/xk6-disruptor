@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
@@ -35,7 +34,9 @@ type E2eClusterConfig struct {
 
 // E2eCluster defines the interface for accessing an e2e cluster
 type E2eCluster interface {
-	// Delete deletes the cluster
+	// Cleanup deletes the cluster if the auto cleanup option was enabled
+	Cleanup() error
+	// Delete deletes the cluster regardless of the auto cleanup option setting
 	Delete() error
 	// Ingress returns the url to the cluster's ingress
 	Ingress() string
@@ -190,9 +191,10 @@ func WithEtcdRAMDisk(ramdisk bool) E2eClusterOption {
 
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
-	cluster *cluster.Cluster
-	ingress string
-	name    string
+	cluster     *cluster.Cluster
+	ingress     string
+	name        string
+	autoCleanup bool
 }
 
 // creates and configures a e2e cluster
@@ -223,16 +225,17 @@ func createE2eCluster(e2eConfig E2eClusterConfig) (*e2eCluster, error) {
 
 	ingress := fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort)
 	cluster := &e2eCluster{
-		cluster: c,
-		ingress: ingress,
-		name:    e2eConfig.Name,
+		cluster:     c,
+		ingress:     ingress,
+		name:        e2eConfig.Name,
+		autoCleanup: e2eConfig.AutoCleanup,
 	}
 
 	// TODO: set a deadline for the context passed to post install functions
 	for _, postInstall := range e2eConfig.PostInstall {
 		err = postInstall(context.TODO(), cluster)
 		if err != nil {
-			_ = cluster.Delete()
+			_ = cluster.Cleanup()
 			return nil, err
 		}
 	}
@@ -253,7 +256,6 @@ func mergeEnvVariables(config E2eClusterConfig) E2eClusterConfig {
 
 // BuildE2eCluster builds a cluster for e2e tests
 func BuildE2eCluster(
-	t *testing.T,
 	e2eConfig E2eClusterConfig,
 	ops ...E2eClusterOption,
 ) (e2ec E2eCluster, err error) {
@@ -267,14 +269,6 @@ func BuildE2eCluster(
 
 	e2eConfig = mergeEnvVariables(e2eConfig)
 
-	defer func() {
-		if e2ec != nil && e2eConfig.AutoCleanup {
-			t.Cleanup(func() {
-				_ = e2ec.Delete()
-			})
-		}
-	}()
-
 	// check if cluster exists
 	c, err := cluster.GetCluster(e2eConfig.Name, e2eConfig.Kubeconfig)
 	if err != nil {
@@ -287,9 +281,10 @@ func BuildE2eCluster(
 		if e2eConfig.Reuse {
 			ingress := fmt.Sprintf("%s:%d", e2eConfig.IngressAddr, e2eConfig.IngressPort)
 			return &e2eCluster{
-				cluster: c,
-				ingress: ingress,
-				name:    e2eConfig.Name,
+				cluster:     c,
+				ingress:     ingress,
+				name:        e2eConfig.Name,
+				autoCleanup: e2eConfig.AutoCleanup,
 			}, nil
 		}
 
@@ -305,8 +300,16 @@ func BuildE2eCluster(
 }
 
 // BuildDefaultE2eCluster builds an e2e test cluster with the default configuration
-func BuildDefaultE2eCluster(t *testing.T) (E2eCluster, error) {
-	return BuildE2eCluster(t, DefaultE2eClusterConfig())
+func BuildDefaultE2eCluster() (E2eCluster, error) {
+	return BuildE2eCluster(DefaultE2eClusterConfig())
+}
+
+func (c *e2eCluster) Cleanup() error {
+	if !c.autoCleanup {
+		return nil
+	}
+
+	return c.cluster.Delete()
 }
 
 func (c *e2eCluster) Delete() error {

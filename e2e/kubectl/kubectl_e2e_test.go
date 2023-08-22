@@ -21,7 +21,6 @@ import (
 
 func Test_Kubectl(t *testing.T) {
 	cluster, err := cluster.BuildE2eCluster(
-		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-kubectl"),
 		cluster.WithIngressPort(30087),
@@ -30,6 +29,9 @@ func Test_Kubectl(t *testing.T) {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
+	t.Cleanup(func() {
+		_ = cluster.Cleanup()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -49,19 +51,19 @@ func Test_Kubectl(t *testing.T) {
 		nginx := builders.NewPodBuilder("nginx").
 			WithContainer(
 				builders.NewContainerBuilder("nginx").
-				WithImage("nginx").
-				WithPort("http", 80).
-				Build(),
+					WithImage("nginx").
+					WithPort("http", 80).
+					Build(),
 			).
 			Build()
 
-		err = deploy.RunPod(k8s, namespace, nginx, 20 * time.Second)
+		err = deploy.RunPod(k8s, namespace, nginx, 20*time.Second)
 		if err != nil {
 			t.Errorf("failed to create test pod: %v", err)
 			return
 		}
 
-		client, err := kubectl.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig() )
+		client, err := kubectl.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
 		if err != nil {
 			t.Errorf("failed to create kubectl client: %v", err)
 			return
@@ -76,14 +78,14 @@ func Test_Kubectl(t *testing.T) {
 			t.Errorf("failed to forward local port: %v", err)
 			return
 		}
-		
+
 		url := fmt.Sprintf("http://localhost:%d", port)
 		request, err := http.NewRequest("GET", url, bytes.NewReader([]byte{}))
 		if err != nil {
 			t.Errorf("failed to create request: %v", err)
 			return
 		}
-	
+
 		resp, err := http.DefaultClient.Do(request)
 		if err != nil {
 			t.Errorf("failed make request: %v", err)
@@ -92,7 +94,7 @@ func Test_Kubectl(t *testing.T) {
 		defer func() {
 			_ = resp.Body.Close()
 		}()
-	
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("expected status code %d but %d received", http.StatusOK, resp.StatusCode)
 			return
