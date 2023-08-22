@@ -5,9 +5,11 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -167,6 +169,66 @@ func Test_PodDisruptor(t *testing.T) {
 					return
 				}
 			})
+		}
+	})
+
+	t.Run("Disruptor errors out if no requests are received", func(t *testing.T) {
+		t.Parallel()
+
+		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
+		if err != nil {
+			t.Fatalf("failed to create test namespace: %v", err)
+		}
+
+		service := fixtures.BuildHttpbinService()
+
+		err = deploy.ExposeApp(
+			k8s,
+			namespace,
+			fixtures.BuildHttpbinPod(),
+			service,
+			intstr.FromInt(80),
+			30*time.Second,
+		)
+		if err != nil {
+			t.Fatalf("error deploying application: %v", err)
+		}
+
+		// create pod disruptor that will select the service's pods
+		selector := disruptors.PodSelector{
+			Namespace: namespace,
+			Select: disruptors.PodAttributes{
+				Labels: service.Spec.Selector,
+			},
+		}
+		options := disruptors.PodDisruptorOptions{}
+		disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
+		if err != nil {
+			t.Fatalf("error creating selector: %v", err)
+		}
+
+		targets, _ := disruptor.Targets(context.TODO())
+		if len(targets) == 0 {
+			t.Fatalf("No pods matched the selector")
+		}
+
+		fault := disruptors.HTTPFault{
+			Port:      80,
+			ErrorRate: 1.0,
+			ErrorCode: 500,
+		}
+		disruptorOptions := disruptors.HTTPDisruptionOptions{
+			ProxyPort: 8080,
+		}
+		err = disruptor.InjectHTTPFaults(context.TODO(), fault, 5*time.Second, disruptorOptions)
+		if err == nil {
+			t.Fatalf("disruptor did not return an error")
+		}
+
+		// It is not possible to use errors.Is here, as ErrNoRequests is returned inside the agent pod. The controller
+		// only sees the error message printed to stderr.
+		if !strings.Contains(err.Error(), protocol.ErrNoRequests.Error()) {
+			t.Fatalf("expected ErrNoRequests, got: %v", err)
 		}
 	})
 }
