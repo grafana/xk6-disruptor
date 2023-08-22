@@ -8,14 +8,24 @@ type MetricMap struct {
 	mutex   sync.RWMutex
 }
 
-// Inc increases the value of the specified counter by one.
+// NewMetricMap returns a MetricMap with the specified metrics initialized to zero.
+func NewMetricMap(metrics ...string) *MetricMap {
+	mm := &MetricMap{
+		metrics: map[string]uint{},
+	}
+
+	for _, metric := range metrics {
+		mm.metrics[metric] = 0
+	}
+
+	return mm
+}
+
+// Inc increases the value of the specified counter by one. If the metric hasn't been initialized or incremented before,
+// it is set to 1.
 func (m *MetricMap) Inc(name string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-
-	if m.metrics == nil {
-		m.metrics = make(map[string]uint)
-	}
 
 	m.metrics[name]++
 }

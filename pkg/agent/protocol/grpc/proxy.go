@@ -80,7 +80,11 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 	return &proxy{
 		disruption: d,
 		config:     c,
-		metrics:    &protocol.MetricMap{},
+		metrics: protocol.NewMetricMap(
+			protocol.MetricRequests,
+			protocol.MetricRequestsExcluded,
+			protocol.MetricRequestsDisrupted,
+		),
 	}, nil
 }
 
