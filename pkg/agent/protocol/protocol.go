@@ -5,11 +5,15 @@ package protocol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
+
+// ErrNoRequests is returned when a proxy supports MetricRequests and returns a value of 0 for it.
+var ErrNoRequests = errors.New("disruptor did not receive any request")
 
 // TrafficRedirector defines the interface for a traffic redirector
 type TrafficRedirector interface {
@@ -103,6 +107,11 @@ func (d *disruptor) Apply(ctx context.Context, duration time.Duration) error {
 				return fmt.Errorf(" proxy ended with error: %w", err)
 			}
 		case <-time.After(duration):
+			requests, hasMetric := d.proxy.Metrics()[MetricRequests]
+			if hasMetric && requests == 0 {
+				return ErrNoRequests
+			}
+
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()
