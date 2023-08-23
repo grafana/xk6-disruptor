@@ -24,7 +24,6 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Parallel()
 
 	cluster, err := cluster.BuildE2eCluster(
-		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-pod-disruptor"),
 		cluster.WithIngressPort(30082),
@@ -33,6 +32,9 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
+	t.Cleanup(func() {
+		_ = cluster.Cleanup()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -52,10 +54,10 @@ func Test_PodDisruptor(t *testing.T) {
 			check    checks.Check
 		}{
 			{
-				title:    "Inject Http error 500",
-				pod:      fixtures.BuildHttpbinPod(),
-				service:  fixtures.BuildHttpbinService(),
-				port:     80,
+				title:   "Inject Http error 500",
+				pod:     fixtures.BuildHttpbinPod(),
+				service: fixtures.BuildHttpbinService(),
+				port:    80,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.HTTPFault{
 						Port:      80,
@@ -89,7 +91,7 @@ func Test_PodDisruptor(t *testing.T) {
 						StatusCode: 14,
 						Exclude:    "grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
 					}
-					options:= disruptors.GrpcDisruptionOptions{
+					options := disruptors.GrpcDisruptionOptions{
 						ProxyPort: 3000,
 					}
 

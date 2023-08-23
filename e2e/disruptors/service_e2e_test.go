@@ -18,12 +18,10 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
-
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
 	cluster, err := cluster.BuildE2eCluster(
-		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-service-disruptor"),
 		cluster.WithIngressPort(30083),
@@ -32,6 +30,9 @@ func Test_ServiceDisruptor(t *testing.T) {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
+	t.Cleanup(func() {
+		_ = cluster.Cleanup()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
@@ -51,10 +52,10 @@ func Test_ServiceDisruptor(t *testing.T) {
 			check    checks.Check
 		}{
 			{
-				title:    "Inject Http error 500",
-				pod:      fixtures.BuildHttpbinPod(),
-				service:  fixtures.BuildHttpbinService(),
-				port:     80,
+				title:   "Inject Http error 500",
+				pod:     fixtures.BuildHttpbinPod(),
+				service: fixtures.BuildHttpbinService(),
+				port:    80,
 				injector: func(d disruptors.ServiceDisruptor) error {
 					fault := disruptors.HTTPFault{
 						Port:      80,
@@ -103,7 +104,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 				options := disruptors.ServiceDisruptorOptions{}
 				disruptor, err := disruptors.NewServiceDisruptor(
 					context.TODO(),
-					k8s, 
+					k8s,
 					tc.service.Name,
 					namespace,
 					options,

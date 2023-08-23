@@ -22,7 +22,6 @@ import (
 
 func Test_Kubernetes(t *testing.T) {
 	cluster, err := cluster.BuildE2eCluster(
-		t,
 		cluster.DefaultE2eClusterConfig(),
 		cluster.WithName("e2e-kubernetes"),
 		cluster.WithIngressPort(30081),
@@ -31,6 +30,9 @@ func Test_Kubernetes(t *testing.T) {
 		t.Errorf("failed to create cluster: %v", err)
 		return
 	}
+	t.Cleanup(func() {
+		_ = cluster.Cleanup()
+	})
 
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
