@@ -5,7 +5,6 @@ package e2e
 
 import (
 	"context"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -79,26 +78,7 @@ func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 	return client, nil
 }
 
-// buildBusyboxPod returns a pod specification for running Busybox from a local image
-func buildBusyboxPod() corev1.Pod {
-	busybox := builders.NewContainerBuilder("busybox").
-		WithImage("busybox").
-		WithPullPolicy(corev1.PullNever).
-		Build()
-
-	return builders.NewPodBuilder("busybox").
-		WithContainer(busybox).
-		Build()
-}
-
 func Test_PreloadImages(t *testing.T) {
-	// ensure image is available locally
-	output, err := exec.Command("docker", "pull", "busybox").CombinedOutput()
-	if err != nil {
-		t.Errorf("error pulling image: %s", string(output))
-		return
-	}
-
 	// create cluster with preloaded images
 	config, err := cluster.NewConfig(
 		"e2e-cluster-with-images",
@@ -128,8 +108,17 @@ func Test_PreloadImages(t *testing.T) {
 		return
 	}
 
-	pod := buildBusyboxPod()
-	_, err = k8s.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
+	// create pod with busybox preventing pulling image if not already present in the node
+	busybox := builders.NewPodBuilder("busybox").
+		WithContainer(
+			builders.NewContainerBuilder("busybox").
+			WithImage("busybox").
+			WithPullPolicy(corev1.PullNever).
+			Build(),
+		).
+		Build()
+
+	_, err = k8s.CoreV1().Pods("default").Create(context.TODO(), &busybox, metav1.CreateOptions{})
 	if err != nil {
 		t.Errorf("failed to create pod: %v", err)
 		return

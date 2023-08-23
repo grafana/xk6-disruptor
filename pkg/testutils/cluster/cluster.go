@@ -11,7 +11,6 @@ package cluster
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -157,10 +156,8 @@ func checkHostPort(port int32) error {
 }
 
 // loadImages loads the images in the list to all cluster nodes' local repositories
-// TODO: check all images are available locally before creating the cluster
-// TODO: add option for attempting to pull images before loading them
 func loadImages(images []string, nodes []nodes.Node) error {
-	imagesTar, err := ioutil.TempFile(os.TempDir(), "image*.tar")
+	imagesTar, err := os.CreateTemp(os.TempDir(), "image*.tar")
 	if err != nil {
 		return err
 	}
@@ -169,6 +166,26 @@ func loadImages(images []string, nodes []nodes.Node) error {
 		// ignore error. Nothing to do if cannot remove image
 		_ = os.Remove(imagesTar.Name())
 	}()
+
+	// pull if not present
+	for _, image := range images {
+		imageCmd := []string{"image", "ls", "-q", image}
+		var output []byte
+
+		output, err = exec.Command("docker", imageCmd...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("could not list image: %q: %w", image, err)
+		}
+
+		// image is not present
+		if len(output) == 0 {
+			pullCmd := []string{"pull", image}
+			output, err = exec.Command("docker", pullCmd...).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("could not pull image: %q: %s", image, string(output))
+			}
+		}
+	}
 
 	// save the images to a tar
 	saveCmd := append([]string{"save", "-o", imagesTar.Name()}, images...)
@@ -254,13 +271,15 @@ func (c *Config) Create() (*Cluster, error) {
 
 	// pre-load images
 	if len(c.options.Images) > 0 {
-		nodes, pErr := provider.ListInternalNodes(c.name)
-		if pErr != nil {
-			return nil, pErr
-		}
-		pErr = loadImages(c.options.Images, nodes)
+		var nodes []nodes.Node
+
+		nodes, err = provider.ListInternalNodes(c.name)
 		if err != nil {
-			return nil, pErr
+			return nil, err
+		}
+		err = loadImages(c.options.Images, nodes)
+		if err != nil {
+			return nil, err
 		}
 	}
 

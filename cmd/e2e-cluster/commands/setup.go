@@ -11,6 +11,7 @@ import (
 func BuildSetupCmd() *cobra.Command {
 	name := cluster.DefaultE2eClusterConfig().Name
 	port := cluster.DefaultE2eClusterConfig().IngressPort
+	var images []string
 
 	cmd := &cobra.Command{
 		Use:   "setup",
@@ -22,6 +23,7 @@ func BuildSetupCmd() *cobra.Command {
 				cluster.WithEnvOverride(false),
 				cluster.WithName(name),
 				cluster.WithIngressPort(port),
+				cluster.WithImages(images...),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create cluster: %w", err)
@@ -35,6 +37,8 @@ func BuildSetupCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&name, "name", "n", name, "name of the cluster")
 	cmd.Flags().Int32VarP(&port, "port", "p", port, "ingress port")
+	cmd.Flags().StringArrayVarP(&images, "image", "i", cluster.DefaultE2eClusterConfig().Images,
+		"additional image to pre-load in the cluster. Can be specified multiple times for loading multiple images.")
 
 	return cmd
 }

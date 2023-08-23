@@ -200,6 +200,14 @@ func WithEnvOverride(override bool) E2eClusterOption {
 	}
 }
 
+// WithImages adds images to the list of images to be pre-loaded into the cluster
+func WithImages(images ...string) E2eClusterOption {
+	return func(c E2eClusterConfig) (E2eClusterConfig, error) {
+		c.Images = append(c.Images, images...)
+		return c, nil
+	}
+}
+
 // e2eCluster maintains the status of a cluster
 type e2eCluster struct {
 	cluster     *cluster.Cluster
