@@ -25,8 +25,6 @@ func Test_PodDisruptor(t *testing.T) {
 
 	cluster, err := cluster.BuildE2eCluster(
 		cluster.DefaultE2eClusterConfig(),
-		cluster.WithName("e2e-pod-disruptor"),
-		cluster.WithIngressPort(30082),
 	)
 	if err != nil {
 		t.Errorf("failed to create cluster: %v", err)
