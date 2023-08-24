@@ -281,7 +281,7 @@ func Test_Agent(t *testing.T) {
 
 					port, err := kc.ForwardPodPort(ctx, namespace, tc.pod.Name, uint(tc.port))
 					if err != nil {
-						t.Fatalf("forwarding port from %s/%s: %v", namespace, tc.pod, err)
+						t.Fatalf("forwarding port from %s/%s: %v", namespace, tc.pod.Name, err)
 					}
 
 					err = tc.check.Verify(k8s, net.JoinHostPort("localhost", fmt.Sprint(port)), namespace)
