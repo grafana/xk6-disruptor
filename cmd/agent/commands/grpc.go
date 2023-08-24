@@ -42,15 +42,22 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 				return fmt.Errorf("upstream host cannot be localhost when running in transparent mode")
 			}
 
+			agent, err := agent.Start(env, config)
+			if err != nil {
+				return fmt.Errorf("initializing agent: %w", err)
+			}
+
+			defer agent.Stop()
+
 			listenAddress := net.JoinHostPort("", fmt.Sprint(port))
 			upstreamAddress := net.JoinHostPort(upstreamHost, fmt.Sprint(targetPort))
 
-			proxyConfig := grpc.ProxyConfig{
-				ListenAddress:   listenAddress,
-				UpstreamAddress: upstreamAddress,
+			listener, err := net.Listen("tcp", listenAddress)
+			if err != nil {
+				return fmt.Errorf("setting up listener at %q: %w", listenAddress, err)
 			}
 
-			proxy, err := grpc.NewProxy(proxyConfig, disruption)
+			proxy, err := grpc.NewProxy(listener, upstreamAddress, disruption)
 			if err != nil {
 				return err
 			}
@@ -79,8 +86,6 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			if err != nil {
 				return err
 			}
-
-			agent := agent.BuildAgent(env, config)
 
 			return agent.ApplyDisruption(cmd.Context(), disruptor, duration)
 		},

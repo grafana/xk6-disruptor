@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,14 +15,6 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 )
-
-// ProxyConfig configures the Proxy options
-type ProxyConfig struct {
-	// Address to listen for incoming requests
-	ListenAddress string
-	// Address where to redirect requests
-	UpstreamAddress string
-}
 
 // Disruption specifies disruptions in http requests
 type Disruption struct {
@@ -41,19 +34,15 @@ type Disruption struct {
 
 // Proxy defines the parameters used by the proxy for processing http requests and its execution state
 type proxy struct {
-	config     ProxyConfig
+	listener   net.Listener
 	disruption Disruption
 	srv        *http.Server
 	metrics    *protocol.MetricMap
 }
 
 // NewProxy return a new Proxy for HTTP requests
-func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
-	if c.ListenAddress == "" {
-		return nil, fmt.Errorf("proxy's listening address must be provided")
-	}
-
-	if c.UpstreamAddress == "" {
+func NewProxy(listener net.Listener, upstreamAddress string, d Disruption) (protocol.Proxy, error) {
+	if upstreamAddress == "" {
 		return nil, fmt.Errorf("proxy's forwarding address must be provided")
 	}
 
@@ -69,10 +58,26 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 		return nil, fmt.Errorf("error code must be a valid http error code")
 	}
 
+	upstreamURL, err := url.Parse(upstreamAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics := protocol.NewMetricMap(supportedMetrics()...)
+
+	handler := &httpHandler{
+		upstreamURL: *upstreamURL,
+		disruption:  d,
+		metrics:     metrics,
+	}
+
 	return &proxy{
+		listener:   listener,
 		disruption: d,
-		config:     c,
-		metrics:    protocol.NewMetricMap(supportedMetrics()...),
+		metrics:    metrics,
+		srv: &http.Server{
+			Handler: handler,
+		},
 	}, nil
 }
 
@@ -169,23 +174,7 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	upstreamURL, err := url.Parse(p.config.UpstreamAddress)
-	if err != nil {
-		return err
-	}
-
-	handler := &httpHandler{
-		upstreamURL: *upstreamURL,
-		disruption:  p.disruption,
-		metrics:     p.metrics,
-	}
-
-	p.srv = &http.Server{
-		Addr:    p.config.ListenAddress,
-		Handler: handler,
-	}
-
-	err = p.srv.ListenAndServe()
+	err := p.srv.Serve(p.listener)
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
@@ -194,10 +183,7 @@ func (p *proxy) Start() error {
 
 // Stop stops the execution of the proxy
 func (p *proxy) Stop() error {
-	if p.srv != nil {
-		return p.srv.Shutdown(context.Background())
-	}
-	return nil
+	return p.srv.Shutdown(context.Background())
 }
 
 // Metrics returns runtime metrics for the proxy.
@@ -207,10 +193,7 @@ func (p *proxy) Metrics() map[string]uint {
 
 // Force stops the proxy without waiting for connections to drain
 func (p *proxy) Force() error {
-	if p.srv != nil {
-		return p.srv.Close()
-	}
-	return nil
+	return p.srv.Close()
 }
 
 // supportedMetrics is a helper function that returns the metrics that the http proxy supports and thus should be
