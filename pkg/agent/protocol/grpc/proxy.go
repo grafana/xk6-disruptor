@@ -13,16 +13,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ProxyConfig configures the Proxy options
-type ProxyConfig struct {
-	// network used for communication (valid values are "unix" and "tcp")
-	Network string
-	// Address to listen for incoming requests
-	ListenAddress string
-	// Address where to redirect requests
-	UpstreamAddress string
-}
-
 // Disruption specifies disruptions in grpc requests
 type Disruption struct {
 	// Average delay introduced to requests
@@ -41,27 +31,15 @@ type Disruption struct {
 
 // Proxy defines the parameters used by the proxy for processing grpc requests and its execution state
 type proxy struct {
-	config     ProxyConfig
-	disruption Disruption
-	srv        *grpc.Server
-	metrics    *protocol.MetricMap
+	listener net.Listener
+	srv      *grpc.Server
+	cancel   func()
+	metrics  *protocol.MetricMap
 }
 
 // NewProxy return a new Proxy
-func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
-	if c.Network == "" {
-		c.Network = "tcp"
-	}
-
-	if c.Network != "tcp" && c.Network != "unix" {
-		return nil, fmt.Errorf("only 'tcp' and 'unix' (for sockets) networks are supported")
-	}
-
-	if c.ListenAddress == "" {
-		return nil, fmt.Errorf("proxy's listening address must be provided")
-	}
-
-	if c.UpstreamAddress == "" {
+func NewProxy(listener net.Listener, upstreamAddress string, d Disruption) (protocol.Proxy, error) {
+	if upstreamAddress == "" {
 		return nil, fmt.Errorf("proxy's forwarding address must be provided")
 	}
 
@@ -77,40 +55,40 @@ func NewProxy(c ProxyConfig, d Disruption) (protocol.Proxy, error) {
 		return nil, fmt.Errorf("status code cannot be 0 (OK)")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	conn, err := grpc.DialContext(
+		ctx,
+		upstreamAddress,
+		grpc.WithInsecure(),
+	)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("error dialing %s: %w", upstreamAddress, err)
+	}
+
+	metrics := protocol.NewMetricMap(
+		protocol.MetricRequests,
+		protocol.MetricRequestsExcluded,
+		protocol.MetricRequestsDisrupted,
+	)
+
+	handler := NewHandler(d, conn, metrics)
+
+	srv := grpc.NewServer(
+		grpc.UnknownServiceHandler(handler),
+	)
+
 	return &proxy{
-		disruption: d,
-		config:     c,
-		metrics: protocol.NewMetricMap(
-			protocol.MetricRequests,
-			protocol.MetricRequestsExcluded,
-			protocol.MetricRequestsDisrupted,
-		),
+		listener: listener,
+		srv:      srv,
+		cancel:   cancel,
+		metrics:  metrics,
 	}, nil
 }
 
 // Start starts the execution of the proxy
 func (p *proxy) Start() error {
-	// should receive the context as a parameter of the Start function
-	conn, err := grpc.DialContext(
-		context.Background(),
-		p.config.UpstreamAddress,
-		grpc.WithInsecure(),
-	)
-	if err != nil {
-		return fmt.Errorf("error dialing %s: %w", p.config.UpstreamAddress, err)
-	}
-	handler := NewHandler(p.disruption, conn, p.metrics)
-
-	p.srv = grpc.NewServer(
-		grpc.UnknownServiceHandler(handler),
-	)
-
-	listener, err := net.Listen(p.config.Network, p.config.ListenAddress)
-	if err != nil {
-		return fmt.Errorf("error listening to %s: %w", p.config.ListenAddress, err)
-	}
-
-	err = p.srv.Serve(listener)
+	err := p.srv.Serve(p.listener)
 	if err != nil {
 		return fmt.Errorf("proxy terminated with error: %w", err)
 	}
@@ -120,14 +98,13 @@ func (p *proxy) Start() error {
 
 // Stop stops the execution of the proxy
 func (p *proxy) Stop() error {
-	if p.srv != nil {
-		p.srv.GracefulStop()
-	}
+	p.cancel()
+	p.srv.GracefulStop()
+
 	return nil
 }
 
 // Metrics returns runtime metrics for the proxy.
-// TODO: Add metrics.
 func (p *proxy) Metrics() map[string]uint {
 	return p.metrics.Map()
 }
@@ -135,8 +112,8 @@ func (p *proxy) Metrics() map[string]uint {
 // Force stops the proxy without waiting for connections to drain
 // In grpc this action is a nop
 func (p *proxy) Force() error {
-	if p.srv != nil {
-		p.srv.Stop()
-	}
+	p.cancel()
+	p.srv.Stop()
+
 	return nil
 }

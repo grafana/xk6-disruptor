@@ -63,7 +63,12 @@ func Test_CancelContext(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			agent := BuildAgent(env, tc.config)
+			agent, err := Start(env, tc.config)
+			if err != nil {
+				t.Fatalf("starting agent: %v", err)
+			}
+
+			defer agent.Stop()
 
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
@@ -72,7 +77,7 @@ func Test_CancelContext(t *testing.T) {
 			}()
 
 			disruptor := &FakeProtocolDisruptor{}
-			err := agent.ApplyDisruption(ctx, disruptor, tc.delay)
+			err = agent.ApplyDisruption(ctx, disruptor, tc.delay)
 			if !errors.Is(err, tc.expected) {
 				t.Errorf("expected %v got %v", tc.err, err)
 			}
@@ -126,7 +131,12 @@ func Test_Signals(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
 
-			agent := BuildAgent(env, tc.config)
+			agent, err := Start(env, tc.config)
+			if err != nil {
+				t.Fatalf("starting agent: %v", err)
+			}
+
+			defer agent.Stop()
 
 			go func() {
 				time.Sleep(1 * time.Second)
@@ -136,7 +146,7 @@ func Test_Signals(t *testing.T) {
 			}()
 
 			disruptor := &FakeProtocolDisruptor{}
-			err := agent.ApplyDisruption(context.TODO(), disruptor, tc.delay)
+			err = agent.ApplyDisruption(context.TODO(), disruptor, tc.delay)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return

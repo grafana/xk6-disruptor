@@ -2,14 +2,11 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/grpc/ping"
 	"google.golang.org/grpc"
@@ -24,7 +21,7 @@ func Test_Validations(t *testing.T) {
 	testCases := []struct {
 		title       string
 		disruption  Disruption
-		config      ProxyConfig
+		upstream    string
 		expectError bool
 	}{
 		{
@@ -36,28 +33,8 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: false,
-		},
-		{
-			title: "invalid listening address",
-			disruption: Disruption{
-				AverageDelay:   0,
-				DelayVariation: 0,
-				ErrorRate:      0.0,
-				StatusCode:     0,
-				StatusMessage:  "",
-			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   "",
-				UpstreamAddress: ":8080",
-			},
-			expectError: true,
 		},
 		{
 			title: "invalid upstream address",
@@ -68,11 +45,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: "",
-			},
+			upstream:    "",
 			expectError: true,
 		},
 		{
@@ -84,11 +57,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: true,
 		},
 		{
@@ -100,11 +69,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     int32(codes.Internal),
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: false,
 		},
 		{
@@ -116,11 +81,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: false,
 		},
 		{
@@ -132,11 +93,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: true,
 		},
 		{
@@ -148,11 +105,7 @@ func Test_Validations(t *testing.T) {
 				StatusCode:     0,
 				StatusMessage:  "",
 			},
-			config: ProxyConfig{
-				Network:         "",
-				ListenAddress:   ":9080",
-				UpstreamAddress: ":8080",
-			},
+			upstream:    ":8080",
 			expectError: true,
 		},
 	}
@@ -163,8 +116,14 @@ func Test_Validations(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := NewProxy(
-				tc.config,
+			listener, err := net.Listen("tcp", "localhost:0")
+			if err != nil {
+				t.Fatalf("could not create listener: %v", err)
+			}
+
+			_, err = NewProxy(
+				listener,
+				tc.upstream,
 				tc.disruption,
 			)
 			if !tc.expectError && err != nil {
@@ -251,29 +210,24 @@ func Test_ProxyHandler(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			// start test server in a random unix socket
-			serverSocket := filepath.Join(os.TempDir(), uuid.New().String())
-			l, err := net.Listen("unix", serverSocket)
+			upstreamListener, err := net.Listen("tcp", "localhost:0")
 			if err != nil {
-				t.Errorf("error starting test server in unix:%s: %v", serverSocket, err)
-				return
+				t.Fatalf("error starting test upstream listener: %v", err)
 			}
 			srv := grpc.NewServer()
 			ping.RegisterPingServiceServer(srv, ping.NewPingServer())
 			go func() {
-				if serr := srv.Serve(l); err != nil {
+				if serr := srv.Serve(upstreamListener); err != nil {
 					t.Logf("error in the server: %v", serr)
 				}
 			}()
 
-			// start proxy in a random unix socket
-			proxySocket := filepath.Join(os.TempDir(), uuid.New().String())
-			config := ProxyConfig{
-				Network:         "unix",
-				ListenAddress:   proxySocket,
-				UpstreamAddress: fmt.Sprintf("unix:%s", serverSocket),
+			proxyListener, err := net.Listen("tcp", "localhost:0")
+			if err != nil {
+				t.Fatalf("error starting test proxy listener: %v", err)
 			}
-			proxy, err := NewProxy(config, tc.disruption)
+
+			proxy, err := NewProxy(proxyListener, upstreamListener.Addr().String(), tc.disruption)
 			if err != nil {
 				t.Errorf("error creating proxy: %v", err)
 				return
@@ -288,10 +242,12 @@ func Test_ProxyHandler(t *testing.T) {
 				}
 			}()
 
+			time.Sleep(time.Second)
+
 			// connect client to proxy
 			conn, err := grpc.DialContext(
 				context.TODO(),
-				fmt.Sprintf("unix:%s", proxySocket),
+				proxyListener.Addr().String(),
 				grpc.WithInsecure(),
 			)
 			if err != nil {
@@ -401,36 +357,28 @@ func Test_ProxyMetrics(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			// start test server in a random unix socket
-			serverSocket := filepath.Join(os.TempDir(), uuid.New().String())
-			l, err := net.Listen("unix", serverSocket)
+			upstreamListener, err := net.Listen("tcp", "localhost:0")
 			if err != nil {
-				t.Errorf("error starting test server in unix:%s: %v", serverSocket, err)
-				return
+				t.Fatalf("error starting test upstream listener: %v", err)
 			}
-
 			srv := grpc.NewServer()
 			ping.RegisterPingServiceServer(srv, ping.NewPingServer())
 			go func() {
-				if serr := srv.Serve(l); err != nil {
+				if serr := srv.Serve(upstreamListener); err != nil {
 					t.Logf("error in the server: %v", serr)
 				}
 			}()
 
-			// start proxy in a random unix socket
-			proxySocket := filepath.Join(os.TempDir(), uuid.New().String())
-			config := ProxyConfig{
-				Network:         "unix",
-				ListenAddress:   proxySocket,
-				UpstreamAddress: fmt.Sprintf("unix:%s", serverSocket),
+			proxyListener, err := net.Listen("tcp", "localhost:0")
+			if err != nil {
+				t.Fatalf("error starting test proxy listener: %v", err)
 			}
 
-			proxy, err := NewProxy(config, tc.disruption)
+			proxy, err := NewProxy(proxyListener, upstreamListener.Addr().String(), tc.disruption)
 			if err != nil {
 				t.Errorf("error creating proxy: %v", err)
 				return
 			}
-
 			defer func() {
 				_ = proxy.Stop()
 			}()
@@ -441,10 +389,12 @@ func Test_ProxyMetrics(t *testing.T) {
 				}
 			}()
 
+			time.Sleep(time.Second)
+
 			// connect client to proxy
 			conn, err := grpc.DialContext(
 				context.TODO(),
-				fmt.Sprintf("unix:%s", proxySocket),
+				proxyListener.Addr().String(),
 				grpc.WithInsecure(),
 			)
 			if err != nil {
