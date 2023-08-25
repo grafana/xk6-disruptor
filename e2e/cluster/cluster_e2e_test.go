@@ -278,5 +278,4 @@ func Test_DeleteCluster(t *testing.T) {
 			}
 		})
 	}
-
 }

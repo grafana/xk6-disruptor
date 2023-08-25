@@ -21,10 +21,10 @@ import (
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
+	t.Parallel()
+
 	cluster, err := cluster.BuildE2eCluster(
 		cluster.DefaultE2eClusterConfig(),
-		cluster.WithName("e2e-service-disruptor"),
-		cluster.WithIngressPort(30083),
 	)
 	if err != nil {
 		t.Errorf("failed to create cluster: %v", err)

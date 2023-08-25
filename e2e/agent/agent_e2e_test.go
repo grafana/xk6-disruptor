@@ -164,10 +164,10 @@ func builDisruptorService() corev1.Service {
 }
 
 func Test_Agent(t *testing.T) {
+	t.Parallel()
+
 	cluster, err := cluster.BuildE2eCluster(
 		cluster.DefaultE2eClusterConfig(),
-		cluster.WithName("e2e-xk6-agent"),
-		cluster.WithIngressPort(30080),
 	)
 	if err != nil {
 		t.Errorf("failed to create e2e cluster: %v", err)

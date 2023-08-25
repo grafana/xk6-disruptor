@@ -18,7 +18,7 @@ build: test
 	xk6 build --with $(shell go list -m)=. --output build/k6
 
 build-e2e:
-	go build -tags e2e -o build/e2e-cluster ./cmd/e2e/main.go
+	go build -tags e2e -o build/e2e-cluster ./cmd/e2e-cluster/main.go
 
 build-agent:
 	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent
@@ -26,20 +26,20 @@ build-agent:
 clean:
 	rm -rf image/agent/build build/
 	
-e2e-disruptors: agent-image
-	go test -tags e2e ./e2e/disruptors/...
+e2e-disruptors: agent-image e2e-setup
+	E2E_REUSE=1 go test -tags e2e ./e2e/disruptors/...
 
 e2e-cluster:
 	go test -tags e2e ./e2e/cluster/...
 
-e2e-agent: agent-image
-	go test -tags e2e ./e2e/agent/...
+e2e-agent: agent-image e2e-setup
+	E2E_REUSE=1 go test -tags e2e ./e2e/agent/...
 
 e2e-kubernetes:
 	go test -tags e2e ./e2e/kubernetes/...
 
-e2e:
-	go test -tags e2e ./e2e/...
+e2e-setup: build-e2e
+	build/e2e-cluster setup
 
 format:
 	go fmt ./...
@@ -52,4 +52,3 @@ lint:
 test:
 	go test -race  ./...
 
-.PHONY: agent-image build build-agent clean e2e e2e-disruptors e2e-cluster e2e-agent e2e-kubernetes format lint test

@@ -282,16 +282,30 @@ If you plan to create more than one test cluster, you should ensure each has an 
 
 ```sh
 # create cluster with default options
-e2e-cluster setup --name e2e-test --port 30080
+e2e-cluster setup
 cluster 'e2e-test' created
 
-# execute tests reusing cluster
-# override the cluster name to ensure the test reuses the cluster created above
-# override the ingress port to use the one configured in the cluster
-E2E_REUSE=1 E2E_NAME=e2e-test E2E_PORT=30080 go test ...
+# execute tests reusing the cluster
+E2E_REUSE=1 go test ...
 
 ## cleanup
-cluster cleanup --name e2e-test
+cluster cleanup
+```
+
+It is also possible to create multiple test clusters and use them for different tests. In this case, it is important to remember setting the environment variables to override default options in the tests:
+
+```sh
+# create cluster with non-default options
+e2e-cluster setup --name other-e2e-cluster --port 30090
+cluster 'other-e2e-cluster' created
+
+# execute tests reusing the cluster
+# override the cluster name to ensure the test reuses the cluster created above
+# override the ingress port to use the one configured in the cluster
+E2E_REUSE=1 E2E_NAME=other-e2e-cluster E2E_PORT=30090 go test ...
+
+## cleanup
+cluster cleanup --name other-e2e-cluster
 ```
 
 This tool is create with the command `go install ./cmd/e2e-cluster` that installs the binary `e2e-cluster`

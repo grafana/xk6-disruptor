@@ -323,11 +323,6 @@ func BuildE2eCluster(
 	return createE2eCluster(e2eConfig)
 }
 
-// BuildDefaultE2eCluster builds an e2e test cluster with the default configuration
-func BuildDefaultE2eCluster() (E2eCluster, error) {
-	return BuildE2eCluster(DefaultE2eClusterConfig())
-}
-
 // DeleteE2eCluster deletes an existing e2e cluster
 func DeleteE2eCluster(name string, quiet bool) error {
 	return cluster.DeleteCluster(name, quiet)
