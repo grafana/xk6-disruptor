@@ -93,15 +93,14 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
 		}
 
-		// copy fault to change target port for the pod
-		podFault := fault
-		podFault.Port = port
-
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return VisitCommands{}, err
 		}
 
+		// copy fault to change target port for the pod
+		podFault := fault
+		podFault.Port = port
 		visitCommands := VisitCommands{
 			Exec:    buildHTTPFaultCmd(targetAddress, podFault, duration, options),
 			Cleanup: buildCleanupCmd(),
@@ -125,14 +124,18 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 			return VisitCommands{}, err
 		}
 
-		podFault := fault
-		podFault.Port = port
+		if utils.HasHostNetwork(pod) {
+			return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+		}
 
 		targetAddress, err := utils.PodIP(pod)
 		if err != nil {
 			return VisitCommands{}, err
 		}
 
+		// copy fault to change target port for the pod
+		podFault := fault
+		podFault.Port = port
 		visitCommands := VisitCommands{
 			Exec:    buildGrpcFaultCmd(targetAddress, podFault, duration, options),
 			Cleanup: buildCleanupCmd(),
