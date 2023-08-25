@@ -31,15 +31,16 @@ $ git clone https://github.com/grafana/xk6-disruptor.git
 $ cd xk6-disruptor
 ```
 
-### Makefile
+## Integration tests
 
-Most of the development tasks can be executed using `make` targets:
-* `agent-image`: builds the `xk6-disruptor-agent` image locally
-* `build`: builds k6 with the `xk6-disruptor` extension
-* `clean`: removes local build and other work directories
-* `e2e`: executes the end-to-end tests. These tests can take several minutes.
-* `test`: executes unit tests
-* `lint`: runs the linter
+Integration tests are implemented in the same packages than the component they test. Execution is conditioned using the `integration` build tag. 
+
+In order to run integration tests (if any) for a package, use the following command:
+
+```sh
+go test -tags integration ./path/to/package/... 
+```
+
 
 ### Extension/agent image versions dependencies
 
