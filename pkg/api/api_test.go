@@ -9,7 +9,9 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	"go.k6.io/k6/js/common"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -46,6 +48,58 @@ func testSetup() (*testEnv, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Constructors for ServiceDisruptor and PodDisruptor will error if they cannot find any target for the supplied
+	// parameters. For this reason, we need to add to the fake k8s client a service and a pod backing it.
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "namespace"},
+	}
+
+	_, err = k8s.Client().CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("creating namespace: %w", err)
+	}
+
+	pod := builders.NewPodBuilder("some-pod").
+		WithNamespace(ns.Name).
+		WithLabel("app", "app").
+		WithContainer(builders.NewContainerBuilder("main").
+			WithPort("http", 80).
+			WithImage("fake.registry.local/main").
+			Build(),
+		).
+		WithIP("192.0.2.6").
+		Build()
+
+	// Constructors for ServiceDisruptor and PodDisruptor will also attempt to inject the disruptor agent into a target
+	// pod once it's discovered, and then wait for that container to be Running. Flagging this pod as ready is hard to
+	// do with the k8s fake client, so we take advantage of the fact that both injection and check are skipped if the
+	// agent container already exists by creating the fake pod with the sidecar already added.
+	agentContainer := corev1.EphemeralContainer{
+		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
+			Name:  "xk6-agent",
+			Image: "fake.registry.local/xk6-agent",
+		},
+	}
+
+	pod.Spec.EphemeralContainers = append(pod.Spec.EphemeralContainers, agentContainer)
+
+	_, err = k8s.Client().CoreV1().Pods(ns.Name).Create(context.TODO(), &pod, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("creating namespace: %w", err)
+	}
+
+	svc := builders.NewServiceBuilder("some-service").
+		WithNamespace(ns.Name).
+		WithSelectorLabel("app", "app").
+		WithPort("http", 80, intstr.FromString("http")).
+		Build()
+
+	_, err = k8s.Client().CoreV1().Services(ns.Name).Create(context.TODO(), &svc, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("creating namespace: %w", err)
+	}
+
 	return &testEnv{
 		rt:     rt,
 		client: client,
@@ -430,35 +484,35 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			const opts = {
 				injectTimeout: "30s"
 			}
-			new ServiceDisruptor("service", "default", opts)
+			new ServiceDisruptor("some-service", "namespace", opts)
 			`,
 			expectError: false,
 		},
 		{
 			description: "valid constructor without options",
 			script: `
-			new ServiceDisruptor("service", "default")
+			new ServiceDisruptor("some-service", "namespace")
 			`,
 			expectError: false,
 		},
 		{
 			description: "invalid constructor without namespace",
 			script: `
-			new ServiceDisruptor("service")
+			new ServiceDisruptor("some-service")
 			`,
 			expectError: true,
 		},
 		{
 			description: "invalid constructor service name is not string",
 			script: `
-			new ServiceDisruptor(1, "default")
+			new ServiceDisruptor(1, "namespace")
 			`,
 			expectError: true,
 		},
 		{
 			description: "invalid constructor namespace is not string",
 			script: `
-			new ServiceDisruptor("service", {})
+			new ServiceDisruptor("some-service", {})
 			`,
 			expectError: true,
 		},
@@ -475,7 +529,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			const opts = {
 				timeout: "30s"
 			}
-			new ServiceDisruptor("service", "default", opts)
+			new ServiceDisruptor("some-service", "namespace", opts)
 			`,
 			expectError: true,
 		},
@@ -504,7 +558,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 				"app": "test",
 			}
 			svc := builders.NewServiceBuilder("service").WithSelector(labels).Build()
-			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), &svc, v1.CreateOptions{})
+			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), &svc, metav1.CreateOptions{})
 
 			_, err = env.rt.RunString(tc.script)
 
