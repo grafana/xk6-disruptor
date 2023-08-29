@@ -117,14 +117,12 @@ func TestPods_Wait(t *testing.T) {
 }
 
 func TestPods_AddEphemeralContainer(t *testing.T) {
-	t.Skip("Skipping due to flaky behavior. See issue #280")
 	t.Parallel()
 
 	type TestCase struct {
 		test        string
 		podName     string
 		expectError bool
-		container   string
 		status      corev1.ContainerStatus
 		options     AttachOptions
 	}
@@ -135,7 +133,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 			test:        "Create ephemeral container not waiting",
 			podName:     "test-pod",
 			expectError: false,
-			container:   "ephemeral",
 			status: corev1.ContainerStatus{
 				Name: "ephemeral",
 				State: corev1.ContainerState{
@@ -196,6 +193,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				pod.Status.EphemeralContainerStatuses = []corev1.ContainerStatus{
 					tc.status,
 				}
+
 				// update pod and stop watching updates
 				return pod, false, nil
 			}
@@ -221,7 +219,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				tc.options,
 			)
 			if !tc.expectError && err != nil {
-				t.Errorf("unexpected error: %v", err)
+				t.Errorf("failed: %v", err)
 				return
 			}
 		})
