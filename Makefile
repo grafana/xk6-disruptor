@@ -6,7 +6,7 @@ agent_image ?= ghcr.io/grafana/xk6-disruptor-agent:latest
 
 all: build
 
-agent-image: build-agent test
+agent-image: build-agent
 	docker build --build-arg TARGETARCH=${arch} -t $(agent_image) images/agent
 
 disruptor-image:
@@ -21,6 +21,7 @@ build-e2e:
 	go build -tags e2e -o build/e2e-cluster ./cmd/e2e-cluster/main.go
 
 build-agent:
+	go test ./pkg/agent/...
 	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent
 
 clean:
@@ -43,6 +44,11 @@ e2e-setup: build-e2e
 
 format:
 	go fmt ./...
+
+integration-agent: agent-image
+	go test -tags integration ./pkg/agent/...
+
+integration: integration-agent
 
 # Running with -buildvcs=false works around the issue of `go list all` failing when git, which runs as root inside
 # the container, refuses to operate on the disruptor source tree as it is not owned by the same user (root).

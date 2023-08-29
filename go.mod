@@ -3,10 +3,12 @@ module github.com/grafana/xk6-disruptor
 go 1.19
 
 require (
+	github.com/docker/docker v24.0.5+incompatible
 	github.com/dop251/goja v0.0.0-20230621100801-7749907a8a20
 	github.com/google/go-cmp v0.5.9
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.5.0
+	github.com/testcontainers/testcontainers-go v0.23.0
 	go.k6.io/k6 v0.46.0
 	k8s.io/api v0.27.4
 	k8s.io/apimachinery v0.27.4
@@ -23,7 +25,6 @@ require (
 	github.com/containerd/containerd v1.7.3 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/docker/docker v24.0.5+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
@@ -38,7 +39,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc4 // indirect
 	github.com/opencontainers/runc v1.1.5 // indirect
-	github.com/testcontainers/testcontainers-go v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
