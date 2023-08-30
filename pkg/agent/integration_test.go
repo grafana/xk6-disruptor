@@ -63,6 +63,26 @@ func injectGrpcFault(rate float64, status int, upstream string) []string {
 	}
 }
 
+func injectHTTPError418NonTransparent(upstream string) []string {
+	return []string{
+		"xk6-disruptor-agent",
+		"http",
+		"--transparent=false", // must have an '=', otherwise has no effect
+		"--duration",
+		"300s",
+		"--rate",
+		"1.0",
+		"--error",
+		"418",
+		"--port",
+		"8080",
+		"--target",
+		"80",
+		"--upstream-host",
+		upstream,
+	}
+}
+
 func checkHTTPRequest(url string, expected int) error {
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -316,9 +336,9 @@ func Test_GrpcFaultInjection(t *testing.T) {
 	}
 }
 
-
 func Test_Multiple_Executions(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.TODO()
 
 	// start the container with the agent using a fake upstream address because the agent requires it
@@ -351,5 +371,87 @@ func Test_Multiple_Executions(t *testing.T) {
 	buffer.ReadFrom(output)
 	if !strings.Contains(buffer.String(), "is already running") {
 		t.Fatalf("failed: %s: ", buffer.String())
+	}
+}
+
+func Test_Non_Transparent_Proxy(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	gcr := testcontainers.GenericContainerRequest{
+		ProviderType: testcontainers.ProviderDocker,
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image: "kennethreitz/httpbin",
+			ExposedPorts: []string{
+				"80",
+				"8080", // expose port the agent will use
+			},
+			WaitingFor: wait.ForExposedPort(),
+		},
+		Started: true,
+	}
+	httpbin, err := testcontainers.GenericContainer(ctx, gcr)
+	if err != nil {
+		t.Fatalf("failed to create httpbin container %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = httpbin.Terminate(ctx)
+	})
+
+	httpbinIP, err := httpbin.ContainerIP(ctx)
+	if err != nil {
+		t.Fatalf("failed to get httpbin IP:\n%v", err)
+	}
+
+	// make the agent run using the same stack than the httpbin container
+	httpbinNetwork := container.NetworkMode("container:" + httpbin.GetContainerID())
+	gcr = testcontainers.GenericContainerRequest{
+		ProviderType: testcontainers.ProviderDocker,
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:       "ghcr.io/grafana/xk6-disruptor-agent",
+			NetworkMode: httpbinNetwork,
+			Cmd:         injectHTTPError418NonTransparent(httpbinIP),
+			Privileged:  true,
+			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
+		},
+		Started: true,
+	}
+
+	agent, err := testcontainers.GenericContainer(ctx, gcr)
+	if err != nil {
+		t.Fatalf("failed to create agent container %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = agent.Terminate(ctx)
+	})
+
+	httpPort, err := httpbin.MappedPort(ctx, "80")
+	if err != nil {
+		t.Fatalf("failed to get httpbin port:\n%v", err)
+	}
+
+	// access httpbin. Should get request's response
+	httpUrl := fmt.Sprintf("http://localhost:%s/status/200", httpPort.Port())
+
+	err = checkHTTPRequest(httpUrl, 200)
+	if err != nil {
+		t.Fatalf("failed %v", err)
+	}
+
+	// get agent's port. It is exposed in the httpBin container (both containers share the network stack)
+	agentPort, err := httpbin.MappedPort(ctx, "8080")
+	if err != nil {
+		t.Fatalf("failed to get agent port:\n%v", err)
+	}
+
+	// access agent, should get injected error
+	agentUrl := fmt.Sprintf("http://localhost:%s/status/200", agentPort.Port())
+
+	err = checkHTTPRequest(agentUrl, 418)
+	if err != nil {
+		t.Fatalf("failed %v", err)
 	}
 }
