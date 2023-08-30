@@ -91,9 +91,25 @@ func (h *podHelper) waitForCondition(
 		},
 	)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("starting pod watcher: %w", err)
 	}
 	defer watcher.Stop()
+
+	// we check if the pod already satisfies the condition to prevent race conditions
+	// on which we miss the update that makes the condition true
+	pod, err := h.client.CoreV1().Pods(namespace).Get(
+		ctx,
+		name,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return false, fmt.Errorf("getting pod: %w", err)
+	}
+
+	condition, err := checker(pod)
+	if condition || err != nil {
+		return condition, err
+	}
 
 	expired := time.After(timeout)
 	for {
@@ -109,7 +125,7 @@ func (h *podHelper) waitForCondition(
 				if !isPod {
 					return false, errors.New("received unknown object while watching for pods")
 				}
-				condition, err := checker(pod)
+				condition, err = checker(pod)
 				if condition || err != nil {
 					return condition, err
 				}
