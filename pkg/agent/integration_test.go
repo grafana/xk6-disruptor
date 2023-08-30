@@ -4,9 +4,11 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
@@ -311,5 +313,43 @@ func Test_GrpcFaultInjection(t *testing.T) {
 				t.Fatalf("failed %v", err)
 			}
 		})
+	}
+}
+
+
+func Test_Multiple_Executions(t *testing.T) {
+	t.Parallel()
+	ctx := context.TODO()
+
+	// start the container with the agent using a fake upstream address because the agent requires it
+	gcr := testcontainers.GenericContainerRequest{
+		ProviderType: testcontainers.ProviderDocker,
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:      "ghcr.io/grafana/xk6-disruptor-agent",
+			Cmd:        injectHTTPError(1.0, 500, "1.1.1.1"),
+			Privileged: true,
+			WaitingFor: wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
+		},
+		Started: true,
+	}
+
+	agent, err := testcontainers.GenericContainer(ctx, gcr)
+	if err != nil {
+		t.Fatalf("failed to create agent container %v", err)
+	}
+	t.Cleanup(func() {
+		_ = agent.Terminate(ctx)
+	})
+
+	// try to execute the agent again. Arguments are irrelevant
+	_, output, err := agent.Exec(ctx, injectHTTPError(1.0, 500, "1.1.1.1"))
+	if err != nil {
+		t.Fatalf("command failed %v", err)
+	}
+
+	buffer := &bytes.Buffer{}
+	buffer.ReadFrom(output)
+	if !strings.Contains(buffer.String(), "is already running") {
+		t.Fatalf("failed: %s: ", buffer.String())
 	}
 }
