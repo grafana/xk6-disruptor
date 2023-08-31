@@ -3,7 +3,6 @@
 package profiler
 
 import (
-	"context"
 	"io"
 )
 
@@ -18,7 +17,7 @@ type Config struct {
 // Profiler defines the methods to control execution profiling
 type Profiler interface {
 	// Start stars the collection of profiling information with the given configuration
-	Start(ctx context.Context, config Config) (io.Closer, error)
+	Start(config Config) (io.Closer, error)
 }
 
 // Probe defines the interface for controlling a profiling probe
@@ -37,7 +36,7 @@ func NewProfiler() Profiler {
 }
 
 // Start stars the collection of profiling information with the given configuration
-func (p *profiler) Start(_ context.Context, config Config) (io.Closer, error) {
+func (p *profiler) Start(config Config) (io.Closer, error) {
 	probes, err := buildProbes(config)
 	if err != nil {
 		return nil, err
