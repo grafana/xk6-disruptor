@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -110,7 +109,7 @@ func NewFakeProfiler() *FakeProfiler {
 }
 
 // Start updates the FakeProfiler to registers it was started
-func (p *FakeProfiler) Start(context.Context, profiler.Config) (io.Closer, error) {
+func (p *FakeProfiler) Start(profiler.Config) (io.Closer, error) {
 	p.started = true
 	return p, nil
 }
