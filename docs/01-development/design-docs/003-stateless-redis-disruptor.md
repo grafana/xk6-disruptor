@@ -1,16 +1,16 @@
 
 # Design Doc: Title
 
-|                         |                             | 
-|-------------------------|-----------------------------|
-| **Author(s)**:          | Roberto Santalla (@roobre)  |
-| **Created**:            | 2023-09-06                  |
-| **Status**:             | Draft                       |
-| **Last status change**: | 2023-09-06                  |
-| **Approver(s)**:        | Pablo Chacín (@pablochacin) |
-| **Related**             |                             |
-| **Replaces**            |                             |
-| **Superseded by**       |                             |
+|                         |                                                          | 
+|-------------------------|----------------------------------------------------------|
+| **Author(s)**:          | Roberto Santalla (@roobre)                               |
+| **Created**:            | 2023-09-06                                               |
+| **Status**:             | Draft                                                    |
+| **Last status change**: | 2023-09-06                                               |
+| **Approver(s)**:        | Pablo Chacín (@pablochacin), Daniel González (@dgzlopes) |
+| **Related**             |                                                          |
+| **Replaces**            |                                                          |
+| **Superseded by**       |                                                          |
 
 
 ## Background
