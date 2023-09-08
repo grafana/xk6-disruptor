@@ -2,23 +2,21 @@ package tcp_test
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/tcp"
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/tcp/testutil"
 )
-
-const localv4 = "127.0.0.1:0"
 
 // Test_Proxy_Forwards tests the tcp.Proxy using tcp.ForwardHandler, ensuring messages are forwarded to and from the
 // proxy.
 func Test_Proxy_Forwards(t *testing.T) {
 	t.Parallel()
 
+	const localv4 = "127.0.0.1:0"
 	upstreamL, err := net.Listen("tcp", localv4)
 	if err != nil {
 		t.Fatalf("creating upstream listener: %v", err)
@@ -27,7 +25,7 @@ func Test_Proxy_Forwards(t *testing.T) {
 	serverCh := make(chan string)
 	serverErr := make(chan error)
 	go func() {
-		serverErr <- echoServer(upstreamL, serverCh)
+		serverErr <- testutil.EchoServer(upstreamL, serverCh)
 	}()
 
 	proxyL, err := net.Listen("tcp", localv4)
@@ -128,6 +126,7 @@ func Test_Proxy_Forwards(t *testing.T) {
 func Test_Proxy_Rejects(t *testing.T) {
 	t.Parallel()
 
+	const localv4 = "127.0.0.1:0"
 	upstreamL, err := net.Listen("tcp", localv4)
 	if err != nil {
 		t.Fatalf("creating upstream listener: %v", err)
@@ -136,7 +135,7 @@ func Test_Proxy_Rejects(t *testing.T) {
 	serverCh := make(chan string)
 	serverErr := make(chan error)
 	go func() {
-		serverErr <- echoServer(upstreamL, serverCh)
+		serverErr <- testutil.EchoServer(upstreamL, serverCh)
 	}()
 
 	proxyL, err := net.Listen("tcp", localv4)
@@ -185,40 +184,6 @@ func Test_Proxy_Rejects(t *testing.T) {
 	case err = <-serverErr:
 		if err != nil {
 			t.Fatalf("server returned an error: %v", err)
-		}
-	}
-}
-
-// echoServer is a helper function for testing that accepts a single connection from the given listener, and pushes
-// each received line to lineCh. When the connection is closed, it also closes lineCh.
-func echoServer(l net.Listener, lineCh chan string) error {
-	defer close(lineCh)
-
-	conn, err := l.Accept()
-	if err != nil {
-		return fmt.Errorf("accepting conn: %w", err)
-	}
-
-	reader := bufio.NewReader(conn)
-	for {
-		line, err := reader.ReadString('\n')
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("reading from conn: %w", err)
-		}
-
-		_, err = conn.Write([]byte(line))
-		if err != nil {
-			return fmt.Errorf("echoing back to conn: %w", err)
-		}
-
-		select {
-		case lineCh <- line:
-			continue
-		case <-time.After(time.Second):
-			return fmt.Errorf("reader did not consume line %q", line)
 		}
 	}
 }
