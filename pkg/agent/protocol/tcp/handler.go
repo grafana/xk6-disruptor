@@ -15,10 +15,11 @@ type HandlerBuilder func(ConnMeta) Handler
 
 // Handler is an object capable of acting when TCP messages are either sent or received.
 type Handler interface {
-	// HandleUpward forwards data from the client to the server. Proxy will call HandleUpward once for every
-	// connection, expecting it to keep consuming data until an error occurs, in which case the Proxy will close both
-	// upstream and downstream connections. If ErrTerminate is returned, the connection is still closed but no error
-	// message is logged.
+	// HandleUpward forwards data from the client to the server. Proxy will call each method exactly once for the
+	// single connection a Handler instance handles. Implementations should consume from client and write to server
+	// until an error occurs.
+	// When either HandleUpward or HandleDownward return an error, connections to both server and clients are closed.
+	// If ErrTerminate is returned, the connection is still closed but no error message is logged.
 	HandleUpward(client io.Reader, server io.Writer) error
 	// HandleDownward provides is the equivalent of HandleUpward for data sent from the server to the client.
 	HandleDownward(server io.Reader, client io.Writer) error
