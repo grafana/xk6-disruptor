@@ -35,7 +35,7 @@ func Test_Proxy_Forwards(t *testing.T) {
 		t.Fatalf("creating proxy listener: %v", err)
 	}
 
-	proxy := tcp.NewProxy(proxyL, upstreamL.Addr(), tcp.ForwardHandler{})
+	proxy := tcp.NewProxy(proxyL, upstreamL.Addr(), tcp.ForwardHandlerBuilder)
 	go func() {
 		err := proxy.Start()
 		if err != nil {
@@ -144,7 +144,7 @@ func Test_Proxy_Rejects(t *testing.T) {
 		t.Fatalf("creating proxy listener: %v", err)
 	}
 
-	proxy := tcp.NewProxy(proxyL, upstreamL.Addr(), tcp.RejectHandler{})
+	proxy := tcp.NewProxy(proxyL, upstreamL.Addr(), tcp.RejectHandlerBuilder)
 	go func() {
 		err := proxy.Start()
 		if err != nil {

@@ -10,16 +10,16 @@ import (
 
 // Proxy implements a TCP transparent proxy between a client and a server.
 type Proxy struct {
-	l        net.Listener
-	upstream net.Addr
-	handler  Handler
+	l              net.Listener
+	upstream       net.Addr
+	handlerBuilder HandlerBuilder
 }
 
-func NewProxy(l net.Listener, upstream net.Addr, handler Handler) *Proxy {
+func NewProxy(l net.Listener, upstream net.Addr, handlerBuilder HandlerBuilder) *Proxy {
 	return &Proxy{
-		l:        l,
-		upstream: upstream,
-		handler:  handler,
+		l:              l,
+		upstream:       upstream,
+		handlerBuilder: handlerBuilder,
 	}
 }
 
@@ -63,10 +63,12 @@ func (p *Proxy) handleConn(downstreamConn net.Conn) error {
 		ServerAddress: upstreamConn.RemoteAddr(),
 	}
 
+	handler := p.handlerBuilder(metadata)
+
 	errChan := make(chan error, 2)
 	go func() {
 		errChan <- func() error {
-			err := p.handler.HandleUpward(downstreamConn, upstreamConn, metadata)
+			err := handler.HandleUpward(downstreamConn, upstreamConn)
 			if err != nil && !errors.Is(err, ErrTerminate) {
 				return err
 			}
@@ -76,7 +78,7 @@ func (p *Proxy) handleConn(downstreamConn net.Conn) error {
 	}()
 	go func() {
 		errChan <- func() error {
-			err := p.handler.HandleDownward(upstreamConn, downstreamConn, metadata)
+			err := handler.HandleDownward(upstreamConn, downstreamConn)
 			if err != nil && !errors.Is(err, ErrTerminate) {
 				return err
 			}
