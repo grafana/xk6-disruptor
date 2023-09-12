@@ -162,7 +162,7 @@ jobs:
           name: binaries
           path: dist
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker buildx
         uses: docker/setup-buildx-action@v3
         with:
