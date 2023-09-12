@@ -73,7 +73,7 @@ func Test_Kubernetes(t *testing.T) {
 		t.Fatalf("failed to create rest client for kubernetes : %s", err)
 	}
 
-	k8s, err := newFromConfig(restcfg)
+	k8s, err := NewFromConfig(restcfg)
 	if err != nil {
 		t.Fatalf("error creating kubernetes client: %v", err)
 	}
@@ -299,7 +299,7 @@ func Test_UnsupportedKubernetesVersion(t *testing.T) {
 		t.Fatalf("failed to create rest client for kubernetes : %s", err)
 	}
 
-	_, err = newFromConfig(restcfg)
+	_, err = NewFromConfig(restcfg)
 	if err == nil {
 		t.Errorf("should had failed creating kubernetes client")
 		return
