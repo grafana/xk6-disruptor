@@ -306,3 +306,46 @@ func Test_Kubernetes(t *testing.T) {
 		}
 	})
 }
+
+func Test_UnsupportedKubernetesVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	container, err := k3s.RunContainer(ctx, testcontainers.WithImage("docker.io/rancher/k3s:v1.22.17-k3s1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// wait for the api server to complete initialization.
+	// see this issue for more details:
+	// https://github.com/testcontainers/testcontainers-go/issues/1547
+	timeout := time.Second * 30
+	err = waitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
+	if err != nil {
+		t.Fatalf("failed waiting for cluster ready: %s", err)
+	}
+
+	// Clean up the container after the test is complete
+	t.Cleanup(func() {
+		if err = container.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
+	})
+
+	kubeConfigYaml, err := container.GetKubeConfig(ctx)
+	if err != nil {
+		t.Fatalf("failed to get kube-config : %s", err)
+	}
+
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubeConfigYaml)
+	if err != nil {
+		t.Fatalf("failed to create rest client for kubernetes : %s", err)
+	}
+
+	_, err = newFromConfig(restcfg)
+	if err == nil {
+		t.Errorf("should had failed creating kubernetes client")
+		return
+	}
+}
