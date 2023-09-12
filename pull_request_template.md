@@ -15,8 +15,6 @@ Fixes # (issue)
 - [ ] I have added tests that prove my fix is effective or that my feature works.   
 - [ ] I have run linter locally (`make lint`) and all checks pass.
 - [ ] I have run tests locally (`make test`) and all tests pass.
-- [ ] I have run relevant integration test locally (`make integration-xxx` for `agent` related changes)
+- [ ] I have run relevant integration test locally (`make integration-xxx` for affected packages)
 - [ ] I have run relevant e2e test locally (`make e2e-xxx` for `disruptors`, `kubernetes` or `cluster` related changes)
 - [ ] Any dependent changes have been merged and published in downstream modules<br>
-      
- 

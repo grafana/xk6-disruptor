@@ -45,7 +45,10 @@ format:
 integration-agent: agent-image
 	go test -tags integration ./pkg/agent/...
 
-integration: integration-agent
+integration-kubernetes:
+	go test -tags integration ./pkg/kubernetes/...
+
+integration: integration-agent integration-kubernetes
 
 # Running with -buildvcs=false works around the issue of `go list all` failing when git, which runs as root inside
 # the container, refuses to operate on the disruptor source tree as it is not owned by the same user (root).
