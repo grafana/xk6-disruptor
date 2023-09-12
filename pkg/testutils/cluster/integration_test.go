@@ -1,14 +1,13 @@
-//go:build e2e
-// +build e2e
+//go:build integration
+// +build integration
 
-package e2e
+package cluster
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/grafana/xk6-disruptor/pkg/testutils/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 	corev1 "k8s.io/api/core/v1"
@@ -19,9 +18,9 @@ import (
 
 func Test_DefaultConfig(t *testing.T) {
 	// create cluster with default configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-default-cluster",
-		cluster.Options{
+		Options{
 			Wait: time.Second * 60,
 		},
 	)
@@ -42,9 +41,9 @@ func Test_DefaultConfig(t *testing.T) {
 
 func Test_UseEtcdRamDisk(t *testing.T) {
 	// create cluster with default configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-etcdramdisk-cluster",
-		cluster.Options{
+		Options{
 			Wait:           time.Second * 60,
 			UseEtcdRAMDisk: true,
 		},
@@ -80,9 +79,9 @@ func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 
 func Test_PreloadImages(t *testing.T) {
 	// create cluster with preloaded images
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-cluster-with-images",
-		cluster.Options{
+		Options{
 			Wait:   time.Second * 60,
 			Images: []string{"busybox"},
 		},
@@ -141,9 +140,9 @@ func Test_PreloadImages(t *testing.T) {
 
 func Test_KubernetesVersion(t *testing.T) {
 	// create cluster with default configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-default-cluster",
-		cluster.Options{
+		Options{
 			Version: "v1.24.0",
 			Wait:    time.Second * 60,
 		},
@@ -165,9 +164,9 @@ func Test_KubernetesVersion(t *testing.T) {
 
 func Test_InvalidKubernetesVersion(t *testing.T) {
 	// create cluster with default configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-default-cluster",
-		cluster.Options{
+		Options{
 			Version: "v0.0.0",
 			Wait:    time.Second * 60,
 		},
@@ -189,9 +188,9 @@ func Test_InvalidKubernetesVersion(t *testing.T) {
 // returned cluster is functional.
 func Test_GetCluster(t *testing.T) {
 	// create cluster with  configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"e2e-preexisting-cluster",
-		cluster.Options{
+		Options{
 			Wait: time.Second * 60,
 		},
 	)
@@ -206,7 +205,7 @@ func Test_GetCluster(t *testing.T) {
 		return
 	}
 
-	cluster, err := cluster.GetCluster(c.Name(), c.Kubeconfig())
+	cluster, err := GetCluster(c.Name(), c.Kubeconfig())
 	if err != nil {
 		t.Errorf("failed to get cluster: %v", err)
 		return
@@ -222,9 +221,9 @@ func Test_GetCluster(t *testing.T) {
 
 func Test_DeleteCluster(t *testing.T) {
 	// create cluster with  configuration
-	config, err := cluster.NewConfig(
+	config, err := NewConfig(
 		"existing-cluster",
-		cluster.Options{
+		Options{
 			Wait: time.Second * 30,
 		},
 	)
@@ -268,7 +267,7 @@ func Test_DeleteCluster(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			err = cluster.DeleteCluster(tc.name, tc.quiet)
+			err = DeleteCluster(tc.name, tc.quiet)
 			if err != nil && !tc.expectError {
 				t.Fatalf("failed deleting cluster: %v", err)
 			}
