@@ -33,9 +33,6 @@ e2e-disruptors: agent-image e2e-setup
 e2e-cluster:
 	go test -tags e2e ./e2e/cluster/...
 
-e2e-agent: agent-image e2e-setup
-	E2E_REUSE=1 go test -tags e2e ./e2e/agent/...
-
 e2e-kubernetes:
 	go test -tags e2e ./e2e/kubernetes/...
 
