@@ -33,9 +33,6 @@ e2e-disruptors: agent-image e2e-setup
 e2e-cluster:
 	go test -tags e2e ./e2e/cluster/...
 
-e2e-kubernetes:
-	go test -tags e2e ./e2e/kubernetes/...
-
 e2e-setup: build-e2e
 	build/e2e-cluster setup
 
