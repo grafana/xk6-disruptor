@@ -63,7 +63,7 @@ func main() {
 			continue
 		}
 
-		log.Printf("Mismatched versions for %s:\nOurs :%s\nCore: %s", dep, version, coreVersion)
+		log.Printf("Mismatched versions for %s:\nOurs: %s\nCore: %s", dep, version, coreVersion)
 		//nolint:forbidigo // We are willingly writing to stdout here.
 		fmt.Printf("go get %s@%s\n", dep, coreVersion)
 	}
