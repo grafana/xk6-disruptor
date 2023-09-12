@@ -6,12 +6,13 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/k3sutils"
+
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 
@@ -36,51 +37,6 @@ func createRandomTestNamespace(k8s Kubernetes) (string, error) {
 	return ns.Name, nil
 }
 
-// regexMatcher process lines from logs and notifies when a match is found
-type regexMatcher struct {
-	exp   *regexp.Regexp
-	found chan (bool)
-}
-
-// Accept implements the LogConsumer interface
-func (a *regexMatcher) Accept(log testcontainers.Log) {
-	if a.exp.MatchString(string(log.Content)) {
-		a.found <- true
-	}
-}
-
-// waitForRegex waits until a match for the given regex is found in the log produced by the container
-func waitForRegex(ctx context.Context, container testcontainers.Container, exp string, timeout time.Duration) error {
-	regexp, err := regexp.Compile(exp)
-	if err != nil {
-		return err
-	}
-
-	found := make(chan bool)
-	container.FollowOutput(&regexMatcher{
-		exp:   regexp,
-		found: found,
-	})
-
-	err = container.StartLogProducer(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = container.StopLogProducer()
-	}()
-
-	expired := time.After(timeout)
-	select {
-	case <-found:
-		return nil
-	case <-expired:
-		return fmt.Errorf("timeout waiting for a match")
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
 func Test_Kubernetes(t *testing.T) {
 	t.Parallel()
 
@@ -95,7 +51,7 @@ func Test_Kubernetes(t *testing.T) {
 	// see this issue for more details:
 	// https://github.com/testcontainers/testcontainers-go/issues/1547
 	timeout := time.Second * 30
-	err = waitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
+	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
 	if err != nil {
 		t.Fatalf("failed waiting for cluster ready: %s", err)
 	}
@@ -321,7 +277,7 @@ func Test_UnsupportedKubernetesVersion(t *testing.T) {
 	// see this issue for more details:
 	// https://github.com/testcontainers/testcontainers-go/issues/1547
 	timeout := time.Second * 30
-	err = waitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
+	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
 	if err != nil {
 		t.Fatalf("failed waiting for cluster ready: %s", err)
 	}
