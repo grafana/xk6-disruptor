@@ -1,7 +1,7 @@
-//go:build e2e
-// +build e2e
+//go:build integration
+// +build integration
 
-package e2e
+package kubectl
 
 import (
 	"bytes"
@@ -12,35 +12,59 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/cluster"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubectl"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/k3sutils"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+
+
+	"github.com/testcontainers/testcontainers-go/modules/k3s"
+
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func Test_Kubectl(t *testing.T) {
 	t.Parallel()
 
-	cluster, err := cluster.BuildE2eCluster(
-		cluster.DefaultE2eClusterConfig(),
-	)
+	ctx := context.Background()
+
+	container, err := k3s.RunContainer(ctx)
 	if err != nil {
-		t.Errorf("failed to create cluster: %v", err)
-		return
+		t.Fatal(err)
 	}
+
+	// wait for the api server to complete initialization.
+	// see this issue for more details:
+	// https://github.com/testcontainers/testcontainers-go/issues/1547
+	timeout := time.Second * 30
+	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
+	if err != nil {
+		t.Fatalf("failed waiting for cluster ready: %s", err)
+	}
+
+	// Clean up the container after the test is complete
 	t.Cleanup(func() {
-		_ = cluster.Cleanup()
+		if err = container.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
 	})
 
-	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
+	kubeConfigYaml, err := container.GetKubeConfig(ctx)
 	if err != nil {
-		t.Errorf("error creating kubernetes client: %v", err)
-		return
+		t.Fatalf("failed to get kube-config : %s", err)
 	}
 
-	// Test Wait Pod Running
-	t.Run("Test local random port", func(t *testing.T) {
+	restcfg, err := clientcmd.RESTConfigFromKubeConfig(kubeConfigYaml)
+	if err != nil {
+		t.Fatalf("failed to create rest client for kubernetes : %s", err)
+	}
+
+	k8s, err := kubernetes.NewFromConfig(restcfg)
+	if err != nil {
+		t.Fatalf("error creating kubernetes client: %v", err)
+	}
+
+	t.Run("Test port forwarding", func(t *testing.T) {
 		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
 		if err != nil {
 			t.Errorf("failed to create test namespace: %v", err)
@@ -63,7 +87,7 @@ func Test_Kubectl(t *testing.T) {
 			return
 		}
 
-		client, err := kubectl.NewFromKubeconfig(context.TODO(), cluster.Kubeconfig())
+		client, err := NewForConfig(context.TODO(), restcfg)
 		if err != nil {
 			t.Errorf("failed to create kubectl client: %v", err)
 			return
