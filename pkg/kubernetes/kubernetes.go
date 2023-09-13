@@ -31,8 +31,8 @@ type k8s struct {
 	kubernetes.Interface
 }
 
-// newFromConfig returns a Kubernetes instance configured with the provided kubeconfig.
-func newFromConfig(config *rest.Config) (Kubernetes, error) {
+// NewFromConfig returns a Kubernetes instance configured with the provided kubeconfig.
+func NewFromConfig(config *rest.Config) (Kubernetes, error) {
 	// As per the discussion in [1] client side rate limiting is no longer required.
 	// Setting a large limit
 	// [1] https://github.com/kubernetes/kubernetes/issues/111880
@@ -62,7 +62,7 @@ func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 		return nil, err
 	}
 
-	return newFromConfig(config)
+	return NewFromConfig(config)
 }
 
 // New returns a Kubernetes instance or an error when no config is eligible to be used.
@@ -73,7 +73,7 @@ func NewFromKubeconfig(kubeconfig string) (Kubernetes, error) {
 func New() (Kubernetes, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err == nil {
-		return newFromConfig(k8sConfig)
+		return NewFromConfig(k8sConfig)
 	}
 
 	if !errors.Is(err, rest.ErrNotInCluster) {
