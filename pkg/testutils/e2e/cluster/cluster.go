@@ -108,8 +108,12 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
 	return E2eClusterConfig{
-		Name:        "e2e-test",
-		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
+		Name: "e2e-test",
+		Images: []string{
+			"ghcr.io/grafana/xk6-disruptor-agent:latest",
+			"kennethreitz/httpbin",
+			"moul/grpcbin",
+		},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
 		Reuse:       false,
