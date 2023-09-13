@@ -45,6 +45,8 @@ type E2eCluster interface {
 	Kubeconfig() string
 	// Name returns the name of the cluster
 	Name() string
+	// Load loads the supplied images to the clusters' nodes.
+	Load(images ...string) error
 }
 
 const contourConfig = `
@@ -108,12 +110,8 @@ func InstallContourIngress(ctx context.Context, cluster E2eCluster) error {
 // TODO: allow override of default port using an environment variable (E2E_INGRESS_PORT)
 func DefaultE2eClusterConfig() E2eClusterConfig {
 	return E2eClusterConfig{
-		Name: "e2e-test",
-		Images: []string{
-			"ghcr.io/grafana/xk6-disruptor-agent:latest",
-			"kennethreitz/httpbin",
-			"moul/grpcbin",
-		},
+		Name:        "e2e-test",
+		Images:      []string{"ghcr.io/grafana/xk6-disruptor-agent:latest"},
 		IngressAddr: "localhost",
 		IngressPort: 30080,
 		Reuse:       false,
@@ -354,4 +352,8 @@ func (c *e2eCluster) Ingress() string {
 
 func (c *e2eCluster) Kubeconfig() string {
 	return c.cluster.Kubeconfig()
+}
+
+func (c *e2eCluster) Load(images ...string) error {
+	return c.cluster.Load(images...)
 }

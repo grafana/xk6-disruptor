@@ -269,20 +269,6 @@ func (c *Config) Create() (*Cluster, error) {
 		return nil, err
 	}
 
-	// pre-load images
-	if len(c.options.Images) > 0 {
-		var nodes []nodes.Node
-
-		nodes, err = provider.ListInternalNodes(c.name)
-		if err != nil {
-			return nil, err
-		}
-		err = loadImages(c.options.Images, nodes)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	kubeconfig := c.options.Kubeconfig
 	if kubeconfig == "" {
 		kubeconfig = filepath.Join(os.TempDir(), c.name)
@@ -292,11 +278,21 @@ func (c *Config) Create() (*Cluster, error) {
 		return nil, err
 	}
 
-	return &Cluster{
+	cluster := &Cluster{
 		name:       c.name,
 		kubeconfig: kubeconfig,
 		provider:   *provider,
-	}, nil
+	}
+
+	// pre-load images
+	if len(c.options.Images) > 0 {
+		err = cluster.Load(c.options.Images...)
+		if err != nil {
+			return nil, fmt.Errorf("preloading images: %w", err)
+		}
+	}
+
+	return cluster, nil
 }
 
 // Delete deletes a test cluster
@@ -315,6 +311,20 @@ func (c *Cluster) Kubeconfig() string {
 // Name returns the name of the cluster
 func (c *Cluster) Name() string {
 	return c.name
+}
+
+// Load loads the supplied images into the cluster.
+func (c *Cluster) Load(images ...string) error {
+	nodes, err := c.provider.ListInternalNodes(c.name)
+	if err != nil {
+		return err
+	}
+	err = loadImages(images, nodes)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetCluster returns an existing cluster if exists, nil otherwise

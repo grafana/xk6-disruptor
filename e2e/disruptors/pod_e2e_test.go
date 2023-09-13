@@ -39,6 +39,14 @@ func Test_PodDisruptor(t *testing.T) {
 		_ = cluster.Cleanup()
 	})
 
+	err = cluster.Load(
+		fixtures.BuildHttpbinPod().Spec.Containers[0].Image,
+		fixtures.BuildGrpcpbinPod().Spec.Containers[0].Image,
+	)
+	if err != nil {
+		t.Fatalf("preloading test pod images: %v", err)
+	}
+
 	k8s, err := kubernetes.NewFromKubeconfig(cluster.Kubeconfig())
 	if err != nil {
 		t.Errorf("error creating kubernetes client: %v", err)
