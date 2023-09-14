@@ -26,6 +26,7 @@ func TestPods_Wait(t *testing.T) {
 		test           string
 		name           string
 		phase          corev1.PodPhase
+		conditions     []corev1.PodCondition
 		delay          time.Duration
 		expectError    bool
 		expectedResult bool
@@ -34,18 +35,47 @@ func TestPods_Wait(t *testing.T) {
 
 	testCases := []TestCase{
 		{
-			test:           "wait pod running",
-			name:           "pod-running",
-			delay:          1 * time.Second,
-			phase:          corev1.PodRunning,
+			test:  "pod running and ready",
+			name:  "pod-running-ready",
+			delay: 1 * time.Second,
+			phase: corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+				},
+			},
 			expectError:    false,
 			expectedResult: true,
 			timeout:        5 * time.Second,
 		},
 		{
-			test:           "timeout waiting pod running",
-			name:           "pod-running",
+			test:  "pod running but not ready",
+			name:  "pod-running-not-ready",
+			delay: 1 * time.Second,
+			phase: corev1.PodRunning,
+			conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionFalse,
+				},
+			},
+			expectError:    false,
+			expectedResult: false,
+			timeout:        5 * time.Second,
+		},
+		{
+			test:           "pod running no conditions",
+			name:           "pod-running-no-conditions",
+			delay:          1 * time.Second,
 			phase:          corev1.PodRunning,
+			expectError:    false,
+			expectedResult: false,
+			timeout:        5 * time.Second,
+		},
+		{
+			test:           "pod not running",
+			name:           "pod-not-running",
 			delay:          10 * time.Second,
 			expectError:    false,
 			expectedResult: false,
@@ -71,6 +101,7 @@ func TestPods_Wait(t *testing.T) {
 			observer := func(event builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
 				time.Sleep(tc.delay)
 				pod.Status.Phase = tc.phase
+				pod.Status.Conditions = tc.conditions
 				// update pod and stop watching updates
 				return pod, false, nil
 			}
@@ -95,7 +126,7 @@ func TestPods_Wait(t *testing.T) {
 			}
 
 			h := NewPodHelper(client, nil, testNamespace)
-			result, err := h.WaitPodRunning(
+			result, err := h.WaitPodReady(
 				context.TODO(),
 				tc.name,
 				tc.timeout,

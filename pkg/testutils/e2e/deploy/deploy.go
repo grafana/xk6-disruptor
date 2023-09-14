@@ -26,7 +26,7 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod corev1.Pod, timeout time.D
 		return fmt.Errorf("error creating pod %s: %w", pod.Name, err)
 	}
 
-	running, err := k8s.PodHelper(ns).WaitPodRunning(
+	running, err := k8s.PodHelper(ns).WaitPodReady(
 		context.TODO(),
 		pod.Name,
 		timeout,
