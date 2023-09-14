@@ -63,11 +63,11 @@ func Test_ServiceDisruptor(t *testing.T) {
 			check    checks.Check
 		}{
 			{
-				title:    "Inject Http error 500",
-				pod:      fixtures.BuildHttpbinPod(),
-				replicas: 1,
-				service:  fixtures.BuildHttpbinService(),
-				port:     80,
+
+				title:   "Inject Http error 500",
+				pod:     fixtures.BuildHttpbinPodWithoutProbes(),
+				service: fixtures.BuildHttpbinService(),
+				port:    80,
 				injector: func(d disruptors.ServiceDisruptor) error {
 					fault := disruptors.HTTPFault{
 						Port:      intstr.FromInt32(80),
