@@ -1,6 +1,9 @@
 package builders
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+)
 
 // ContainerBuilder defines the methods for building a Container
 type ContainerBuilder interface {
@@ -21,17 +24,20 @@ type ContainerBuilder interface {
 	// WithEnvVarFromField adds an environment variable to the container referencing a field
 	// Example: "PodName", "metadata.name"
 	WithEnvVarFromField(name string, path string) ContainerBuilder
+	// WithHTTPReadinessProbe adds an HTTP GET readiness probe to the first pod of the container.
+	WithHTTPReadinessProbe() ContainerBuilder
 }
 
 // containerBuilder maintains the configuration for building a container
 type containerBuilder struct {
-	name         string
-	image        string
-	imagePolicy  corev1.PullPolicy
-	command      []string
-	ports        []corev1.ContainerPort
-	capabilities []corev1.Capability
-	vars         []corev1.EnvVar
+	name           string
+	image          string
+	imagePolicy    corev1.PullPolicy
+	command        []string
+	ports          []corev1.ContainerPort
+	capabilities   []corev1.Capability
+	vars           []corev1.EnvVar
+	readinessProbe *corev1.Probe
 }
 
 // NewContainerBuilder returns a new ContainerBuilder
@@ -87,6 +93,23 @@ func (b *containerBuilder) WithEnvVarFromField(name string, path string) Contain
 	return b
 }
 
+func (b *containerBuilder) WithHTTPReadinessProbe() ContainerBuilder {
+	b.readinessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/",
+				Port: intstr.FromString(b.ports[0].Name),
+			},
+		},
+		TimeoutSeconds:   1,
+		PeriodSeconds:    1,
+		SuccessThreshold: 1,
+		FailureThreshold: 1,
+	}
+
+	return b
+}
+
 func (b *containerBuilder) Build() corev1.Container {
 	return corev1.Container{
 		Name:            b.name,
@@ -99,6 +122,7 @@ func (b *containerBuilder) Build() corev1.Container {
 				Add: b.capabilities,
 			},
 		},
-		Env: b.vars,
+		ReadinessProbe: b.readinessProbe,
+		Env:            b.vars,
 	}
 }
