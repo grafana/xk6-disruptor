@@ -4,7 +4,6 @@
 package kubectl
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -13,11 +12,9 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/k3sutils"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
-
-
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -72,14 +69,7 @@ func Test_Kubectl(t *testing.T) {
 		}
 
 		// Deploy nginx
-		nginx := builders.NewPodBuilder("nginx").
-			WithContainer(
-				builders.NewContainerBuilder("nginx").
-					WithImage("nginx").
-					WithPort("http", 80).
-					Build(),
-			).
-			Build()
+		nginx := fixtures.BuildNginxPod()
 
 		err = deploy.RunPod(k8s, namespace, nginx, 20*time.Second)
 		if err != nil {
@@ -104,7 +94,7 @@ func Test_Kubectl(t *testing.T) {
 		}
 
 		url := fmt.Sprintf("http://localhost:%d", port)
-		request, err := http.NewRequest("GET", url, bytes.NewReader([]byte{}))
+		request, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			t.Errorf("failed to create request: %v", err)
 			return
