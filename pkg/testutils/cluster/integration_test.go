@@ -19,7 +19,7 @@ import (
 func Test_DefaultConfig(t *testing.T) {
 	// create cluster with default configuration
 	config, err := NewConfig(
-		"e2e-default-cluster",
+		"default-cluster",
 		Options{
 			Wait: time.Second * 60,
 		},
@@ -42,7 +42,7 @@ func Test_DefaultConfig(t *testing.T) {
 func Test_UseEtcdRamDisk(t *testing.T) {
 	// create cluster with default configuration
 	config, err := NewConfig(
-		"e2e-etcdramdisk-cluster",
+		"etcd-ramdisk-cluster",
 		Options{
 			Wait:           time.Second * 60,
 			UseEtcdRAMDisk: true,
@@ -80,7 +80,7 @@ func getKubernetesClient(kubeconfig string) (kubernetes.Interface, error) {
 func Test_PreloadImages(t *testing.T) {
 	// create cluster with preloaded images
 	config, err := NewConfig(
-		"e2e-cluster-with-images",
+		"cluster-with-images",
 		Options{
 			Wait:   time.Second * 60,
 			Images: []string{"busybox"},
@@ -141,7 +141,7 @@ func Test_PreloadImages(t *testing.T) {
 func Test_KubernetesVersion(t *testing.T) {
 	// create cluster with default configuration
 	config, err := NewConfig(
-		"e2e-default-cluster",
+		"k8s-1-24-cluster",
 		Options{
 			Version: "v1.24.0",
 			Wait:    time.Second * 60,
@@ -165,7 +165,7 @@ func Test_KubernetesVersion(t *testing.T) {
 func Test_InvalidKubernetesVersion(t *testing.T) {
 	// create cluster with default configuration
 	config, err := NewConfig(
-		"e2e-default-cluster",
+		"invalid-k8s-version-cluster",
 		Options{
 			Version: "v0.0.0",
 			Wait:    time.Second * 60,
@@ -189,7 +189,7 @@ func Test_InvalidKubernetesVersion(t *testing.T) {
 func Test_GetCluster(t *testing.T) {
 	// create cluster with  configuration
 	config, err := NewConfig(
-		"e2e-preexisting-cluster",
+		"preexisting-cluster",
 		Options{
 			Wait: time.Second * 60,
 		},
@@ -222,7 +222,7 @@ func Test_GetCluster(t *testing.T) {
 func Test_DeleteCluster(t *testing.T) {
 	// create cluster with  configuration
 	config, err := NewConfig(
-		"existing-cluster",
+		"for-delete-cluster",
 		Options{
 			Wait: time.Second * 30,
 		},
@@ -246,7 +246,7 @@ func Test_DeleteCluster(t *testing.T) {
 	}{
 		{
 			test:        "delete existing cluster",
-			name:        "existing-cluster",
+			name:        "for-delete-cluster",
 			quiet:       false,
 			expectError: false,
 		},
