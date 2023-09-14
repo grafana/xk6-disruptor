@@ -23,6 +23,14 @@ func BuildHttpbinPod() corev1.Pod {
 		Build()
 }
 
+// BuildHttpbinPodWithoutProbes returns the same pod as BuildHttpbinPod would, but without any probes.
+func BuildHttpbinPodWithoutProbes() corev1.Pod {
+	pod := BuildHttpbinPod()
+	pod.Spec.Containers[0].ReadinessProbe = nil
+
+	return pod
+}
+
 // BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
 func BuildGrpcpbinPod() corev1.Pod {
 	c := builders.NewContainerBuilder("grpcbin").
@@ -95,6 +103,14 @@ func BuildNginxPod() corev1.Pod {
 		WithLabel("app", "nginx").
 		WithContainer(c).
 		Build()
+}
+
+// BuildNginxPodWithoutProbes returns the same pod as BuildNginxPod would, but without any probes.
+func BuildNginxPodWithoutProbes() corev1.Pod {
+	pod := BuildNginxPod()
+	pod.Spec.Containers[0].ReadinessProbe = nil
+
+	return pod
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)

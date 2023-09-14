@@ -66,7 +66,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}{
 			{
 				title:   "Inject Http error 500",
-				pod:     fixtures.BuildHttpbinPod(),
+				pod:     fixtures.BuildHttpbinPodWithoutProbes(),
 				service: fixtures.BuildHttpbinService(),
 				port:    80,
 				injector: func(d disruptors.PodDisruptor) error {
@@ -223,7 +223,7 @@ func Test_PodDisruptor(t *testing.T) {
 		err = deploy.ExposeApp(
 			k8s,
 			namespace,
-			fixtures.BuildHttpbinPod(),
+			fixtures.BuildHttpbinPodWithoutProbes(), // Probes generate requests, invalidating the test.
 			service,
 			intstr.FromInt(80),
 			30*time.Second,
