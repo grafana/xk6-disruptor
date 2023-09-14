@@ -14,6 +14,7 @@ func BuildHttpbinPod() corev1.Pod {
 		WithImage("kennethreitz/httpbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).
+		WithHTTPReadinessProbe().
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
@@ -83,10 +84,11 @@ func BuildPausedPod() corev1.Pod {
 
 // BuildNginxPod returns the definition of a Pod that runs Nginx
 func BuildNginxPod() corev1.Pod {
-	c := builders.NewContainerBuilder("busybox").
+	c := builders.NewContainerBuilder("nginx").
 		WithImage("nginx").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).
+		WithHTTPReadinessProbe().
 		Build()
 
 	return builders.NewPodBuilder("nginx").
