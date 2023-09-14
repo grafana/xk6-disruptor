@@ -38,9 +38,8 @@ func NewRootCommand(env runtime.Environment) *RootCommand {
 func (c *RootCommand) Execute(ctx context.Context) error {
 	rootArgs := c.env.Args()[1:]
 	c.cmd.SetArgs(rootArgs)
-	c.cmd.SetContext(ctx)
 
-	return c.cmd.Execute()
+	return c.cmd.ExecuteContext(ctx)
 }
 
 func buildRootCmd(c *agent.Config) *cobra.Command {
