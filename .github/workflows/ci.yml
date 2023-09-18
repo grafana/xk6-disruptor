@@ -28,6 +28,15 @@ jobs:
           go install go.k6.io/xk6/cmd/xk6@latest
           xk6 build --with $(go list -m)=.
 
+  build-with-xk6-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build with xk6
+        run: |
+          docker run --rm -i -u "$(id -u):$(id -g)" -v "${PWD}:/xk6" grafana/xk6 build --with $(go list -m)=/xk6
+
   run-unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
