@@ -4,19 +4,27 @@ set -eo pipefail
 
 tmpdir=$(mktemp -d)
 
-go run ./hack/depsync 2> "$tmpdir/deps.log" > "$tmpdir/sync.sh"
-bash "$tmpdir/sync.sh" 2>&1 | tee -a "$tmpdir/go-get.log"
+gogetcmd=$(go run ./hack/depsync 2>"$tmpdir/deps.log")
+
+if [[ -z $gogetcmd ]]; then
+	echo "Nothing to do."
+	exit 0
+fi
+
+echo "Running $gogetcmd"
+$gogetcmd 2>&1 | tee -a "$tmpdir/go-get.log"
+
 go mod tidy
 
-cat <<EOF > depsync-pr-body.txt
+cat <<EOF >depsync-pr-body.txt
 This automated PR aligns the following dependency mismatches with k6 core:
 \`\`\`
 $(cat "$tmpdir/deps.log")
 \`\`\`
 
-The following commands were run to align the dependencies:
+The following command was run to align the dependencies:
 \`\`\`shell
-$(cat "$tmpdir/sync.sh")
+$gogetcmd
 \`\`\`
 
 And produced the following output:
