@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -53,6 +54,7 @@ func main() {
 		log.Fatalf("reading k6 core dependencies: %v", err)
 	}
 
+	var mismatched []string
 	for dep, version := range ownDeps {
 		coreVersion, inCore := coreDeps[dep]
 		if !inCore {
@@ -63,10 +65,20 @@ func main() {
 			continue
 		}
 
-		log.Printf("Mismatched versions for %s:\nOurs: %s\nCore: %s", dep, version, coreVersion)
-		//nolint:forbidigo // We are willingly writing to stdout here.
-		fmt.Printf("go get %s@%s\n", dep, coreVersion)
+		log.Printf("Mismatched versions for %s: %s (ours) -> %s (core)", dep, version, coreVersion)
+		mismatched = append(mismatched, fmt.Sprintf("%s@%s", dep, coreVersion))
 	}
+
+	if len(mismatched) == 0 {
+		log.Println("All deps are in sync, nothing to do.")
+		return
+	}
+
+	// TODO: Use slices.Sort when we move to a go version that has it on the stdlib.
+	sort.Strings(mismatched)
+
+	//nolint:forbidigo // We are willingly writing to stdout here.
+	fmt.Printf("go get %s\n", strings.Join(mismatched, " "))
 }
 
 func dependencies(reader io.Reader) (map[string]string, error) {
