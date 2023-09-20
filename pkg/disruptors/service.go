@@ -88,14 +88,14 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	injector := ServiceHTTPFaultInjector{
+	visitor := ServiceHTTPFaultVisitor{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, injector)
+	return d.controller.Visit(ctx, visitor)
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
@@ -104,14 +104,14 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	injector := ServiceGrpcFaultInjector{
+	visitor := ServiceGrpcFaultVisitor{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, injector)
+	return d.controller.Visit(ctx, visitor)
 }
 
 func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {

@@ -31,7 +31,7 @@ func buildPodWithPort(name string, portName string, port int32) corev1.Pod {
 	return pod
 }
 
-func Test_PodHTTPFaultInjection(t *testing.T) {
+func Test_PodHTTPFaultVisitor(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -159,13 +159,13 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			injector := PodHTTPFaultInjector{
+			visitor := PodHTTPFaultVisitor{
 				fault:    tc.fault,
 				duration: tc.duration,
 				options:  tc.opts,
 			}
 
-			cmds, err := injector.Visit(tc.target)
+			cmds, err := visitor.Visit(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -185,7 +185,7 @@ func Test_PodHTTPFaultInjection(t *testing.T) {
 	}
 }
 
-func Test_PodGrpcPFaultInjection(t *testing.T) {
+func Test_PodGrpcPFaultVisitor(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -268,13 +268,13 @@ func Test_PodGrpcPFaultInjection(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			injector := PodGrpcFaultInjector{
+			visitor := PodGrpcFaultVisitor{
 				fault:    tc.fault,
 				duration: tc.duration,
 				options:  tc.opts,
 			}
 
-			cmds, err := injector.Visit(tc.target)
+			cmds, err := visitor.Visit(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
