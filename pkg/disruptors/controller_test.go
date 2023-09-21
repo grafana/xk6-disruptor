@@ -117,6 +117,15 @@ func Test_InjectAgent(t *testing.T) {
 	}
 }
 
+type fakeVisitor struct {
+	cmds VisitCommands
+	err  error
+}
+
+func (v fakeVisitor) Visit(_ corev1.Pod) (VisitCommands, error) {
+	return v.cmds, v.err
+}
+
 func Test_VisitPod(t *testing.T) {
 	t.Parallel()
 
@@ -206,9 +215,10 @@ func Test_VisitPod(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			err := controller.Visit(context.TODO(), func(target corev1.Pod) (VisitCommands, error) {
-				return tc.visitCmds, nil
-			})
+			visitor := fakeVisitor{
+				cmds: tc.visitCmds,
+			}
+			err := controller.Visit(context.TODO(), visitor)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}

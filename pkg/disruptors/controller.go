@@ -14,6 +14,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// PodVisitor defines the interface for visiting Pods
+type PodVisitor interface {
+	// Visit returns the VisitComands for visiting the Pod
+	Visit(pod corev1.Pod) (VisitCommands, error)
+}
+
 // VisitCommands define the commands used for visiting a Pod
 type VisitCommands struct {
 	// Exec defines the command to be executed
@@ -26,12 +32,10 @@ type VisitCommands struct {
 type AgentController interface {
 	// InjectDisruptorAgent injects the Disruptor agent in the target pods
 	InjectDisruptorAgent(ctx context.Context) error
-	// ExecCommand executes a command in the targets of the AgentController and reports any error
-	ExecCommand(ctx context.Context, cmd []string) error
 	// Targets retrieves the names of the target of the controller
 	Targets(ctx context.Context) ([]string, error)
 	// Visit allows executing a different command on each target returned by a visiting function
-	Visit(ctx context.Context, visitor func(target corev1.Pod) (VisitCommands, error)) error
+	Visit(ctx context.Context, visitor PodVisitor) error
 }
 
 // AgentController controls de agents in a set of target pods
@@ -102,16 +106,8 @@ func (c *agentController) InjectDisruptorAgent(ctx context.Context) error {
 	}
 }
 
-// ExecCommand executes a command in the targets of the AgentController and reports any error
-func (c *agentController) ExecCommand(ctx context.Context, cmd []string) error {
-	// visit each target with the same command
-	return c.Visit(ctx, func(corev1.Pod) (VisitCommands, error) {
-		return VisitCommands{Exec: cmd}, nil
-	})
-}
-
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) (VisitCommands, error)) error {
+func (c *agentController) Visit(ctx context.Context, visitor PodVisitor) error {
 	// if there are no targets, nothing to do
 	if len(c.targets) == 0 {
 		return nil
@@ -128,7 +124,7 @@ func (c *agentController) Visit(ctx context.Context, visitor func(corev1.Pod) (V
 		go func() {
 			errCh <- func(pod corev1.Pod) error {
 				// get the command to execute in the target
-				visitCommands, err := visitor(pod)
+				visitCommands, err := visitor.Visit(pod)
 				if err != nil {
 					return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 				}
