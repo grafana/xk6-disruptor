@@ -54,6 +54,7 @@ func main() {
 		log.Fatalf("reading k6 core dependencies: %v", err)
 	}
 
+	//nolint:prealloc // Number of mismatched deps cannot be accurately predicted.
 	var mismatched []string
 	for dep, version := range ownDeps {
 		coreVersion, inCore := coreDeps[dep]
