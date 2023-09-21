@@ -16,7 +16,7 @@ import (
 
 const (
 	k6Core     = "go.k6.io/k6"
-	k6GoModURL = "https://raw.githubusercontent.com/grafana/k6/%s/go.mod"
+	k6GoModURL = "https://proxy.golang.org/go.k6.io/k6/@v/%s.mod"
 )
 
 func main() {
