@@ -10,6 +10,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/nettest/tlog"
 )
 
 const iptablesRule = "INPUT -p tcp --dport 6379 -j REJECT --reject-with tcp-reset"
@@ -26,7 +28,6 @@ func Test_Redis(t *testing.T) {
 	redis, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
 		ContainerRequest: testcontainers.ContainerRequest{
-			Networks:     []string{},
 			Image:        "redis",
 			ExposedPorts: []string{"6379/tcp"},
 			WaitingFor:   wait.ForExposedPort(),
@@ -79,11 +80,21 @@ func Test_Redis(t *testing.T) {
 		t.Fatalf("failed to create agent container %v", err)
 	}
 
-	t.Cleanup(func() {
-		_ = redisGo.Terminate(ctx)
-	})
+	// TODO: Calling terminate with a log attached makes the test hang.
+	// See: https://github.com/testcontainers/testcontainers-go/issues/1669
+	// t.Cleanup(func() {
+	// 	_ = redisGo.Terminate(ctx)
+	// })
 
-	// TODO:Follow container under test logs. Currently doing so hangs out the test forever.
+	redisGo.FollowOutput(tlog.Mirror{T: t, Name: "redis-go"})
+	err = redisGo.StartLogProducer(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// TODO: See above.
+	// t.Cleanup(func() {
+	// 	redisGo.StopLogProducer()
+	// })
 
 	redisGoStatus, err := redisGo.State(ctx)
 	if err != nil {
