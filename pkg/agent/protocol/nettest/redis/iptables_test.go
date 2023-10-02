@@ -11,12 +11,12 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/nettest/tlog"
+	"github.com/grafana/xk6-disruptor/pkg/agent/protocol/nettest/util"
 )
 
 const iptablesRule = "INPUT -p tcp --dport 6379 -j REJECT --reject-with tcp-reset"
 
-func Test_Redis(t *testing.T) {
+func Test_Redis_Iptables(t *testing.T) {
 	t.Parallel()
 
 	if os.Getenv("NETTEST") == "" {
@@ -83,10 +83,10 @@ func Test_Redis(t *testing.T) {
 	// TODO: Calling terminate with a log attached makes the test hang.
 	// See: https://github.com/testcontainers/testcontainers-go/issues/1669
 	// t.Cleanup(func() {
-	// 	_ = redisGo.Terminate(ctx)
+	//  	_ = redisGo.Terminate(ctx)
 	// })
 
-	redisGo.FollowOutput(tlog.Mirror{T: t, Name: "redis-go"})
+	redisGo.FollowOutput(util.Mirror{T: t, Name: "redis-go"})
 	err = redisGo.StartLogProducer(ctx)
 	if err != nil {
 		t.Fatal(err)
