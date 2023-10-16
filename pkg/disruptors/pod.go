@@ -37,7 +37,7 @@ type PodDisruptorOptions struct {
 
 // podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
 type podDisruptor struct {
-	controller AgentController
+	fleet *AgentFleet
 }
 
 // PodSelector defines the criteria for selecting a pod for disruption
@@ -134,24 +134,23 @@ func NewPodDisruptor(
 	}
 
 	controller := NewAgentController(
-		ctx,
 		helper,
 		namespace,
-		targets,
-		options.InjectTimeout,
+		AgentControllerOptions{Timeout: options.InjectTimeout},
 	)
-	err = controller.InjectDisruptorAgent(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	fleet := NewAgentFleet(targets, controller)
+
 	return &podDisruptor{
-		controller: controller,
+		fleet: fleet,
 	}, nil
 }
 
 func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
-	return d.controller.Targets(ctx)
+	return d.fleet.Targets(ctx)
 }
 
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
@@ -171,7 +170,7 @@ func (d *podDisruptor) InjectHTTPFaults(
 		duration: duration,
 		options:  options,
 	}
-	return d.controller.Visit(ctx, visitor)
+	return d.fleet.Visit(ctx, visitor)
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
@@ -187,5 +186,5 @@ func (d *podDisruptor) InjectGrpcFaults(
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, visitor)
+	return d.fleet.Visit(ctx, visitor)
 }
