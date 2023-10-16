@@ -64,8 +64,8 @@ func NewAgentController(helper helpers.PodHelper, namespace string, options Agen
 	}
 }
 
-// InjectDisruptorAgent injects the Disruptor agent in the target pods
-func (c *AgentController) InjectDisruptorAgent(ctx context.Context, pod corev1.Pod) error {
+// injectDisruptorAgent injects the Disruptor agent in the target pods
+func (c *AgentController) injectDisruptorAgent(ctx context.Context, pod corev1.Pod) error {
 	var (
 		rootUser     = int64(0)
 		rootGroup    = int64(0)
@@ -103,6 +103,11 @@ func (c *AgentController) InjectDisruptorAgent(ctx context.Context, pod corev1.P
 
 // Visit allows executing a different command on each target returned by a visiting function
 func (c *AgentController) Visit(ctx context.Context, pod corev1.Pod, visitor PodVisitor) error {
+	err := c.injectDisruptorAgent(ctx, pod)
+	if err != nil {
+		return fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
+	}
+
 	// get the command to execute in the target
 	visitCommands, err := visitor.Visit(pod)
 	if err != nil {
@@ -153,17 +158,11 @@ func (c *AgentFleet) Visit(ctx context.Context, visitor PodVisitor) error {
 	for _, pod := range c.targets {
 		wg.Add(1)
 		go func(pod corev1.Pod) {
-			defer wg.Done()
-
-			err := c.controller.InjectDisruptorAgent(ctx, pod)
-			if err != nil {
-				errCh <- fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
-				return
-			}
-
 			if err := c.controller.Visit(visitCtx, pod, visitor); err != nil {
 				errCh <- err
 			}
+
+			wg.Done()
 		}(pod)
 	}
 
