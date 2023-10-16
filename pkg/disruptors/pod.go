@@ -165,7 +165,7 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	visitor := PodHTTPFaultVisitor{
+	visitor := PodHTTPFaultCommandGenerator{
 		fault:    fault,
 		duration: duration,
 		options:  options,
@@ -180,7 +180,7 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	visitor := PodGrpcFaultVisitor{
+	visitor := PodGrpcFaultCommandGenerator{
 		fault:    fault,
 		duration: duration,
 		options:  options,

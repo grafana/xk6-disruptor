@@ -14,10 +14,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// PodVisitor defines the interface for visiting Pods
-type PodVisitor interface {
-	// Visit returns the VisitComands for visiting the Pod
-	Visit(pod corev1.Pod) (VisitCommands, error)
+// AgentCommandGenerator defines the interface for generating agent commands
+type AgentCommandGenerator interface {
+	// GetCommands returns the VisitCommands for visiting the Pod
+	GetCommands(pod corev1.Pod) (VisitCommands, error)
 }
 
 // VisitCommands define the commands used for visiting a Pod
@@ -102,14 +102,14 @@ func (c *AgentController) injectDisruptorAgent(ctx context.Context, pod corev1.P
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *AgentController) Visit(ctx context.Context, pod corev1.Pod, visitor PodVisitor) error {
+func (c *AgentController) Visit(ctx context.Context, pod corev1.Pod, visitor AgentCommandGenerator) error {
 	err := c.injectDisruptorAgent(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
 	}
 
 	// get the command to execute in the target
-	visitCommands, err := visitor.Visit(pod)
+	visitCommands, err := visitor.GetCommands(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
@@ -141,7 +141,7 @@ func NewAgentFleet(targets []corev1.Pod, controller *AgentController) *AgentFlee
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *AgentFleet) Visit(ctx context.Context, visitor PodVisitor) error {
+func (c *AgentFleet) Visit(ctx context.Context, visitor AgentCommandGenerator) error {
 	// if there are no targets, nothing to do
 	if len(c.targets) == 0 {
 		return nil

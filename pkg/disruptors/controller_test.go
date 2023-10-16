@@ -14,12 +14,12 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-type fakeVisitor struct {
+type fakeCommandGenerator struct {
 	cmds VisitCommands
 	err  error
 }
 
-func (v fakeVisitor) Visit(_ corev1.Pod) (VisitCommands, error) {
+func (v fakeCommandGenerator) GetCommands(_ corev1.Pod) (VisitCommands, error) {
 	return v.cmds, v.err
 }
 
@@ -116,10 +116,10 @@ func Test_VisitPod(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			visitor := fakeVisitor{
+			commandGenerator := fakeCommandGenerator{
 				cmds: tc.visitCmds,
 			}
-			err := controller.Visit(context.TODO(), tc.pod, visitor)
+			err := controller.Visit(context.TODO(), tc.pod, commandGenerator)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}

@@ -83,7 +83,7 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	visitor := ServiceHTTPFaultVisitor{
+	visitor := ServiceHTTPFaultCommandGenerator{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
@@ -99,7 +99,7 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	visitor := ServiceGrpcFaultVisitor{
+	visitor := ServiceGrpcFaultCommandGenerator{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
