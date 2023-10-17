@@ -19,17 +19,13 @@ func Test_NewPodDisruptor(t *testing.T) {
 
 	testCases := []struct {
 		title       string
-		name        string
-		namespace   string
 		pods        []corev1.Pod
 		selector    PodSelector
 		expectError bool
 		expected    []string
 	}{
 		{
-			title:     "matching pods",
-			name:      "test-svc",
-			namespace: "test-ns",
+			title: "matching pods",
 			pods: []corev1.Pod{
 				builders.NewPodBuilder("pod-1").
 					WithNamespace("test-ns").
@@ -47,10 +43,8 @@ func Test_NewPodDisruptor(t *testing.T) {
 			expected:    []string{"pod-1"},
 		},
 		{
-			title:     "no matching pods",
-			name:      "test-svc",
-			namespace: "test-ns",
-			pods:      []corev1.Pod{},
+			title: "no matching pods",
+			pods:  []corev1.Pod{},
 			selector: PodSelector{
 				Namespace: "test-ns",
 				Select: PodAttributes{Labels: map[string]string{

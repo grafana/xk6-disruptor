@@ -159,7 +159,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 				options:  tc.opts,
 			}
 
-			exec, _, err := cmd.Commands(tc.target)
+			cmds, err := cmd.Commands(tc.target)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -170,8 +170,8 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 				return
 			}
 
-			if !command.AssertCmdEquals(strings.Join(exec, " "), tc.expectedCmd) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
+			if !command.AssertCmdEquals(strings.Join(cmds.Exec, " "), tc.expectedCmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmds.Exec)
 			}
 		})
 	}
@@ -266,7 +266,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 				options:  tc.opts,
 			}
 
-			exec, _, err := cmd.Commands(tc.target)
+			cmds, err := cmd.Commands(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -278,8 +278,8 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 				return
 			}
 
-			if !command.AssertCmdEquals(strings.Join(exec, " "), tc.expectedCmd) {
-				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
+			if !command.AssertCmdEquals(strings.Join(cmds.Exec, " "), tc.expectedCmd) {
+				t.Errorf("expected command: %s got: %s", tc.expectedCmd, cmds.Exec)
 			}
 		})
 	}

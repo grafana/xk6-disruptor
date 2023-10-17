@@ -35,7 +35,7 @@ type PodDisruptorOptions struct {
 	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
-// podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
+// podDisruptor is an instance of a PodDisruptor that uses a PodController to interact with target pods
 type podDisruptor struct {
 	helper     helpers.PodHelper
 	options    PodDisruptorOptions
@@ -135,7 +135,7 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("finding pods matching '%s': %w", selector, ErrSelectorNoPods)
 	}
 
-	controller := NewAgentController(targets)
+	controller := NewPodController(targets)
 
 	return &podDisruptor{
 		helper:     helper,

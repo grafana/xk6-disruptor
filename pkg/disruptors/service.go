@@ -67,7 +67,7 @@ func NewServiceDisruptor(
 
 	helper := k8s.PodHelper(namespace)
 
-	controller := NewAgentController(targets)
+	controller := NewPodController(targets)
 
 	return &serviceDisruptor{
 		service:    *svc,

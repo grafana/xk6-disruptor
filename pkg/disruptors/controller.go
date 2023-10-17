@@ -14,21 +14,72 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// PodVisitCommand define the commands used for visiting a Pod
-type PodVisitCommand interface {
-	// Commands defines the command to be executed, and optionally a cleanup command
-	Commands(corev1.Pod) ([]string, []string, error)
-}
-
-// PodController defines the interface for controlling a set of target Pods
+// PodController uses a PodVisitor to perform a certain action (Visit) on a list of pods.
+// The PodVisitor is responsible for executing the action in one target pod, while the PorController
+// is responsible for coordinating the action of the PodVisitor on multiple target pods
 type PodController struct {
 	targets []corev1.Pod
 }
 
-// PodAgentVisitorOptions defines the options for the PodVisitor
-type PodAgentVisitorOptions struct {
-	// Defines the timeout for injecting the agent
-	Timeout time.Duration
+// NewPodController creates a new controller for a collection of pods
+func NewPodController(targets []corev1.Pod) *PodController {
+	return &PodController{
+		targets: targets,
+	}
+}
+
+// Visit allows executing a different command on each target returned by a visiting function
+func (c *PodController) Visit(ctx context.Context, visitor PodVisitor) error {
+	// if there are no targets, nothing to do
+	if len(c.targets) == 0 {
+		return nil
+	}
+
+	// create context for the visit, that can be cancelled in case of error
+	visitCtx, cancelVisit := context.WithCancel(ctx)
+	defer cancelVisit()
+
+	// make space to prevent blocking go routines
+	errCh := make(chan error, len(c.targets))
+
+	wg := sync.WaitGroup{}
+	for _, pod := range c.targets {
+		wg.Add(1)
+		go func(pod corev1.Pod) {
+			if err := visitor.Visit(visitCtx, pod); err != nil {
+				errCh <- err
+			}
+
+			wg.Done()
+		}(pod)
+	}
+
+	wg.Wait()
+
+	select {
+	case e := <-errCh:
+		return e
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
+// Targets return the name of the targets
+func (c *PodController) Targets(_ context.Context) ([]string, error) {
+	names := []string{}
+	for _, pod := range c.targets {
+		names = append(names, pod.Name)
+	}
+
+	return names, nil
+}
+
+// VisitCommands contains the commands to be executed when visiting a pod
+type VisitCommands struct {
+	Exec    []string
+	Cleanup []string
 }
 
 // PodVisitor defines the methods for executing actions in a target Pod
@@ -36,7 +87,7 @@ type PodVisitor interface {
 	Visit(context.Context, corev1.Pod) error
 }
 
-// PodAgentVisitor executes actions in a Pod using the Agent
+// PodAgentVisitor implements PodVisitor, performing actions in a Pod by means of running a PodVisitCommand on the pod.
 type PodAgentVisitor struct {
 	helper  helpers.PodHelper
 	options PodAgentVisitorOptions
@@ -109,18 +160,18 @@ func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod) error {
 	}
 
 	// get the command to execute in the target
-	exec, cleanup, err := c.command.Commands(pod)
+	commands, err := c.command.Commands(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
 
-	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", exec, []byte{})
+	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", commands.Exec, []byte{})
 
-	if err != nil && cleanup != nil {
+	if err != nil && commands.Cleanup != nil {
 		// we ignore errors because we are reporting the reason of the exec failure
 		// we use a fresh context because the context used in exec may have been cancelled or expired
 		//nolint:contextcheck
-		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", cleanup, []byte{})
+		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", commands.Cleanup, []byte{})
 	}
 
 	// if the context is cancelled, don't report error (we assume the caller is reporting this error)
@@ -131,57 +182,15 @@ func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod) error {
 	return nil
 }
 
-// NewAgentController creates a new controller for a fleet of  pods
-func NewAgentController(targets []corev1.Pod) *PodController {
-	return &PodController{
-		targets: targets,
-	}
+// PodAgentVisitorOptions defines the options for the PodVisitor
+type PodAgentVisitorOptions struct {
+	// Defines the timeout for injecting the agent
+	Timeout time.Duration
 }
 
-// Visit allows executing a different command on each target returned by a visiting function
-func (c *PodController) Visit(ctx context.Context, visitor PodVisitor) error {
-	// if there are no targets, nothing to do
-	if len(c.targets) == 0 {
-		return nil
-	}
-
-	// create context for the visit, that can be cancelled in case of error
-	visitCtx, cancelVisit := context.WithCancel(ctx)
-	defer cancelVisit()
-
-	// make space to prevent blocking go routines
-	errCh := make(chan error, len(c.targets))
-
-	wg := sync.WaitGroup{}
-	for _, pod := range c.targets {
-		wg.Add(1)
-		go func(pod corev1.Pod) {
-			if err := visitor.Visit(visitCtx, pod); err != nil {
-				errCh <- err
-			}
-
-			wg.Done()
-		}(pod)
-	}
-
-	wg.Wait()
-
-	select {
-	case e := <-errCh:
-		return e
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		return nil
-	}
-}
-
-// Targets return the name of the targets
-func (c *PodController) Targets(_ context.Context) ([]string, error) {
-	names := []string{}
-	for _, pod := range c.targets {
-		names = append(names, pod.Name)
-	}
-
-	return names, nil
+// PodVisitCommand is a command that can be run on a given pod.
+// Implementations build the VisitCommands according to properties of the pod where it is going to run
+type PodVisitCommand interface {
+	// Commands defines the command to be executed, and optionally a cleanup command
+	Commands(corev1.Pod) (VisitCommands, error)
 }

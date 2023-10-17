@@ -22,8 +22,11 @@ type fakeCommand struct {
 	cleanup []string
 }
 
-func (f fakeCommand) Commands(_ corev1.Pod) ([]string, []string, error) {
-	return f.exec, f.cleanup, f.err
+func (f fakeCommand) Commands(_ corev1.Pod) (VisitCommands, error) {
+	return VisitCommands{
+		Exec:    f.exec,
+		Cleanup: f.cleanup,
+	}, f.err
 }
 
 func visitCommands() PodVisitCommand {
@@ -33,7 +36,7 @@ func visitCommands() PodVisitCommand {
 	}
 }
 
-func Test_VisitPod(t *testing.T) {
+func Test_PodAgentVisitor(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -156,7 +159,7 @@ func (f fakePodVisitor) Visit(_ context.Context, _ corev1.Pod) error {
 
 var errFailed = errors.New("failed")
 
-func Test_AgentControler(t *testing.T) {
+func Test_PodController(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -218,7 +221,7 @@ func Test_AgentControler(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			controller := NewAgentController(tc.targets)
+			controller := NewPodController(tc.targets)
 
 			ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
 			defer cancel()
