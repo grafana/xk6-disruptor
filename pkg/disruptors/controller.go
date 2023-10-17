@@ -16,10 +16,8 @@ import (
 
 // PodVisitCommand define the commands used for visiting a Pod
 type PodVisitCommand interface {
-	// Exec defines the command to be executed
-	Exec(corev1.Pod) ([]string, error)
-	// Cleanup defines the command to execute for cleaning up if command execution fails
-	Cleanup(corev1.Pod) []string
+	// Commands defines the command to be executed, and optionally a cleanup command
+	Commands(corev1.Pod) ([]string, []string, error)
 }
 
 // PodController defines the interface for controlling a set of target Pods
@@ -108,20 +106,18 @@ func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commands Po
 	}
 
 	// get the command to execute in the target
-	execCommand, err := commands.Exec(pod)
+	exec, cleanup, err := commands.Commands(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
 
-	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", execCommand, []byte{})
+	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", exec, []byte{})
 
-	// if command failed, ensure the agent execution is terminated
-	cleanupCommand := commands.Cleanup(pod)
-	if err != nil && cleanupCommand != nil {
+	if err != nil && cleanup != nil {
 		// we ignore errors because we are reporting the reason of the exec failure
 		// we use a fresh context because the context used in exec may have been cancelled or expired
 		//nolint:contextcheck
-		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", cleanupCommand, []byte{})
+		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", cleanup, []byte{})
 	}
 
 	// if the context is cancelled, don't report error (we assume the caller is reporting this error)

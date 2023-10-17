@@ -159,7 +159,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 				options:  tc.opts,
 			}
 
-			exec, err := cmd.Exec(tc.target)
+			exec, _, err := cmd.Commands(tc.target)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -266,7 +266,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 				options:  tc.opts,
 			}
 
-			exec, err := cmd.Exec(tc.target)
+			exec, _, err := cmd.Commands(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")

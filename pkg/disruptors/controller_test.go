@@ -20,12 +20,8 @@ type fakeCommand struct {
 	cleanup []string
 }
 
-func (f fakeCommand) Exec(_ corev1.Pod) ([]string, error) {
-	return f.exec, f.err
-}
-
-func (f fakeCommand) Cleanup(_ corev1.Pod) []string {
-	return f.cleanup
+func (f fakeCommand) Commands(_ corev1.Pod) ([]string, []string, error) {
+	return f.exec, f.cleanup, f.err
 }
 
 func visitCommands() PodVisitCommand {
