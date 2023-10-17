@@ -28,27 +28,32 @@ type VisitCommands struct {
 	Cleanup []string
 }
 
-// AgentFleet defines the interface for controlling agents in a set of targets
-type AgentFleet struct {
-	targets    []corev1.Pod
-	controller *AgentController
+// PodController defines the interface for controlling a set of target Pods
+type PodController struct {
+	targets []corev1.Pod
+	visitor PodVisitor
 }
 
-// AgentControllerOptions defines the options for the AgentController
-type AgentControllerOptions struct {
+// PodAgentVisitorOptions defines the options for the PodVisitor
+type PodAgentVisitorOptions struct {
 	// Defines the timeout for injecting the agent
 	Timeout time.Duration
 }
 
-// AgentController controls de agents in a set of target pods
-type AgentController struct {
-	helper    helpers.PodHelper
-	namespace string
-	options   AgentControllerOptions
+// PodVisitor defines the methods for executing actions in a target Pod
+type PodVisitor interface {
+	Visit(context.Context, corev1.Pod, AgentCommandGenerator) error
 }
 
-// NewAgentController creates a new controller
-func NewAgentController(helper helpers.PodHelper, namespace string, options AgentControllerOptions) *AgentController {
+// PodAgentVisitor executes actions in a Pod using the Agent
+type PodAgentVisitor struct {
+	helper    helpers.PodHelper
+	namespace string
+	options   PodAgentVisitorOptions
+}
+
+// NewPodAgentVisitor creates a new pod visitor
+func NewPodAgentVisitor(helper helpers.PodHelper, namespace string, options PodAgentVisitorOptions) *PodAgentVisitor {
 	// FIXME: handling timeout < 0  is required only to allow tests to skip waiting for the agent injection
 	if options.Timeout == 0 {
 		options.Timeout = 30 * time.Second
@@ -57,7 +62,7 @@ func NewAgentController(helper helpers.PodHelper, namespace string, options Agen
 		options.Timeout = 0
 	}
 
-	return &AgentController{
+	return &PodAgentVisitor{
 		helper:    helper,
 		namespace: namespace,
 		options:   options,
@@ -65,7 +70,7 @@ func NewAgentController(helper helpers.PodHelper, namespace string, options Agen
 }
 
 // injectDisruptorAgent injects the Disruptor agent in the target pods
-func (c *AgentController) injectDisruptorAgent(ctx context.Context, pod corev1.Pod) error {
+func (c *PodAgentVisitor) injectDisruptorAgent(ctx context.Context, pod corev1.Pod) error {
 	var (
 		rootUser     = int64(0)
 		rootGroup    = int64(0)
@@ -102,14 +107,14 @@ func (c *AgentController) injectDisruptorAgent(ctx context.Context, pod corev1.P
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *AgentController) Visit(ctx context.Context, pod corev1.Pod, visitor AgentCommandGenerator) error {
+func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commandGenerator AgentCommandGenerator) error {
 	err := c.injectDisruptorAgent(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
 	}
 
 	// get the command to execute in the target
-	visitCommands, err := visitor.GetCommands(pod)
+	visitCommands, err := commandGenerator.GetCommands(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
@@ -132,16 +137,16 @@ func (c *AgentController) Visit(ctx context.Context, pod corev1.Pod, visitor Age
 	return nil
 }
 
-// NewAgentFleet creates a new controller for a fleet of  pods
-func NewAgentFleet(targets []corev1.Pod, controller *AgentController) *AgentFleet {
-	return &AgentFleet{
-		targets:    targets,
-		controller: controller,
+// NewAgentController creates a new controller for a fleet of  pods
+func NewAgentController(targets []corev1.Pod, visitor PodVisitor) *PodController {
+	return &PodController{
+		targets: targets,
+		visitor: visitor,
 	}
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *AgentFleet) Visit(ctx context.Context, visitor AgentCommandGenerator) error {
+func (c *PodController) Visit(ctx context.Context, commandGen AgentCommandGenerator) error {
 	// if there are no targets, nothing to do
 	if len(c.targets) == 0 {
 		return nil
@@ -158,7 +163,7 @@ func (c *AgentFleet) Visit(ctx context.Context, visitor AgentCommandGenerator) e
 	for _, pod := range c.targets {
 		wg.Add(1)
 		go func(pod corev1.Pod) {
-			if err := c.controller.Visit(visitCtx, pod, visitor); err != nil {
+			if err := c.visitor.Visit(visitCtx, pod, commandGen); err != nil {
 				errCh <- err
 			}
 
@@ -179,7 +184,7 @@ func (c *AgentFleet) Visit(ctx context.Context, visitor AgentCommandGenerator) e
 }
 
 // Targets return the name of the targets
-func (c *AgentFleet) Targets(_ context.Context) ([]string, error) {
+func (c *PodController) Targets(_ context.Context) ([]string, error) {
 	names := []string{}
 	for _, pod := range c.targets {
 		names = append(names, pod.Name)

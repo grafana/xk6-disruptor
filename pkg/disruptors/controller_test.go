@@ -34,7 +34,7 @@ func Test_VisitPod(t *testing.T) {
 		err         error
 		stdout      []byte
 		stderr      []byte
-		options     AgentControllerOptions
+		options     PodAgentVisitorOptions
 		expectError bool
 		expected    []helpers.Command
 	}{
@@ -50,7 +50,7 @@ func Test_VisitPod(t *testing.T) {
 				Cleanup: []string{"cleanup"},
 			},
 			err: nil,
-			options: AgentControllerOptions{
+			options: PodAgentVisitorOptions{
 				Timeout: -1,
 			},
 			expectError: false,
@@ -71,7 +71,7 @@ func Test_VisitPod(t *testing.T) {
 			},
 			err:    fmt.Errorf("fake error"),
 			stderr: []byte("error output"),
-			options: AgentControllerOptions{
+			options: PodAgentVisitorOptions{
 				Timeout: -1,
 			},
 			expectError: true,
@@ -92,7 +92,7 @@ func Test_VisitPod(t *testing.T) {
 				Cleanup: []string{"cleanup"},
 			},
 			err: nil,
-			options: AgentControllerOptions{
+			options: PodAgentVisitorOptions{
 				Timeout: 1,
 			},
 			expectError: true,
@@ -109,7 +109,7 @@ func Test_VisitPod(t *testing.T) {
 			client := fake.NewSimpleClientset(&tc.pod)
 			executor := helpers.NewFakePodCommandExecutor()
 			helper := helpers.NewPodHelper(client, executor, tc.namespace)
-			controller := NewAgentController(
+			visitor := NewPodAgentVisitor(
 				helper,
 				tc.namespace,
 				tc.options,
@@ -119,7 +119,7 @@ func Test_VisitPod(t *testing.T) {
 			commandGenerator := fakeCommandGenerator{
 				cmds: tc.visitCmds,
 			}
-			err := controller.Visit(context.TODO(), tc.pod, commandGenerator)
+			err := visitor.Visit(context.TODO(), tc.pod, commandGenerator)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}
