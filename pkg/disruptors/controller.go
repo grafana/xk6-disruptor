@@ -23,7 +23,6 @@ type PodVisitCommand interface {
 // PodController defines the interface for controlling a set of target Pods
 type PodController struct {
 	targets []corev1.Pod
-	visitor PodVisitor
 }
 
 // PodAgentVisitorOptions defines the options for the PodVisitor
@@ -34,18 +33,22 @@ type PodAgentVisitorOptions struct {
 
 // PodVisitor defines the methods for executing actions in a target Pod
 type PodVisitor interface {
-	Visit(context.Context, corev1.Pod, PodVisitCommand) error
+	Visit(context.Context, corev1.Pod) error
 }
 
 // PodAgentVisitor executes actions in a Pod using the Agent
 type PodAgentVisitor struct {
-	helper    helpers.PodHelper
-	namespace string
-	options   PodAgentVisitorOptions
+	helper  helpers.PodHelper
+	options PodAgentVisitorOptions
+	command PodVisitCommand
 }
 
 // NewPodAgentVisitor creates a new pod visitor
-func NewPodAgentVisitor(helper helpers.PodHelper, namespace string, options PodAgentVisitorOptions) *PodAgentVisitor {
+func NewPodAgentVisitor(
+	helper helpers.PodHelper,
+	options PodAgentVisitorOptions,
+	command PodVisitCommand,
+) *PodAgentVisitor {
 	// FIXME: handling timeout < 0  is required only to allow tests to skip waiting for the agent injection
 	if options.Timeout == 0 {
 		options.Timeout = 30 * time.Second
@@ -55,9 +58,9 @@ func NewPodAgentVisitor(helper helpers.PodHelper, namespace string, options PodA
 	}
 
 	return &PodAgentVisitor{
-		helper:    helper,
-		namespace: namespace,
-		options:   options,
+		helper:  helper,
+		options: options,
+		command: command,
 	}
 }
 
@@ -99,14 +102,14 @@ func (c *PodAgentVisitor) injectDisruptorAgent(ctx context.Context, pod corev1.P
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commands PodVisitCommand) error {
+func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod) error {
 	err := c.injectDisruptorAgent(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
 	}
 
 	// get the command to execute in the target
-	exec, cleanup, err := commands.Commands(pod)
+	exec, cleanup, err := c.command.Commands(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
@@ -129,15 +132,14 @@ func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commands Po
 }
 
 // NewAgentController creates a new controller for a fleet of  pods
-func NewAgentController(targets []corev1.Pod, visitor PodVisitor) *PodController {
+func NewAgentController(targets []corev1.Pod) *PodController {
 	return &PodController{
 		targets: targets,
-		visitor: visitor,
 	}
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *PodController) Visit(ctx context.Context, commands PodVisitCommand) error {
+func (c *PodController) Visit(ctx context.Context, visitor PodVisitor) error {
 	// if there are no targets, nothing to do
 	if len(c.targets) == 0 {
 		return nil
@@ -154,7 +156,7 @@ func (c *PodController) Visit(ctx context.Context, commands PodVisitCommand) err
 	for _, pod := range c.targets {
 		wg.Add(1)
 		go func(pod corev1.Pod) {
-			if err := c.visitor.Visit(visitCtx, pod, commands); err != nil {
+			if err := visitor.Visit(visitCtx, pod); err != nil {
 				errCh <- err
 			}
 

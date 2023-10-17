@@ -2,9 +2,11 @@ package disruptors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -110,12 +112,12 @@ func Test_VisitPod(t *testing.T) {
 			helper := helpers.NewPodHelper(client, executor, tc.namespace)
 			visitor := NewPodAgentVisitor(
 				helper,
-				tc.namespace,
 				tc.options,
+				tc.visitCmds,
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			err := visitor.Visit(context.TODO(), tc.pod, tc.visitCmds)
+			err := visitor.Visit(context.TODO(), tc.pod)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}
@@ -137,6 +139,93 @@ func Test_VisitPod(t *testing.T) {
 
 			if diff := cmp.Diff(tc.expected, executor.GetHistory()); diff != "" {
 				t.Errorf("Expected command did not match returned:\n%s", diff)
+			}
+		})
+	}
+}
+
+type fakePodVisitor struct {
+	delay time.Duration
+	err   error
+}
+
+func (f fakePodVisitor) Visit(_ context.Context, _ corev1.Pod) error {
+	time.Sleep(f.delay)
+	return f.err
+}
+
+var errFailed = errors.New("failed")
+
+func Test_AgentControler(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		targets     []corev1.Pod
+		visitor     PodVisitor
+		expectError error
+	}{
+		{
+			title: "visit pods",
+			targets: []corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.7").
+					Build(),
+			},
+			visitor:     fakePodVisitor{},
+			expectError: nil,
+		},
+		{
+			title: "failed visit command",
+			targets: []corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.7").
+					Build(),
+			},
+			visitor:     fakePodVisitor{err: errFailed},
+			expectError: errFailed,
+		},
+		{
+			title: "context expired",
+			targets: []corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.7").
+					Build(),
+			},
+			visitor:     fakePodVisitor{delay: 2 * time.Second},
+			expectError: context.DeadlineExceeded,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			controller := NewAgentController(tc.targets)
+
+			ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+			defer cancel()
+
+			err := controller.Visit(ctx, tc.visitor)
+			if !errors.Is(err, tc.expectError) {
+				t.Fatalf("expected %v got %v", tc.expectError, err)
 			}
 		})
 	}

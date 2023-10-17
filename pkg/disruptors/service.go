@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,8 @@ type ServiceDisruptorOptions struct {
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
 	service    corev1.Service
+	helper     helpers.PodHelper
+	options    ServiceDisruptorOptions
 	controller *PodController
 }
 
@@ -62,17 +65,14 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("creating disruptor for service %s/%s: %w", service, namespace, ErrServiceNoTargets)
 	}
 
-	ph := k8s.PodHelper(namespace)
-	visitor := NewPodAgentVisitor(
-		ph,
-		namespace,
-		PodAgentVisitorOptions{Timeout: options.InjectTimeout},
-	)
+	helper := k8s.PodHelper(namespace)
 
-	controller := NewAgentController(targets, visitor)
+	controller := NewAgentController(targets)
 
 	return &serviceDisruptor{
 		service:    *svc,
+		helper:     helper,
+		options:    options,
 		controller: controller,
 	}, nil
 }
@@ -90,7 +90,13 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, command)
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
+
+	return d.controller.Visit(ctx, visitor)
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
@@ -106,7 +112,13 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, command)
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
+
+	return d.controller.Visit(ctx, visitor)
 }
 
 func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {
