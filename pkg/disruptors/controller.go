@@ -14,18 +14,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// AgentCommandGenerator defines the interface for generating agent commands
-type AgentCommandGenerator interface {
-	// GetCommands returns the VisitCommands for visiting the Pod
-	GetCommands(pod corev1.Pod) (VisitCommands, error)
-}
-
-// VisitCommands define the commands used for visiting a Pod
-type VisitCommands struct {
+// PodVisitCommand define the commands used for visiting a Pod
+type PodVisitCommand interface {
 	// Exec defines the command to be executed
-	Exec []string
+	Exec(corev1.Pod) ([]string, error)
 	// Cleanup defines the command to execute for cleaning up if command execution fails
-	Cleanup []string
+	Cleanup(corev1.Pod) []string
 }
 
 // PodController defines the interface for controlling a set of target Pods
@@ -42,7 +36,7 @@ type PodAgentVisitorOptions struct {
 
 // PodVisitor defines the methods for executing actions in a target Pod
 type PodVisitor interface {
-	Visit(context.Context, corev1.Pod, AgentCommandGenerator) error
+	Visit(context.Context, corev1.Pod, PodVisitCommand) error
 }
 
 // PodAgentVisitor executes actions in a Pod using the Agent
@@ -107,26 +101,27 @@ func (c *PodAgentVisitor) injectDisruptorAgent(ctx context.Context, pod corev1.P
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commandGenerator AgentCommandGenerator) error {
+func (c *PodAgentVisitor) Visit(ctx context.Context, pod corev1.Pod, commands PodVisitCommand) error {
 	err := c.injectDisruptorAgent(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("injecting agent in the pod %q: %w", pod.Name, err)
 	}
 
 	// get the command to execute in the target
-	visitCommands, err := commandGenerator.GetCommands(pod)
+	execCommand, err := commands.Exec(pod)
 	if err != nil {
 		return fmt.Errorf("unable to get command for pod %q: %w", pod.Name, err)
 	}
 
-	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", visitCommands.Exec, []byte{})
+	_, stderr, err := c.helper.Exec(ctx, pod.Name, "xk6-agent", execCommand, []byte{})
 
 	// if command failed, ensure the agent execution is terminated
-	if err != nil && visitCommands.Cleanup != nil {
+	cleanupCommand := commands.Cleanup(pod)
+	if err != nil && cleanupCommand != nil {
 		// we ignore errors because we are reporting the reason of the exec failure
 		// we use a fresh context because the context used in exec may have been cancelled or expired
 		//nolint:contextcheck
-		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", visitCommands.Cleanup, []byte{})
+		_, _, _ = c.helper.Exec(context.TODO(), pod.Name, "xk6-agent", cleanupCommand, []byte{})
 	}
 
 	// if the context is cancelled, don't report error (we assume the caller is reporting this error)
@@ -146,7 +141,7 @@ func NewAgentController(targets []corev1.Pod, visitor PodVisitor) *PodController
 }
 
 // Visit allows executing a different command on each target returned by a visiting function
-func (c *PodController) Visit(ctx context.Context, commandGen AgentCommandGenerator) error {
+func (c *PodController) Visit(ctx context.Context, commands PodVisitCommand) error {
 	// if there are no targets, nothing to do
 	if len(c.targets) == 0 {
 		return nil
@@ -163,7 +158,7 @@ func (c *PodController) Visit(ctx context.Context, commandGen AgentCommandGenera
 	for _, pod := range c.targets {
 		wg.Add(1)
 		go func(pod corev1.Pod) {
-			if err := c.visitor.Visit(visitCtx, pod, commandGen); err != nil {
+			if err := c.visitor.Visit(visitCtx, pod, commands); err != nil {
 				errCh <- err
 			}
 

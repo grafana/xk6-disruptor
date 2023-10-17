@@ -153,14 +153,13 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			visitor := PodHTTPFaultCommandGenerator{
+			cmd := PodHTTPFaultCommand{
 				fault:    tc.fault,
 				duration: tc.duration,
 				options:  tc.opts,
 			}
 
-			cmds, err := visitor.GetCommands(tc.target)
-
+			exec, err := cmd.Exec(tc.target)
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
 				return
@@ -171,8 +170,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 				return
 			}
 
-			exec := strings.Join(cmds.Exec, " ")
-			if !command.AssertCmdEquals(exec, tc.expectedCmd) {
+			if !command.AssertCmdEquals(strings.Join(exec, " "), tc.expectedCmd) {
 				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
 			}
 		})
@@ -262,13 +260,13 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			visitor := PodGrpcFaultCommandGenerator{
+			cmd := PodGrpcFaultCommand{
 				fault:    tc.fault,
 				duration: tc.duration,
 				options:  tc.opts,
 			}
 
-			cmds, err := visitor.GetCommands(tc.target)
+			exec, err := cmd.Exec(tc.target)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -280,8 +278,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 				return
 			}
 
-			exec := strings.Join(cmds.Exec, " ")
-			if !command.AssertCmdEquals(exec, tc.expectedCmd) {
+			if !command.AssertCmdEquals(strings.Join(exec, " "), tc.expectedCmd) {
 				t.Errorf("expected command: %s got: %s", tc.expectedCmd, exec)
 			}
 		})

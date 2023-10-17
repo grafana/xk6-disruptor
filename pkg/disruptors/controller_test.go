@@ -14,13 +14,25 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 )
 
-type fakeCommandGenerator struct {
-	cmds VisitCommands
-	err  error
+type fakeCommand struct {
+	err     error
+	exec    []string
+	cleanup []string
 }
 
-func (v fakeCommandGenerator) GetCommands(_ corev1.Pod) (VisitCommands, error) {
-	return v.cmds, v.err
+func (f fakeCommand) Exec(_ corev1.Pod) ([]string, error) {
+	return f.exec, f.err
+}
+
+func (f fakeCommand) Cleanup(_ corev1.Pod) []string {
+	return f.cleanup
+}
+
+func visitCommands() PodVisitCommand {
+	return fakeCommand{
+		exec:    []string{"command"},
+		cleanup: []string{"cleanup"},
+	}
 }
 
 func Test_VisitPod(t *testing.T) {
@@ -30,7 +42,7 @@ func Test_VisitPod(t *testing.T) {
 		title       string
 		namespace   string
 		pod         corev1.Pod
-		visitCmds   VisitCommands
+		visitCmds   PodVisitCommand
 		err         error
 		stdout      []byte
 		stderr      []byte
@@ -45,11 +57,8 @@ func Test_VisitPod(t *testing.T) {
 				WithNamespace("test-ns").
 				WithIP("192.0.2.6").
 				Build(),
-			visitCmds: VisitCommands{
-				Exec:    []string{"command"},
-				Cleanup: []string{"cleanup"},
-			},
-			err: nil,
+			visitCmds: visitCommands(),
+			err:       nil,
 			options: PodAgentVisitorOptions{
 				Timeout: -1,
 			},
@@ -65,12 +74,9 @@ func Test_VisitPod(t *testing.T) {
 				WithNamespace("test-ns").
 				WithIP("192.0.2.6").
 				Build(),
-			visitCmds: VisitCommands{
-				Exec:    []string{"command"},
-				Cleanup: []string{"cleanup"},
-			},
-			err:    fmt.Errorf("fake error"),
-			stderr: []byte("error output"),
+			visitCmds: visitCommands(),
+			err:       fmt.Errorf("fake error"),
+			stderr:    []byte("error output"),
 			options: PodAgentVisitorOptions{
 				Timeout: -1,
 			},
@@ -87,11 +93,8 @@ func Test_VisitPod(t *testing.T) {
 				WithNamespace("test-ns").
 				WithIP("192.0.2.6").
 				Build(),
-			visitCmds: VisitCommands{
-				Exec:    []string{"command"},
-				Cleanup: []string{"cleanup"},
-			},
-			err: nil,
+			visitCmds: visitCommands(),
+			err:       nil,
 			options: PodAgentVisitorOptions{
 				Timeout: 1,
 			},
@@ -116,10 +119,7 @@ func Test_VisitPod(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			commandGenerator := fakeCommandGenerator{
-				cmds: tc.visitCmds,
-			}
-			err := visitor.Visit(context.TODO(), tc.pod, commandGenerator)
+			err := visitor.Visit(context.TODO(), tc.pod, tc.visitCmds)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}

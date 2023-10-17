@@ -119,127 +119,127 @@ func buildCleanupCmd() []string {
 	return []string{"xk6-disruptor-agent", "cleanup"}
 }
 
-// PodHTTPFaultCommandGenerator implements the AgentCommandGenerator interface for injecting
+// PodHTTPFaultCommand implements the PodVisitCommands interface for injecting
 // HttpFaults in a Pod
-type PodHTTPFaultCommandGenerator struct {
+type PodHTTPFaultCommand struct {
 	fault    HTTPFault
 	duration time.Duration
 	options  HTTPDisruptionOptions
 }
 
-// GetCommands return the VisitCommands for injecting a HttpFault in a Pod
-func (i PodHTTPFaultCommandGenerator) GetCommands(pod corev1.Pod) (VisitCommands, error) {
-	if !utils.HasPort(pod, i.fault.Port) {
-		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, i.fault.Port)
+// Exec return the command for injecting a HttpFault in a Pod
+func (c PodHTTPFaultCommand) Exec(pod corev1.Pod) ([]string, error) {
+	if !utils.HasPort(pod, c.fault.Port) {
+		return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, c.fault.Port)
 	}
 
 	if utils.HasHostNetwork(pod) {
-		return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+		return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
 	}
 
 	targetAddress, err := utils.PodIP(pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
-	visitCommands := VisitCommands{
-		Exec:    buildHTTPFaultCmd(targetAddress, i.fault, i.duration, i.options),
-		Cleanup: buildCleanupCmd(),
-	}
-
-	return visitCommands, nil
+	return buildHTTPFaultCmd(targetAddress, c.fault, c.duration, c.options), nil
 }
 
-// PodGrpcFaultCommandGenerator implements the AgentCommandGenerator interface for injecting GrpcFaults in a Pod
-type PodGrpcFaultCommandGenerator struct {
+// Cleanup defines the command to execute for cleaning up if command execution fails
+func (c PodHTTPFaultCommand) Cleanup(_ corev1.Pod) []string {
+	return buildCleanupCmd()
+}
+
+// PodGrpcFaultCommand implements the PodVisitCommands interface for injecting GrpcFaults in a Pod
+type PodGrpcFaultCommand struct {
 	fault    GrpcFault
 	duration time.Duration
 	options  GrpcDisruptionOptions
 }
 
-// GetCommands return the VisitCommands for injecting a GrpcFault in a Pod
-func (i PodGrpcFaultCommandGenerator) GetCommands(pod corev1.Pod) (VisitCommands, error) {
-	if !utils.HasPort(pod, i.fault.Port) {
-		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, i.fault.Port)
+// Exec return the command for injecting a GrpcFault in a Pod
+func (c PodGrpcFaultCommand) Exec(pod corev1.Pod) ([]string, error) {
+	if !utils.HasPort(pod, c.fault.Port) {
+		return nil, fmt.Errorf("pod %q does not expose port %d", pod.Name, c.fault.Port)
 	}
 
 	targetAddress, err := utils.PodIP(pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
-	visitCommands := VisitCommands{
-		Exec:    buildGrpcFaultCmd(targetAddress, i.fault, i.duration, i.options),
-		Cleanup: buildCleanupCmd(),
-	}
-
-	return visitCommands, nil
+	return buildGrpcFaultCmd(targetAddress, c.fault, c.duration, c.options), nil
 }
 
-// ServiceHTTPFaultCommandGenerator implements the AgentCommandGenerator interface for injecting HttpFaults in a Pod
-type ServiceHTTPFaultCommandGenerator struct {
+// Cleanup defines the command to execute for cleaning up if command execution fails
+func (c PodGrpcFaultCommand) Cleanup(_ corev1.Pod) []string {
+	return buildCleanupCmd()
+}
+
+// ServiceHTTPFaultCommand implements the PodVisitCommands interface for injecting HttpFaults in a Pod
+type ServiceHTTPFaultCommand struct {
 	service  corev1.Service
 	fault    HTTPFault
 	duration time.Duration
 	options  HTTPDisruptionOptions
 }
 
-// GetCommands return the VisitCommands for injecting a HttpFault in a Service
-func (i ServiceHTTPFaultCommandGenerator) GetCommands(pod corev1.Pod) (VisitCommands, error) {
-	port, err := utils.MapPort(i.service, i.fault.Port, pod)
+// Exec return the command for injecting a HttpFault in a Service
+func (c ServiceHTTPFaultCommand) Exec(pod corev1.Pod) ([]string, error) {
+	port, err := utils.MapPort(c.service, c.fault.Port, pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
 	if utils.HasHostNetwork(pod) {
-		return VisitCommands{}, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
+		return nil, fmt.Errorf("pod %q cannot be safely injected as it has hostNetwork set to true", pod.Name)
 	}
 
 	// copy fault to change target port for the pod
-	podFault := i.fault
+	podFault := c.fault
 	podFault.Port = port
 
 	targetAddress, err := utils.PodIP(pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
-	visitCommands := VisitCommands{
-		Exec:    buildHTTPFaultCmd(targetAddress, podFault, i.duration, i.options),
-		Cleanup: buildCleanupCmd(),
-	}
-
-	return visitCommands, nil
+	return buildHTTPFaultCmd(targetAddress, podFault, c.duration, c.options), nil
 }
 
-// ServiceGrpcFaultCommandGenerator implements the AgentCommandGenerator interface for injecting a
+// Cleanup defines the command to execute for cleaning up if command execution fails
+func (c ServiceHTTPFaultCommand) Cleanup(_ corev1.Pod) []string {
+	return buildCleanupCmd()
+}
+
+// ServiceGrpcFaultCommand implements the PodVisitCommands interface for injecting a
 // GrpcFault in a Service
-type ServiceGrpcFaultCommandGenerator struct {
+type ServiceGrpcFaultCommand struct {
 	service  corev1.Service
 	fault    GrpcFault
 	duration time.Duration
 	options  GrpcDisruptionOptions
 }
 
-// GetCommands return the VisitCommands for injecting a GrpcFault in a Pod
-func (i ServiceGrpcFaultCommandGenerator) GetCommands(pod corev1.Pod) (VisitCommands, error) {
-	port, err := utils.MapPort(i.service, i.fault.Port, pod)
+// Exec return the VisitCommands for injecting a GrpcFault in a Service
+func (c ServiceGrpcFaultCommand) Exec(pod corev1.Pod) ([]string, error) {
+	port, err := utils.MapPort(c.service, c.fault.Port, pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
-	podFault := i.fault
+	podFault := c.fault
 	podFault.Port = port
 
 	targetAddress, err := utils.PodIP(pod)
 	if err != nil {
-		return VisitCommands{}, err
+		return nil, err
 	}
 
-	visitCommands := VisitCommands{
-		Exec:    buildGrpcFaultCmd(targetAddress, podFault, i.duration, i.options),
-		Cleanup: buildCleanupCmd(),
-	}
+	return buildGrpcFaultCmd(targetAddress, podFault, c.duration, c.options), nil
+}
 
-	return visitCommands, nil
+// Cleanup defines the command to execute for cleaning up if command execution fails
+func (c ServiceGrpcFaultCommand) Cleanup(_ corev1.Pod) []string {
+	return buildCleanupCmd()
 }

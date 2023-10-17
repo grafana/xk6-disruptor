@@ -165,12 +165,12 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	visitor := PodHTTPFaultCommandGenerator{
+	command := PodHTTPFaultCommand{
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
-	return d.controller.Visit(ctx, visitor)
+	return d.controller.Visit(ctx, command)
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
@@ -180,11 +180,11 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	visitor := PodGrpcFaultCommandGenerator{
+	command := PodGrpcFaultCommand{
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
 
-	return d.controller.Visit(ctx, visitor)
+	return d.controller.Visit(ctx, command)
 }
