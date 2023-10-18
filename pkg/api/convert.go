@@ -2,8 +2,11 @@ package api
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 )
 
 // Convert converts from a generic object received from the JS interface via goja into a go type.
@@ -17,6 +20,7 @@ import (
 // string                <-- string
 // time.Duration         <-- string
 // time.Time             <-- string (only in RFC3339 format)
+// IntOrStr              <-- string or int64
 //
 // (1) TODO: support other key types, such as numeric and attempt conversion from the string key
 func Convert(value interface{}, target interface{}) error {
@@ -46,6 +50,14 @@ func Convert(value interface{}, target interface{}) error {
 	case reflect.Int64:
 		if targetValue.Type().String() == "time.Duration" {
 			return convertDuration(value, target)
+		}
+
+		if targetValue.Type().String() == "intstr.IntOrString" {
+			return convertIntOrString(value, target)
+		}
+	case reflect.String:
+		if targetValue.Type().String() == "intstr.IntOrString" {
+			return convertIntOrString(value, target)
 		}
 	}
 
@@ -147,8 +159,7 @@ func convertDuration(value interface{}, target interface{}) error {
 	}
 
 	targetValue.Set(reflect.ValueOf(duration))
-
-	return err
+	return nil
 }
 
 func convertTime(value interface{}, target interface{}) error {
@@ -166,4 +177,28 @@ func convertTime(value interface{}, target interface{}) error {
 
 	targetValue.Set(reflect.ValueOf(timeValue))
 	return nil
+}
+
+func convertIntOrString(value interface{}, target interface{}) error {
+	targetValue := reflect.ValueOf(target).Elem()
+
+	int64Value, ok := value.(int64)
+	if ok {
+		// check overflow here to avoid panic in the conversion
+		if int64Value > math.MaxUint32 || int64Value < math.MinInt32 {
+			return fmt.Errorf("value overflows int32 range: %d", int64Value)
+		}
+		intOrStrValue := intstr.FromInt32(int32(int64Value))
+		targetValue.Set(reflect.ValueOf(intOrStrValue))
+		return nil
+	}
+
+	stringValue, ok := value.(string)
+	if ok {
+		intOrStrValue := intstr.FromString(stringValue)
+		targetValue.Set(reflect.ValueOf(intOrStrValue))
+		return nil
+	}
+
+	return fmt.Errorf("expected int or string value got %s", reflect.TypeOf(value))
 }
