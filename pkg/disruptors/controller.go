@@ -82,7 +82,7 @@ type VisitCommands struct {
 	Cleanup []string
 }
 
-// PodVisitor defines the methods for executing actions in a target Pod
+// PodVisitor is the interface implemented by objects that perform actions on a Pod
 type PodVisitor interface {
 	Visit(context.Context, corev1.Pod) error
 }
