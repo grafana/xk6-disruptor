@@ -9,7 +9,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sintstr "k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -18,6 +18,8 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
+
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
@@ -65,7 +67,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 				port:    80,
 				injector: func(d disruptors.ServiceDisruptor) error {
 					fault := disruptors.HTTPFault{
-						Port:      80,
+						Port:      intstr.FromInt(80),
 						ErrorRate: 1.0,
 						ErrorCode: 500,
 					}
@@ -100,7 +102,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 					namespace,
 					tc.pod,
 					tc.service,
-					intstr.FromInt(tc.port),
+					k8sintstr.FromInt(tc.port),
 					30*time.Second,
 				)
 				if err != nil {

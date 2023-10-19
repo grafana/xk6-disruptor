@@ -36,7 +36,6 @@ func (value IntOrString) IsInt() bool {
 	return err == nil
 }
 
-
 // Int32 returns the value of the IntOrString as an int32.
 // If the current value is not an string, 0 is returned
 func (value IntOrString) Int32() int32 {
@@ -47,7 +46,6 @@ func (value IntOrString) Int32() int32 {
 
 	return int32(int64Value)
 }
-
 
 // Str returns the value of the IntOrString as a string.
 func (value IntOrString) Str() string {
@@ -65,7 +63,6 @@ func FromInt32(value int32) IntOrString {
 	strValue := fmt.Sprintf("%d", value)
 	return IntOrString(strValue)
 }
-
 
 // FromString return a IntOrString from a string
 func FromString(value string) IntOrString {

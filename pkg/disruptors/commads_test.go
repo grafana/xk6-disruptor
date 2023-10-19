@@ -7,6 +7,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/testutils/command"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -44,7 +45,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			fault: HTTPFault{
 				ErrorRate: 0.1,
 				ErrorCode: 500,
-				Port:      80,
+				Port:      intstr.FromInt(80),
 			},
 			opts:        HTTPDisruptionOptions{},
 			duration:    60 * time.Second,
@@ -64,7 +65,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 				ErrorRate: 0.1,
 				ErrorCode: 500,
 				ErrorBody: "{\"error\": 500}",
-				Port:      80,
+				Port:      intstr.FromInt(80),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -77,7 +78,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			cmdError:    nil,
 			fault: HTTPFault{
 				AverageDelay: 100 * time.Millisecond,
-				Port:         80,
+				Port:         intstr.FromInt(80),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -90,7 +91,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			cmdError:    nil,
 			fault: HTTPFault{
 				Exclude: "/path1,/path2",
-				Port:    80,
+				Port:    intstr.FromInt(80),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60 * time.Second,
@@ -101,7 +102,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			expectedCmd: "",
 			expectError: true,
 			fault: HTTPFault{
-				Port: 8080,
+				Port: intstr.FromInt(8080),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
@@ -120,7 +121,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			expectedCmd: "",
 			expectError: true,
 			fault: HTTPFault{
-				Port: 80,
+				Port: intstr.FromInt(80),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
@@ -141,7 +142,7 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 			expectedCmd: "",
 			expectError: true,
 			fault: HTTPFault{
-				Port: 80,
+				Port: intstr.FromInt(80),
 			},
 			opts:     HTTPDisruptionOptions{},
 			duration: 60,
@@ -196,7 +197,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 			fault: GrpcFault{
 				ErrorRate:  0.1,
 				StatusCode: 14,
-				Port:       3000,
+				Port:       intstr.FromInt(3000),
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
@@ -211,7 +212,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 				ErrorRate:     0.1,
 				StatusCode:    14,
 				StatusMessage: "internal error",
-				Port:          3000,
+				Port:          intstr.FromInt(3000),
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
@@ -224,7 +225,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				AverageDelay: 100 * time.Millisecond,
-				Port:         3000,
+				Port:         intstr.FromInt(3000),
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
@@ -237,7 +238,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 			target: buildPodWithPort("my-app-pod", "grpc", 3000),
 			fault: GrpcFault{
 				Exclude: "service1,service2",
-				Port:    3000,
+				Port:    intstr.FromInt(3000),
 			},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60 * time.Second,
@@ -249,7 +250,7 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 			title:       "Container port not found",
 			target:      buildPodWithPort("my-app-pod", "grpc", 3000),
 			expectError: true,
-			fault:       GrpcFault{Port: 8080},
+			fault:       GrpcFault{Port: intstr.FromInt(8080)},
 			opts:        GrpcDisruptionOptions{},
 			duration:    60,
 		},

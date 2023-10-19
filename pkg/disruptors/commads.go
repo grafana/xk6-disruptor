@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	"github.com/grafana/xk6-disruptor/pkg/utils"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -22,7 +24,7 @@ func buildGrpcFaultCmd(
 	}
 
 	// TODO: make port mandatory
-	if fault.Port != 0 {
+	if fault.Port != intstr.NullValue {
 		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
@@ -75,7 +77,7 @@ func buildHTTPFaultCmd(
 	}
 
 	// TODO: make port mandatory
-	if fault.Port != 0 {
+	if fault.Port != intstr.NullValue {
 		cmd = append(cmd, "-t", fmt.Sprint(fault.Port))
 	}
 
@@ -130,7 +132,7 @@ type PodHTTPFaultCommand struct {
 // Commands return the command for injecting a HttpFault in a Pod
 func (c PodHTTPFaultCommand) Commands(pod corev1.Pod) (VisitCommands, error) {
 	if !utils.HasPort(pod, c.fault.Port) {
-		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, c.fault.Port)
+		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %q", pod.Name, c.fault.Port.Str())
 	}
 
 	if utils.HasHostNetwork(pod) {
@@ -158,7 +160,7 @@ type PodGrpcFaultCommand struct {
 // Commands return the command for injecting a GrpcFault in a Pod
 func (c PodGrpcFaultCommand) Commands(pod corev1.Pod) (VisitCommands, error) {
 	if !utils.HasPort(pod, c.fault.Port) {
-		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %d", pod.Name, c.fault.Port)
+		return VisitCommands{}, fmt.Errorf("pod %q does not expose port %q", pod.Name, c.fault.Port.Str())
 	}
 
 	targetAddress, err := utils.PodIP(pod)

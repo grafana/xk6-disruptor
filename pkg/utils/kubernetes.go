@@ -3,65 +3,66 @@ package utils
 import (
 	"fmt"
 
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sintstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// getTargetPort returns the ServicePort object that corresponds to the given port number
-// if the given port is 0, it will return the first port or error if more than one port is defined
-func getTargetPort(service corev1.Service, svcPort uint) (corev1.ServicePort, error) {
-	ports := service.Spec.Ports
-	if svcPort != 0 {
-		for _, p := range ports {
-			if uint(p.Port) == svcPort {
-				return p, nil
-			}
+// getTargetPort returns the ServicePort object that corresponds to the given port searching for a match
+// for the port number or port name
+func getTargetPort(service corev1.Service, svcPort intstr.IntOrString) (corev1.ServicePort, error) {
+	// Handle default port mapping
+	// TODO: make port required
+	if svcPort == intstr.NullValue || (svcPort.IsInt() && svcPort.Int32() == 0) {
+		if len(service.Spec.Ports) > 1 {
+			return corev1.ServicePort{}, fmt.Errorf("no port selected and service exposes more than one service")
 		}
-		return corev1.ServicePort{}, fmt.Errorf("the service does not expose the given svcPort: %d", svcPort)
+		return service.Spec.Ports[0], nil
 	}
 
-	if len(ports) > 1 {
-		return corev1.ServicePort{}, fmt.Errorf("service exposes multiple ports. Port option must be defined")
+	for _, p := range service.Spec.Ports {
+		if p.Port == svcPort.Int32() || p.Name == svcPort.Str() {
+			return p, nil
+		}
 	}
-
-	return ports[0], nil
+	return corev1.ServicePort{}, fmt.Errorf("the service does not expose the given svcPort: %s", svcPort)
 }
 
 // MapPort returns the port in the Pod that maps to the given service port
-func MapPort(service corev1.Service, port uint, pod corev1.Pod) (uint, error) {
+func MapPort(service corev1.Service, port intstr.IntOrString, pod corev1.Pod) (intstr.IntOrString, error) {
 	svcPort, err := getTargetPort(service, port)
 	if err != nil {
-		return 0, err
+		return intstr.NullValue, err
 	}
 
 	switch svcPort.TargetPort.Type {
-	case intstr.String:
+	case k8sintstr.String:
 		for _, container := range pod.Spec.Containers {
 			for _, port := range container.Ports {
 				if port.Name == svcPort.TargetPort.StrVal {
-					return uint(port.ContainerPort), nil
+					return intstr.FromInt32(port.ContainerPort), nil
 				}
 			}
 		}
 
-	case intstr.Int:
+	case k8sintstr.Int:
 		for _, container := range pod.Spec.Containers {
 			for _, port := range container.Ports {
 				if port.ContainerPort == svcPort.TargetPort.IntVal {
-					return uint(port.ContainerPort), nil
+					return intstr.FromInt32(port.ContainerPort), nil
 				}
 			}
 		}
 	}
 
-	return 0, fmt.Errorf("pod %q does match port %d for service %q", pod.Name, port, service.Name)
+	return intstr.NullValue, fmt.Errorf("pod %q does match port %q for service %q", pod.Name, port.Str(), service.Name)
 }
 
 // HasPort verifies if a pods listen to the given port
-func HasPort(pod corev1.Pod, port uint) bool {
+func HasPort(pod corev1.Pod, port intstr.IntOrString) bool {
 	for _, container := range pod.Spec.Containers {
 		for _, containerPort := range container.Ports {
-			if uint(containerPort.ContainerPort) == port {
+			if containerPort.ContainerPort == port.Int32() {
 				return true
 			}
 		}
