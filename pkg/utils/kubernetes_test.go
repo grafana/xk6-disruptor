@@ -31,69 +31,43 @@ func buildServicWithPort(name string, portName string, port int32, target k8sint
 		Build()
 }
 
-func Test_ServicePortMapping(t *testing.T) {
+func Test_FindPort(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		title       string
-		serviceName string
-		namespace   string
-		service     corev1.Service
 		pod         corev1.Pod
-		endpoints   *corev1.Endpoints
 		port        intstr.IntOrString
 		expectError bool
 		expected    intstr.IntOrString
 	}{
 		{
-			title:       "invalid Port option",
-			serviceName: "test-svc",
-			namespace:   "test-ns",
-			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(8080)),
+			title:       "Numeric port",
 			pod:         buildPodWithPort("pod-1", "http", 80),
 			port:        intstr.FromInt(80),
-			expectError: true,
-			expected:    intstr.FromInt(0),
+			expectError: false,
+			expected:    intstr.FromInt(80),
 		},
 		{
-			title:       "Numeric target port specified",
-			serviceName: "test-svc",
-			namespace:   "test-ns",
-			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
+			title:       "Numeric port not exposed",
 			pod:         buildPodWithPort("pod-1", "http", 80),
 			port:        intstr.FromInt(8080),
-			expectError: false,
-			expected:    intstr.FromInt(80),
-		},
-		{
-			title:       "Named target port",
-			serviceName: "test-svc",
-			namespace:   "test-ns",
-			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromString("http")),
-			pod:         buildPodWithPort("pod-1", "http", 80),
-			port:        intstr.FromInt32(8080),
-			expectError: false,
-			expected:    intstr.FromInt(80),
-		},
-		{
-			title:       "Default port mapping",
-			serviceName: "test-svc",
-			namespace:   "test-ns",
-			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
-			pod:         buildPodWithPort("pod-1", "http", 80),
-			port:        intstr.FromInt(0),
-			expectError: false,
-			expected:    intstr.FromInt(80),
-		},
-		{
-			title:       "No target for mapping",
-			serviceName: "test-svc",
-			namespace:   "test-ns",
-			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
-			pod:         buildPodWithPort("pod-1", "http", 8080),
-			port:        intstr.FromInt(8080),
 			expectError: true,
-			expected:    intstr.FromInt(0),
+			expected:    intstr.NullValue,
+		},
+		{
+			title:       "Named port",
+			pod:         buildPodWithPort("pod-1", "http", 80),
+			port:        intstr.FromString("http"),
+			expectError: false,
+			expected:    intstr.FromInt(80),
+		},
+		{
+			title:       "Named port not exposed port",
+			pod:         buildPodWithPort("pod-1", "http", 80),
+			port:        intstr.FromString("http2"),
+			expectError: true,
+			expected:    intstr.NullValue,
 		},
 	}
 
@@ -103,7 +77,7 @@ func Test_ServicePortMapping(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			port, err := MapPort(tc.service, tc.port, tc.pod)
+			port, err := FindPort(tc.port, tc.pod)
 			if !tc.expectError && err != nil {
 				t.Errorf(" failed: %v", err)
 				return
@@ -126,46 +100,84 @@ func Test_ServicePortMapping(t *testing.T) {
 	}
 }
 
-func Test_ValidatePort(t *testing.T) {
+func Test_GetTargetPort(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		title      string
-		namespace  string
-		pod        corev1.Pod
-		targetPort intstr.IntOrString
-		expect     bool
+		title string
+
+		service     corev1.Service
+		endpoints   *corev1.Endpoints
+		port        intstr.IntOrString
+		expectError bool
+		expected    intstr.IntOrString
 	}{
 		{
-			title:     "Pods listen to the specified port",
-			namespace: "testns",
-			pod: builders.NewPodBuilder("test-pod-1").
-				WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 8080}}}).
-				WithNamespace("testns").
-				Build(),
-			targetPort: intstr.FromInt(8080),
-			expect:     true,
+			title:       "Numeric service port specified",
+			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
+			port:        intstr.FromInt(8080),
+			expectError: false,
+			expected:    intstr.FromInt(80),
 		},
 		{
-			title:     "Pod doesn't listen to the specified port",
-			namespace: "testns",
-			pod: builders.NewPodBuilder("test-pod-2").
-				WithContainer(corev1.Container{Ports: []corev1.ContainerPort{{ContainerPort: 9090}}}).
-				WithNamespace("testns").
-				Build(),
-			targetPort: intstr.FromInt(8080),
-			expect:     false,
+			title:       "Named service port",
+			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
+			port:        intstr.FromString("http"),
+			expectError: false,
+			expected:    intstr.FromInt(80),
+		},
+		{
+			title:       "Named target port",
+			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromString("http")),
+			port:        intstr.FromInt(8080),
+			expectError: false,
+			expected:    intstr.FromString("http"),
+		},
+		{
+			title:       "Default port mapping",
+			service:     buildServicWithPort("test-svc", "http", 8080, k8sintstr.FromInt(80)),
+			port:        intstr.FromInt(0),
+			expectError: false,
+			expected:    intstr.FromInt(80),
+		},
+		{
+			title:       "Numeric port not exposed",
+			service:     buildServicWithPort("test-svc", "http", 80, k8sintstr.FromInt(80)),
+			port:        intstr.FromInt(8080),
+			expectError: true,
+		},
+		{
+			title:       "Named port not exposed",
+			service:     buildServicWithPort("test-svc", "http", 80, k8sintstr.FromString("http")),
+			port:        intstr.FromString("http2"),
+			expectError: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			validation := HasPort(tc.pod, tc.targetPort)
-			if validation != tc.expect {
-				t.Errorf("expected %t got %t", tc.expect, validation)
+			port, err := GetTargetPort(tc.service, tc.port)
+			if !tc.expectError && err != nil {
+				t.Errorf(" failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if tc.expectError && err != nil {
+				return
+			}
+
+			if tc.expected != port {
+				t.Errorf("expected %q got %q", tc.expected.Str(), port.Str())
+				return
 			}
 		})
 	}

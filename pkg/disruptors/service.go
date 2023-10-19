@@ -8,6 +8,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,9 +84,16 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	command := ServiceHTTPFaultCommand{
-		service:  d.service,
-		fault:    fault,
+	// Map service port to a target pod port
+	port, err := utils.GetTargetPort(d.service, fault.Port)
+	if err != nil {
+		return err
+	}
+	podFault := fault
+	podFault.Port = port
+
+	command := PodHTTPFaultCommand{
+		fault:    podFault,
 		duration: duration,
 		options:  options,
 	}
@@ -105,8 +113,15 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	command := ServiceGrpcFaultCommand{
-		service:  d.service,
+	// Map service port to a target pod port
+	port, err := utils.GetTargetPort(d.service, fault.Port)
+	if err != nil {
+		return err
+	}
+	podFault := fault
+	podFault.Port = port
+
+	command := PodGrpcFaultCommand{
 		fault:    fault,
 		duration: duration,
 		options:  options,

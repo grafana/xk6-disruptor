@@ -5,69 +5,51 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	corev1 "k8s.io/api/core/v1"
-	k8sintstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// getTargetPort returns the ServicePort object that corresponds to the given port searching for a match
-// for the port number or port name
-func getTargetPort(service corev1.Service, svcPort intstr.IntOrString) (corev1.ServicePort, error) {
+// GetTargetPort returns the target port for the fiven service port
+func GetTargetPort(service corev1.Service, svcPort intstr.IntOrString) (intstr.IntOrString, error) {
 	// Handle default port mapping
 	// TODO: make port required
 	if svcPort == intstr.NullValue || (svcPort.IsInt() && svcPort.Int32() == 0) {
 		if len(service.Spec.Ports) > 1 {
-			return corev1.ServicePort{}, fmt.Errorf("no port selected and service exposes more than one service")
+			return intstr.NullValue, fmt.Errorf("no port selected and service exposes more than one service")
 		}
-		return service.Spec.Ports[0], nil
+		return intstr.IntOrString(service.Spec.Ports[0].TargetPort.String()), nil
 	}
 
 	for _, p := range service.Spec.Ports {
-		if p.Port == svcPort.Int32() || p.Name == svcPort.Str() {
-			return p, nil
+		if p.Name == svcPort.Str() || (svcPort.IsInt() && p.Port == svcPort.Int32()) {
+			return intstr.IntOrString(p.TargetPort.String()), nil
 		}
 	}
-	return corev1.ServicePort{}, fmt.Errorf("the service does not expose the given svcPort: %s", svcPort)
+
+	return intstr.NullValue, fmt.Errorf("the service does not expose the given svcPort: %s", svcPort)
 }
 
-// MapPort returns the port in the Pod that maps to the given service port
-func MapPort(service corev1.Service, port intstr.IntOrString, pod corev1.Pod) (intstr.IntOrString, error) {
-	svcPort, err := getTargetPort(service, port)
-	if err != nil {
-		return intstr.NullValue, err
-	}
-
-	switch svcPort.TargetPort.Type {
-	case k8sintstr.String:
+// FindPort returns the port in the Pod that maps to the given port by port number or name
+func FindPort(port intstr.IntOrString, pod corev1.Pod) (intstr.IntOrString, error) {
+	switch port.Type() {
+	case intstr.StringValue:
 		for _, container := range pod.Spec.Containers {
-			for _, port := range container.Ports {
-				if port.Name == svcPort.TargetPort.StrVal {
-					return intstr.FromInt32(port.ContainerPort), nil
+			for _, p := range container.Ports {
+				if p.Name == port.Str() {
+					return intstr.FromInt32(p.ContainerPort), nil
 				}
 			}
 		}
 
-	case k8sintstr.Int:
+	case intstr.IntValue:
 		for _, container := range pod.Spec.Containers {
-			for _, port := range container.Ports {
-				if port.ContainerPort == svcPort.TargetPort.IntVal {
-					return intstr.FromInt32(port.ContainerPort), nil
+			for _, p := range container.Ports {
+				if p.ContainerPort == port.Int32() {
+					return intstr.FromInt32(p.ContainerPort), nil
 				}
 			}
 		}
 	}
 
-	return intstr.NullValue, fmt.Errorf("pod %q does match port %q for service %q", pod.Name, port.Str(), service.Name)
-}
-
-// HasPort verifies if a pods listen to the given port
-func HasPort(pod corev1.Pod, port intstr.IntOrString) bool {
-	for _, container := range pod.Spec.Containers {
-		for _, containerPort := range container.Ports {
-			if containerPort.ContainerPort == port.Int32() {
-				return true
-			}
-		}
-	}
-	return false
+	return intstr.NullValue, fmt.Errorf("pod %q does exports port %q", pod.Name, port.Str())
 }
 
 // HasHostNetwork returns whether a pod has HostNetwork enabled, i.e. it shares the host's network namespace.
