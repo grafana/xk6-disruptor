@@ -35,9 +35,11 @@ type PodDisruptorOptions struct {
 	InjectTimeout time.Duration `js:"injectTimeout"`
 }
 
-// podDisruptor is an instance of a PodDisruptor initialized with a list of target pods
+// podDisruptor is an instance of a PodDisruptor that uses a PodController to interact with target pods
 type podDisruptor struct {
-	controller AgentController
+	helper     helpers.PodHelper
+	options    PodDisruptorOptions
+	controller *PodController
 }
 
 // PodSelector defines the criteria for selecting a pod for disruption
@@ -133,19 +135,11 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("finding pods matching '%s': %w", selector, ErrSelectorNoPods)
 	}
 
-	controller := NewAgentController(
-		ctx,
-		helper,
-		namespace,
-		targets,
-		options.InjectTimeout,
-	)
-	err = controller.InjectDisruptorAgent(ctx)
-	if err != nil {
-		return nil, err
-	}
+	controller := NewPodController(targets)
 
 	return &podDisruptor{
+		helper:     helper,
+		options:    options,
 		controller: controller,
 	}, nil
 }
@@ -166,11 +160,18 @@ func (d *podDisruptor) InjectHTTPFaults(
 		fault.Port = DefaultTargetPort
 	}
 
-	visitor := PodHTTPFaultVisitor{
+	command := PodHTTPFaultCommand{
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
+
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
+
 	return d.controller.Visit(ctx, visitor)
 }
 
@@ -181,11 +182,17 @@ func (d *podDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	visitor := PodGrpcFaultVisitor{
+	command := PodGrpcFaultCommand{
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
+
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
 
 	return d.controller.Visit(ctx, visitor)
 }

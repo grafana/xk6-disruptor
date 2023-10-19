@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,9 @@ type ServiceDisruptorOptions struct {
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
 	service    corev1.Service
-	controller AgentController
+	helper     helpers.PodHelper
+	options    ServiceDisruptorOptions
+	controller *PodController
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
@@ -62,22 +65,14 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("creating disruptor for service %s/%s: %w", service, namespace, ErrServiceNoTargets)
 	}
 
-	ph := k8s.PodHelper(namespace)
-	controller := NewAgentController(
-		ctx,
-		ph,
-		namespace,
-		targets,
-		options.InjectTimeout,
-	)
+	helper := k8s.PodHelper(namespace)
 
-	err = controller.InjectDisruptorAgent(ctx)
-	if err != nil {
-		return nil, err
-	}
+	controller := NewPodController(targets)
 
 	return &serviceDisruptor{
 		service:    *svc,
+		helper:     helper,
+		options:    options,
 		controller: controller,
 	}, nil
 }
@@ -88,12 +83,18 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
-	visitor := ServiceHTTPFaultVisitor{
+	command := ServiceHTTPFaultCommand{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
+
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
 
 	return d.controller.Visit(ctx, visitor)
 }
@@ -104,12 +105,18 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 	duration time.Duration,
 	options GrpcDisruptionOptions,
 ) error {
-	visitor := ServiceGrpcFaultVisitor{
+	command := ServiceGrpcFaultCommand{
 		service:  d.service,
 		fault:    fault,
 		duration: duration,
 		options:  options,
 	}
+
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
 
 	return d.controller.Visit(ctx, visitor)
 }
