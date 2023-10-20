@@ -1,184 +1,94 @@
-package iptables
+package iptables_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
+	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
-func Test_validateTrafficRedirect(t *testing.T) {
+func Test_IptablesAddsRemovesRules(t *testing.T) {
 	t.Parallel()
 
-	TestCases := []struct {
-		title       string
-		redirect    TrafficRedirectionSpec
-		expectError bool
-	}{
-		{
-			title: "Valid redirect",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			expectError: false,
-		},
-		{
-			title: "Same target and proxy port",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 8080,
-				RedirectPort:    8080,
-			},
-			expectError: true,
-		},
-		{
-			title:       "Ports not specified",
-			redirect:    TrafficRedirectionSpec{},
-			expectError: true,
-		},
+	exec := runtime.NewFakeExecutor(nil, nil)
+	ipt := iptables.New(exec)
+
+	// Add two rules
+	err := ipt.Add(iptables.Rule{
+		Table: "table1", Chain: "CHAIN1", Args: "--foo foo --bar bar",
+	})
+	if err != nil {
+		t.Fatalf("error adding rule: %v", err)
 	}
 
-	for _, tc := range TestCases {
-		tc := tc
-
-		t.Run(tc.title, func(t *testing.T) {
-			t.Parallel()
-
-			executor := runtime.NewFakeExecutor(nil, nil)
-			_, err := NewTrafficRedirector(
-				&tc.redirect,
-				executor,
-			)
-			if tc.expectError && err == nil {
-				t.Errorf("error expected but none returned")
-			}
-
-			if !tc.expectError && err != nil {
-				t.Errorf("failed with error %v", err)
-			}
-		})
-	}
-}
-
-func Test_Commands(t *testing.T) {
-	t.Parallel()
-
-	TestCases := []struct {
-		title        string
-		redirect     TrafficRedirectionSpec
-		expectedCmds []string
-		expectError  bool
-		fakeError    error
-		fakeOutput   []byte
-		testFunction func(protocol.TrafficRedirector) error
-	}{
-		{
-			title: "Start valid redirect",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
-				return tr.Start()
-			},
-			expectedCmds: []string{
-				"iptables -D INPUT -p tcp --dport 8080 -j REJECT --reject-with tcp-reset",
-				"iptables -A OUTPUT -t nat -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				"iptables -A PREROUTING -t nat ! -i lo -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				//nolint:lll
-				"iptables -A INPUT -i lo -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-				"iptables -A INPUT ! -i lo -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-			},
-			expectError: false,
-			fakeError:   nil,
-			fakeOutput:  []byte{},
-		},
-		{
-			title: "Stop active redirect",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
-				return tr.Stop()
-			},
-			expectedCmds: []string{
-				"iptables -D OUTPUT -t nat -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				"iptables -D PREROUTING -t nat ! -i lo -p tcp --dport 80 -j REDIRECT --to-port 8080",
-				//nolint:lll
-				"iptables -D INPUT -i lo -s 127.0.0.0/8 -d 127.0.0.1/32 -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-				"iptables -D INPUT ! -i lo -p tcp --dport 80 -m state --state ESTABLISHED -j REJECT --reject-with tcp-reset",
-				"iptables -A INPUT -p tcp --dport 8080 -j REJECT --reject-with tcp-reset",
-			},
-			expectError: false,
-			fakeError:   nil,
-			fakeOutput:  []byte{},
-		},
-		{
-			title: "Error invoking iptables command in Start",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
-				return tr.Start()
-			},
-			expectedCmds: []string{},
-			expectError:  true,
-			fakeError:    fmt.Errorf("process exited with return code 1"),
-			fakeOutput:   []byte{},
-		},
-		{
-			title: "Error invoking iptables command in Stop",
-			redirect: TrafficRedirectionSpec{
-				DestinationPort: 80,
-				RedirectPort:    8080,
-			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
-				return tr.Stop()
-			},
-			expectedCmds: []string{},
-			expectError:  true,
-			fakeError:    fmt.Errorf("process exited with return code 1"),
-			fakeOutput:   []byte{},
-		},
+	err = ipt.Add(iptables.Rule{
+		Table: "table2", Chain: "CHAIN2", Args: "--boo boo --baz baz",
+	})
+	if err != nil {
+		t.Fatalf("error adding rule: %v", err)
 	}
 
-	for _, tc := range TestCases {
-		tc := tc
+	// Check we have run the expected commands.
+	expectedAddCmds := []string{
+		"iptables -t table1 -A CHAIN1 --foo foo --bar bar",
+		"iptables -t table2 -A CHAIN2 --boo boo --baz baz",
+	}
 
-		t.Run(tc.title, func(t *testing.T) {
-			t.Parallel()
+	if diff := cmp.Diff(exec.CmdHistory(), expectedAddCmds); diff != "" {
+		t.Fatalf("Executed commands to add rules do not match expected:\n%s", diff)
+	}
 
-			executor := runtime.NewFakeExecutor(tc.fakeOutput, tc.fakeError)
-			redirector, err := NewTrafficRedirector(&tc.redirect, executor)
-			if err != nil {
-				t.Errorf("failed creating traffic redirector with error %v", err)
-				return
-			}
+	exec.Reset()
 
-			// execute test and collect result
-			err = tc.testFunction(redirector)
+	// Remove the rules.
+	err = ipt.Remove()
+	if err != nil {
+		t.Fatalf("error removing rules: %v", err)
+	}
 
-			if !tc.expectError && err != nil {
-				t.Errorf("failed with error: %v", err)
-				return
-			}
+	// Check we have run the expected commands.
+	expectedRemoveCmds := []string{
+		"iptables -t table1 -D CHAIN1 --foo foo --bar bar",
+		"iptables -t table2 -D CHAIN2 --boo boo --baz baz",
+	}
 
-			if tc.expectError && err == nil {
-				t.Errorf("should had failed")
-				return
-			}
+	if diff := cmp.Diff(exec.CmdHistory(), expectedRemoveCmds); diff != "" {
+		t.Fatalf("Executed commands to remove rules do not match expected:\n%s", diff)
+	}
 
-			if tc.expectError && err != nil {
-				return
-			}
+	exec.Reset()
 
-			if diff := cmp.Diff(tc.expectedCmds, executor.CmdHistory()); diff != "" {
-				t.Fatalf("Actual commands differ from expected:\n%s", diff)
-			}
-		})
+	// After removing the rules, add a new one.
+	err = ipt.Add(iptables.Rule{
+		Table: "table3", Chain: "CHAIN3", Args: "--zoo zoo --zap zap",
+	})
+	if err != nil {
+		t.Fatalf("error adding rule: %v", err)
+	}
+
+	// Check we run the expected add command.
+	expectedAddCmds = []string{
+		"iptables -t table3 -A CHAIN3 --zoo zoo --zap zap",
+	}
+	if diff := cmp.Diff(exec.CmdHistory(), expectedAddCmds); diff != "" {
+		t.Fatalf("Executed commands to add rules do not match expected:\n%s", diff)
+	}
+
+	exec.Reset()
+
+	// Remove the rule.
+	err = ipt.Remove()
+	if err != nil {
+		t.Fatalf("error removing rules: %v", err)
+	}
+
+	// Check we have run the expected command.
+	expectedRemoveCmds = []string{
+		"iptables -t table3 -D CHAIN3 --zoo zoo --zap zap",
+	}
+
+	if diff := cmp.Diff(exec.CmdHistory(), expectedRemoveCmds); diff != "" {
+		t.Fatalf("Executed commands to remove rules do not match expected:\n%s", diff)
 	}
 }
