@@ -7,11 +7,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetTargetPort returns the target port for the fiven service port
+// GetTargetPort returns the target port for the given service port
 func GetTargetPort(service corev1.Service, svcPort intstr.IntOrString) (intstr.IntOrString, error) {
 	// Handle default port mapping
 	// TODO: make port required
-	if svcPort == intstr.NullValue || (svcPort.IsInt() && svcPort.Int32() == 0) {
+	if svcPort.IsNull() || svcPort.IsZero() {
 		if len(service.Spec.Ports) > 1 {
 			return intstr.NullValue, fmt.Errorf("no port selected and service exposes more than one service")
 		}
@@ -19,7 +19,7 @@ func GetTargetPort(service corev1.Service, svcPort intstr.IntOrString) (intstr.I
 	}
 
 	for _, p := range service.Spec.Ports {
-		if p.Name == svcPort.Str() || (svcPort.IsInt() && p.Port == svcPort.Int32()) {
+		if svcPort.Str() == p.Name || (svcPort.IsInt() && svcPort.Int32() == p.Port) {
 			return intstr.IntOrString(p.TargetPort.String()), nil
 		}
 	}
@@ -30,7 +30,7 @@ func GetTargetPort(service corev1.Service, svcPort intstr.IntOrString) (intstr.I
 // FindPort returns the port in the Pod that maps to the given port by port number or name
 func FindPort(port intstr.IntOrString, pod corev1.Pod) (intstr.IntOrString, error) {
 	switch port.Type() {
-	case intstr.StringValue:
+	case intstr.ValueTypeString:
 		for _, container := range pod.Spec.Containers {
 			for _, p := range container.Ports {
 				if p.Name == port.Str() {
@@ -39,7 +39,7 @@ func FindPort(port intstr.IntOrString, pod corev1.Pod) (intstr.IntOrString, erro
 			}
 		}
 
-	case intstr.IntValue:
+	case intstr.ValueTypeInt:
 		for _, container := range pod.Spec.Containers {
 			for _, p := range container.Ports {
 				if p.ContainerPort == port.Int32() {

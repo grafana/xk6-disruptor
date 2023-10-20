@@ -19,7 +19,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
-
 )
 
 func Test_ServiceDisruptor(t *testing.T) {
@@ -67,7 +66,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 				port:    80,
 				injector: func(d disruptors.ServiceDisruptor) error {
 					fault := disruptors.HTTPFault{
-						Port:      intstr.FromInt(80),
+						Port:      intstr.FromInt32(80),
 						ErrorRate: 1.0,
 						ErrorCode: 500,
 					}

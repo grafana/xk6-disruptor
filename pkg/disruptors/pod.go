@@ -21,7 +21,7 @@ import (
 var ErrSelectorNoPods = errors.New("no pods found matching selector")
 
 // DefaultTargetPort defines the default value for a target HTTP
-var DefaultTargetPort = intstr.FromInt(80) //nolint:gochecknoglobals
+var DefaultTargetPort = intstr.FromInt32(80) //nolint:gochecknoglobals
 
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
@@ -158,7 +158,7 @@ func (d *podDisruptor) InjectHTTPFaults(
 ) error {
 	// Handle default port mapping
 	// TODO: make port mandatory instead of using a default
-	if fault.Port == intstr.NullValue || (fault.Port.IsInt() && fault.Port.Int32() == 0) {
+	if fault.Port.IsNull() || fault.Port.IsZero() {
 		fault.Port = DefaultTargetPort
 	}
 

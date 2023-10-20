@@ -185,7 +185,7 @@ func convertIntOrString(value interface{}, target interface{}) error {
 	int64Value, ok := value.(int64)
 	if ok {
 		// check overflow here to avoid panic in the conversion
-		if int64Value > math.MaxUint32 || int64Value < math.MinInt32 {
+		if int64Value > math.MaxInt32 || int64Value < math.MinInt32 {
 			return fmt.Errorf("value overflows int32 range: %d", int64Value)
 		}
 		intOrStrValue := intstr.FromInt32(int32(int64Value))

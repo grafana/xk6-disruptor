@@ -108,9 +108,8 @@ func Test_IntStrFrom(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			var panicked interface{}
 			defer func() {
-				panicked = recover()
+				panicked := recover()
 				if panicked != nil && !tc.shouldPanic {
 					t.Fatalf("panicked %v", panicked)
 				}
@@ -119,7 +118,7 @@ func Test_IntStrFrom(t *testing.T) {
 			// if this conversion panics, the defer function checks if this is normal
 			value := tc.function(tc.value)
 
-			if panicked == nil && tc.shouldPanic {
+			if tc.shouldPanic {
 				t.Fatal("should had panicked")
 			}
 

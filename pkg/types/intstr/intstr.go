@@ -1,4 +1,4 @@
-// Package intstr implements custom types
+// Package intstr implements a custom type for handling values that can be either a string or an int32
 package intstr
 
 import (
@@ -10,10 +10,10 @@ import (
 type ValueType int
 
 const (
-	// IntValue is a IntOrString that represents an integer value
-	IntValue ValueType = iota
-	// StringValue is a IntOrString 	that represents a string value
-	StringValue
+	// ValueTypeInt is a IntOrString that represents an integer value
+	ValueTypeInt ValueType = iota
+	// ValueTypeString is a IntOrString that represents a string value
+	ValueTypeString
 )
 
 // IntOrString holds a value that can be either a string or a int
@@ -25,15 +25,24 @@ const NullValue = IntOrString("")
 // Type returns the ValueType of a IntOrString value
 func (value IntOrString) Type() ValueType {
 	if _, err := strconv.Atoi(string(value)); err == nil {
-		return IntValue
+		return ValueTypeInt
 	}
-	return StringValue
+	return ValueTypeString
 }
 
 // IsInt returns true if the value is an integer
 func (value IntOrString) IsInt() bool {
-	_, err := strconv.Atoi(string(value))
-	return err == nil
+	return value.Type() == ValueTypeInt
+}
+
+// IsZero checks if the IntOrString value is an integer 0
+func (value IntOrString) IsZero() bool {
+	return value.IsInt() && value.Int32() == 0
+}
+
+// IsNull checks if the IntOrString value is the Int NullValue
+func (value IntOrString) IsNull() bool {
+	return value == NullValue
 }
 
 // Int32 returns the value of the IntOrString as an int32.
@@ -50,12 +59,6 @@ func (value IntOrString) Int32() int32 {
 // Str returns the value of the IntOrString as a string.
 func (value IntOrString) Str() string {
 	return string(value)
-}
-
-// FromInt return a IntOrString from a int
-func FromInt(value int) IntOrString {
-	strValue := fmt.Sprintf("%d", value)
-	return IntOrString(strValue)
 }
 
 // FromInt32 return a IntOrString from a int32

@@ -73,7 +73,7 @@ func Test_PodDisruptor(t *testing.T) {
 				port:    80,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.HTTPFault{
-						Port:      intstr.FromInt(80),
+						Port:      intstr.FromInt32(80),
 						ErrorRate: 1.0,
 						ErrorCode: 500,
 					}
@@ -99,7 +99,7 @@ func Test_PodDisruptor(t *testing.T) {
 				port:    9000,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.GrpcFault{
-						Port:       intstr.FromInt(9000),
+						Port:       intstr.FromInt32(9000),
 						ErrorRate:  1.0,
 						StatusCode: 14,
 						Exclude:    "grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
@@ -253,7 +253,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 
 		fault := disruptors.HTTPFault{
-			Port:      intstr.FromInt(80),
+			Port:      intstr.FromInt32(80),
 			ErrorRate: 1.0,
 			ErrorCode: 500,
 		}
