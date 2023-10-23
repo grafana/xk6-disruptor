@@ -66,3 +66,13 @@ func PodIP(pod corev1.Pod) (string, error) {
 
 	return "", fmt.Errorf("pod %s/%s does not have an IP address", pod.Namespace, pod.Name)
 }
+
+// PodNames return the name of the pods in a list
+func PodNames(pods []corev1.Pod) []string {
+	names := make([]string, 0, len(pods))
+	for _, pod := range pods {
+		names = append(names, pod.Name)
+	}
+
+	return names
+}

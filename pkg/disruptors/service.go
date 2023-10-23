@@ -32,10 +32,10 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
-	service    corev1.Service
-	helper     helpers.PodHelper
-	options    ServiceDisruptorOptions
-	controller *PodController
+	service corev1.Service
+	helper  helpers.PodHelper
+	options ServiceDisruptorOptions
+	targets []corev1.Pod
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
@@ -68,13 +68,11 @@ func NewServiceDisruptor(
 
 	helper := k8s.PodHelper(namespace)
 
-	controller := NewPodController(targets)
-
 	return &serviceDisruptor{
-		service:    *svc,
-		helper:     helper,
-		options:    options,
-		controller: controller,
+		service: *svc,
+		helper:  helper,
+		options: options,
+		targets: targets,
 	}, nil
 }
 
@@ -104,7 +102,9 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 		command,
 	)
 
-	return d.controller.Visit(ctx, visitor)
+	controller := NewPodController(d.targets)
+
+	return controller.Visit(ctx, visitor)
 }
 
 func (d *serviceDisruptor) InjectGrpcFaults(
@@ -133,9 +133,11 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 		command,
 	)
 
-	return d.controller.Visit(ctx, visitor)
+	controller := NewPodController(d.targets)
+
+	return controller.Visit(ctx, visitor)
 }
 
-func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {
-	return d.controller.Targets(ctx)
+func (d *serviceDisruptor) Targets(_ context.Context) ([]string, error) {
+	return utils.PodNames(d.targets), nil
 }
