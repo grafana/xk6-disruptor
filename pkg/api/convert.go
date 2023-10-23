@@ -20,7 +20,7 @@ import (
 // string                <-- string
 // time.Duration         <-- string
 // time.Time             <-- string (only in RFC3339 format)
-// IntOrStr              <-- string or int64
+// IntOrStr              <-- string or int64 (only supports int32 values)
 //
 // (1) TODO: support other key types, such as numeric and attempt conversion from the string key
 func Convert(value interface{}, target interface{}) error {
