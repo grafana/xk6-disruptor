@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
+
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sintstr "k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -71,7 +73,7 @@ func Test_PodDisruptor(t *testing.T) {
 				port:    80,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.HTTPFault{
-						Port:      80,
+						Port:      intstr.FromInt32(80),
 						ErrorRate: 1.0,
 						ErrorCode: 500,
 					}
@@ -97,7 +99,7 @@ func Test_PodDisruptor(t *testing.T) {
 				port:    9000,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.GrpcFault{
-						Port:       9000,
+						Port:       intstr.FromInt32(9000),
 						ErrorRate:  1.0,
 						StatusCode: 14,
 						Exclude:    "grpc.reflection.v1alpha.ServerReflection,grpc.reflection.v1.ServerReflection",
@@ -135,7 +137,7 @@ func Test_PodDisruptor(t *testing.T) {
 					namespace,
 					tc.pod,
 					tc.service,
-					intstr.FromInt(tc.port),
+					k8sintstr.FromInt(tc.port),
 					30*time.Second,
 				)
 				if err != nil {
@@ -225,7 +227,7 @@ func Test_PodDisruptor(t *testing.T) {
 			namespace,
 			fixtures.BuildHttpbinPod(),
 			service,
-			intstr.FromInt(80),
+			k8sintstr.FromInt(80),
 			30*time.Second,
 		)
 		if err != nil {
@@ -251,7 +253,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 
 		fault := disruptors.HTTPFault{
-			Port:      80,
+			Port:      intstr.FromInt32(80),
 			ErrorRate: 1.0,
 			ErrorCode: 500,
 		}

@@ -11,16 +11,17 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// DefaultTargetPort defines default target port if not specified in Fault
-const DefaultTargetPort = 80
-
 // ErrSelectorNoPods is returned by NewPodDisruptor when the selector passed to it does not match any pod in the
 // cluster.
 var ErrSelectorNoPods = errors.New("no pods found matching selector")
+
+// DefaultTargetPort defines the default value for a target HTTP
+var DefaultTargetPort = intstr.FromInt32(80) //nolint:gochecknoglobals
 
 // PodDisruptor defines the types of faults that can be injected in a Pod
 type PodDisruptor interface {
@@ -155,8 +156,9 @@ func (d *podDisruptor) InjectHTTPFaults(
 	duration time.Duration,
 	options HTTPDisruptionOptions,
 ) error {
+	// Handle default port mapping
 	// TODO: make port mandatory instead of using a default
-	if fault.Port == 0 {
+	if fault.Port.IsNull() || fault.Port.IsZero() {
 		fault.Port = DefaultTargetPort
 	}
 

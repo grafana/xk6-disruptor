@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 )
 
 func Test_Conversions(t *testing.T) {
@@ -13,13 +15,15 @@ func Test_Conversions(t *testing.T) {
 		SubfieldString string
 	}
 	type TypedFields struct {
-		FieldString   string
-		FieldDuration time.Duration
-		FieldInt      int64
-		FieldFloat    float64
-		FieldStruct   StructField
-		FieldMap      map[string]string
-		FieldArray    []string
+		IntOrStrStr intstr.IntOrString
+		IntOrStrInt intstr.IntOrString
+		String      string
+		Duration    time.Duration
+		Int         int64
+		Float       float64
+		Struct      StructField
+		Map         map[string]string
+		Array       []string
 	}
 
 	testCases := []struct {
@@ -41,6 +45,27 @@ func Test_Conversions(t *testing.T) {
 			value:       int64(1),
 			target:      new(int64),
 			expected:    int64(1),
+			expectError: false,
+		},
+		{
+			description: "IntOrString int conversion",
+			value:       int64(1),
+			target:      new(intstr.IntOrString),
+			expected:    intstr.FromInt32(1),
+			expectError: false,
+		},
+		{
+			description: "IntOrString string to int conversion",
+			value:       "1",
+			target:      new(intstr.IntOrString),
+			expected:    intstr.FromInt32(1),
+			expectError: false,
+		},
+		{
+			description: "IntOrString string conversion",
+			value:       "one",
+			target:      new(intstr.IntOrString),
+			expected:    intstr.FromString("one"),
 			expectError: false,
 		},
 		{
@@ -153,31 +178,35 @@ func Test_Conversions(t *testing.T) {
 		{
 			description: "Struct field conversion",
 			value: map[string]interface{}{
-				"fieldString":   "string",
-				"fieldInt":      int64(1),
-				"fieldDuration": "1s",
-				"fieldFloat":    float64(1.0),
-				"fieldStruct": map[string]interface{}{
+				"intOrStrStr": "uno",
+				"intOrStrInt": int64(1),
+				"string":      "string",
+				"int":         int64(1),
+				"duration":    "1s",
+				"float":       float64(1.0),
+				"struct": map[string]interface{}{
 					"subfieldInt":    int64(0),
 					"subfieldString": "string",
 				},
-				"fieldMap": map[string]interface{}{
+				"map": map[string]interface{}{
 					"key": "value",
 				},
-				"fieldArray": []interface{}{"string"},
+				"array": []interface{}{"string"},
 			},
 			target: &TypedFields{},
 			expected: TypedFields{
-				FieldString:   "string",
-				FieldInt:      1,
-				FieldDuration: time.Second,
-				FieldFloat:    1.0,
-				FieldStruct: StructField{
+				IntOrStrStr: intstr.FromString("uno"),
+				IntOrStrInt: intstr.FromInt32(1),
+				String:      "string",
+				Int:         1,
+				Duration:    time.Second,
+				Float:       1.0,
+				Struct: StructField{
 					SubfieldInt:    0,
 					SubfieldString: "string",
 				},
-				FieldArray: []string{"string"},
-				FieldMap: map[string]string{
+				Array: []string{"string"},
+				Map: map[string]string{
 					"key": "value",
 				},
 			},

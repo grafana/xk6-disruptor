@@ -3,6 +3,8 @@ package disruptors
 import (
 	"context"
 	"time"
+
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 )
 
 // ProtocolFaultInjector defines the methods for injecting protocol faults
@@ -30,7 +32,7 @@ type GrpcDisruptionOptions struct {
 // HTTPFault specifies a fault to be injected in http requests
 type HTTPFault struct {
 	// port the disruptions will be applied to
-	Port uint
+	Port intstr.IntOrString
 	// Average delay introduced to requests
 	AverageDelay time.Duration `js:"averageDelay"`
 	// Variation in the delay (with respect of the average delay)
@@ -48,7 +50,7 @@ type HTTPFault struct {
 // GrpcFault specifies a fault to be injected in grpc requests
 type GrpcFault struct {
 	// port the disruptions will be applied to
-	Port uint
+	Port intstr.IntOrString
 	// Average delay introduced to requests
 	AverageDelay time.Duration `js:"averageDelay"`
 	// Variation in the delay (with respect of the average delay)
