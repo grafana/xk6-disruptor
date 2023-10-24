@@ -21,6 +21,7 @@ var ErrServiceNoTargets = errors.New("service does not have any backing pods")
 type ServiceDisruptor interface {
 	Disruptor
 	ProtocolFaultInjector
+	PodFaultInjector
 }
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
@@ -140,4 +141,21 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 
 func (d *serviceDisruptor) Targets(_ context.Context) ([]string, error) {
 	return utils.PodNames(d.targets), nil
+}
+
+// TerminatePods terminates a subset of the target pods of the disruptor
+func (d *serviceDisruptor) TerminatePods(
+	ctx context.Context,
+	fault TerminatePodsFault,
+) ([]string, error) {
+	targets, err := utils.Sample(d.targets, fault.Count)
+	if err != nil {
+		return nil, err
+	}
+
+	controller := NewPodController(targets)
+
+	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout}
+
+	return utils.PodNames(targets), controller.Visit(ctx, visitor)
 }

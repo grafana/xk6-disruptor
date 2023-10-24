@@ -76,3 +76,12 @@ func PodNames(pods []corev1.Pod) []string {
 
 	return names
 }
+
+// Sample a subset of the given list of Pods
+func Sample(pods []corev1.Pod, count int) ([]corev1.Pod, error) {
+	if count > len(pods) {
+		return nil, fmt.Errorf("cannot sample %d pods out of a total of %d", count, len(pods))
+	}
+
+	return pods[:count], nil
+}

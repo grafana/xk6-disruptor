@@ -29,6 +29,7 @@ var DefaultTargetPort = intstr.FromInt32(80) //nolint:gochecknoglobals
 type PodDisruptor interface {
 	Disruptor
 	ProtocolFaultInjector
+	PodFaultInjector
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
@@ -201,4 +202,21 @@ func (d *podDisruptor) InjectGrpcFaults(
 	controller := NewPodController(d.targets)
 
 	return controller.Visit(ctx, visitor)
+}
+
+// TerminatePods terminates a subset of the target pods of the disruptor
+func (d *podDisruptor) TerminatePods(
+	ctx context.Context,
+	fault TerminatePodsFault,
+) ([]string, error) {
+	targets, err := utils.Sample(d.targets, fault.Count)
+	if err != nil {
+		return nil, err
+	}
+
+	controller := NewPodController(targets)
+
+	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout}
+
+	return utils.PodNames(targets), controller.Visit(ctx, visitor)
 }
