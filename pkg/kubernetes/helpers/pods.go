@@ -8,7 +8,9 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -23,6 +25,8 @@ type PodHelper interface {
 	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating
 	// if the status was reached. If the pod is Failed returns error.
 	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
+	// WaitPodDeleted waits for the Pod to be deleted for up to given timeout
+	WaitPodDeleted(ctx context.Context, name string, timeout time.Duration) error
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(ctx context.Context, pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod
@@ -34,6 +38,8 @@ type PodHelper interface {
 	) error
 	// List returns a list of pods that match the given PodFilter
 	List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error)
+	// Terminate terminates the execution of a running Pod
+	Terminate(ctx context.Context, name string, timeout time.Duration) error
 }
 
 // helpers struct holds the data required by the helpers
@@ -294,4 +300,57 @@ func (h *podHelper) List(ctx context.Context, filter PodFilter) ([]corev1.Pod, e
 	}
 
 	return pods.Items, nil
+}
+
+// WaitPodDeleted waits until a pod is deleted or a timeout expires
+func (h *podHelper) WaitPodDeleted(ctx context.Context, pod string, timeout time.Duration) error {
+	selector := fields.Set{
+		"metadata.name": pod,
+	}.AsSelector()
+
+	watcher, err := h.client.CoreV1().Pods(h.namespace).Watch(
+		ctx,
+		metav1.ListOptions{
+			FieldSelector: selector.String(),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("starting pod watcher: %w", err)
+	}
+	defer watcher.Stop()
+
+	// if pod does not exist, then consider it deleted
+	_, err = h.client.CoreV1().Pods(h.namespace).Get(
+		ctx,
+		pod,
+		metav1.GetOptions{},
+	)
+	if k8serrors.IsNotFound(err) {
+		return nil
+	}
+
+	expired := time.After(timeout)
+	for {
+		select {
+		case <-expired:
+			return fmt.Errorf("pod '%s/%s' not terminated after %fs", h.namespace, pod, timeout.Seconds())
+		case event := <-watcher.ResultChan():
+			if event.Type == watch.Error {
+				return fmt.Errorf("error watching for pod: %v", event.Object)
+			}
+			if event.Type == watch.Deleted {
+				return nil
+			}
+		}
+	}
+}
+
+// Terminate terminates a running Pod
+func (h *podHelper) Terminate(ctx context.Context, pod string, timeout time.Duration) error {
+	err := h.client.CoreV1().Pods(h.namespace).Delete(ctx, pod, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("deleting pod %w", err)
+	}
+
+	return h.WaitPodDeleted(ctx, pod, timeout)
 }
