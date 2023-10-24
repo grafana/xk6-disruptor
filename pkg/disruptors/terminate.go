@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
+	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -31,8 +32,8 @@ type PodFaultInjector interface {
 
 // TerminatePodsFault specifies a fault that will terminate a set of pods
 type TerminatePodsFault struct {
-	// Count indicates how many pods to terminate
-	Count int
+	// Count indicates how many pods to terminate. Can be a number or a percentage or targets
+	Count intstr.IntOrString
 	// Timeout specifies the maximum time to wait for a pod to terminate
 	Timeout time.Duration
 }

@@ -186,7 +186,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}
 
 		fault := disruptors.TerminatePodsFault{
-			Count:   1,
+			Count:   intstr.FromInt32(1),
 			Timeout: 10 * time.Second,
 		}
 
@@ -195,8 +195,8 @@ func Test_ServiceDisruptor(t *testing.T) {
 			t.Fatalf("terminating pods: %v", err)
 		}
 
-		if len(terminated) != fault.Count {
-			t.Fatalf("Invalid number of pods deleted. Expected %d got %d", fault.Count, len(terminated))
+		if len(terminated) != int(fault.Count.Int32()) {
+			t.Fatalf("Invalid number of pods deleted. Expected %d got %d", fault.Count.Int32(), len(terminated))
 		}
 
 		for _, pod := range terminated {
