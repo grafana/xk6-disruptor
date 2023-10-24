@@ -104,4 +104,8 @@ linters:
     - ifshort
     - nosnakecase
     - depguard # Dependency whitelist, needs to be configured
+    - goconst # Fails if the same strings used in several places but is not a constant. Not very useful.
+    - inamedparam # Fails if interfaces do not have named params. Not in our code style.
+    - perfsprint # Suggests using strconv.* instead of fmt.* for printing numbers. Not very practical.
+    - protogetter # Complains when code reads var.Something if var.GetSomething() exists. Not useful.
   fast: false
