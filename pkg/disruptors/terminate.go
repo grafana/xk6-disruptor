@@ -27,11 +27,11 @@ func (c PodTerminationVisitor) Visit(ctx context.Context, pod corev1.Pod) error 
 type PodFaultInjector interface {
 	// Terminates a set of pods. Returns the list of pods affected. If any of the target pods
 	// is not terminated after the timeout defined in the TerminatePodsFault, an error is returned
-	TerminatePods(context.Context, TerminatePodsFault) ([]string, error)
+	TerminatePods(context.Context, PodTerminationFault) ([]string, error)
 }
 
-// TerminatePodsFault specifies a fault that will terminate a set of pods
-type TerminatePodsFault struct {
+// PodTerminationFault specifies a fault that will terminate a set of pods
+type PodTerminationFault struct {
 	// Count indicates how many pods to terminate. Can be a number or a percentage or targets
 	Count intstr.IntOrString
 	// Timeout specifies the maximum time to wait for a pod to terminate

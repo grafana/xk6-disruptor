@@ -207,7 +207,7 @@ func (d *podDisruptor) InjectGrpcFaults(
 // TerminatePods terminates a subset of the target pods of the disruptor
 func (d *podDisruptor) TerminatePods(
 	ctx context.Context,
-	fault TerminatePodsFault,
+	fault PodTerminationFault,
 ) ([]string, error) {
 	targets, err := utils.Sample(d.targets, fault.Count)
 	if err != nil {

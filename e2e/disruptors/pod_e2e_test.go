@@ -313,7 +313,7 @@ func Test_PodDisruptor(t *testing.T) {
 			t.Fatalf("No pods matched the selector")
 		}
 
-		fault := disruptors.TerminatePodsFault{
+		fault := disruptors.PodTerminationFault{
 			Count:   intstr.FromInt32(1),
 			Timeout: 10 * time.Second,
 		}

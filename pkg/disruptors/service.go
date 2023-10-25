@@ -146,7 +146,7 @@ func (d *serviceDisruptor) Targets(_ context.Context) ([]string, error) {
 // TerminatePods terminates a subset of the target pods of the disruptor
 func (d *serviceDisruptor) TerminatePods(
 	ctx context.Context,
-	fault TerminatePodsFault,
+	fault PodTerminationFault,
 ) ([]string, error) {
 	targets, err := utils.Sample(d.targets, fault.Count)
 	if err != nil {
