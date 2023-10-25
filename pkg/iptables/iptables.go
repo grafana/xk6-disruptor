@@ -43,6 +43,7 @@ import (
 const redirectLocalRule = "OUTPUT " + // For local traffic
 	"-t nat " + // Traversing the nat table
 	"-s 127.0.0.0/8 -d 127.0.0.1/32 " + // Coming from and directed to localhost, i.e. not the pod IP.
+	//nolint:goconst
 	"-p tcp --dport %d " + // Sent to the upstream application's port
 	"-j REDIRECT --to-port %d" // Forward it to the proxy address
 
