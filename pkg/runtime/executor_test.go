@@ -68,8 +68,7 @@ func Test_Exec(t *testing.T) {
 
 			if string(out) != tc.expectOutput {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
-						"Expected: %s\nActual: %s\n",
+					"returned output does not match expected value.\nExpected: %s\nActual: %s",
 					tc.expectOutput,
 					string(out),
 				)

@@ -54,8 +54,7 @@ func Test_FakeExecutor(t *testing.T) {
 
 			if !errors.Is(err, tc.err) {
 				t.Errorf(
-					"returned error does not match expected value.\n"+
-						"Expected: %v\nActual: %v\n",
+					"returned error does not match expected value.\nExpected: %v\nActual: %v",
 					tc.err,
 					err,
 				)
@@ -64,8 +63,7 @@ func Test_FakeExecutor(t *testing.T) {
 
 			if string(out) != string(tc.out) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
-						"Expected: %s\nActual: %s\n",
+					"returned output does not match expected value.\nExpected: %s\nActual: %s",
 					string(tc.out),
 					string(out),
 				)
@@ -107,8 +105,7 @@ func Test_MultipleExecutions(t *testing.T) {
 
 				if !errors.Is(err, tc.err) {
 					t.Errorf(
-						"returned error does not match expected value.\n"+
-							"Expected: %v\nActual: %v\n",
+						"returned error does not match expected value.\nExpected: %v\nActual: %v",
 						tc.err,
 						err,
 					)
@@ -117,8 +114,7 @@ func Test_MultipleExecutions(t *testing.T) {
 
 				if string(out) != string(tc.out) {
 					t.Errorf(
-						"returned output does not match expected value.\n"+
-							"Expected: %s\nActual: %s\n",
+						"returned output does not match expected value.\nExpected: %s\nActual: %s",
 						string(tc.out),
 						string(out),
 					)
@@ -130,8 +126,7 @@ func Test_MultipleExecutions(t *testing.T) {
 			actual := strings.Join(fake.CmdHistory(), "\n")
 			if actual != expected {
 				t.Errorf(
-					"command history does not match expected value.\n"+
-						"Expected: %v\nActual: %v\n",
+					"command history does not match expected value.\nExpected: %v\nActual: %v",
 					expected,
 					actual,
 				)
@@ -190,8 +185,7 @@ func Test_Callbacks(t *testing.T) {
 
 			if !errors.Is(err, tc.err) {
 				t.Errorf(
-					"returned error does not match expected value.\n"+
-						"Expected: %v\nActual: %v\n",
+					"returned error does not match expected value.\nExpected: %v\nActual: %v",
 					tc.err,
 					err,
 				)
@@ -200,8 +194,7 @@ func Test_Callbacks(t *testing.T) {
 
 			if string(out) != string(tc.out) {
 				t.Errorf(
-					"returned output does not match expected value.\n"+
-						"Expected: %s\nActual: %s\n",
+					"returned output does not match expected value.\nExpected: %s\nActual: %s",
 					string(tc.out),
 					string(out),
 				)
