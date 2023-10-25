@@ -61,7 +61,7 @@ func Test_ServiceDisruptor(t *testing.T) {
 		}{
 			{
 				title:   "Inject Http error 500",
-				pod:     fixtures.BuildHttpbinPod(),
+				pod:     fixtures.BuildHttpbinPodWithoutProbes(),
 				service: fixtures.BuildHttpbinService(),
 				port:    80,
 				injector: func(d disruptors.ServiceDisruptor) error {

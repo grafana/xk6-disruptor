@@ -20,9 +20,9 @@ import (
 
 // PodHelper defines helper methods for handling Pods
 type PodHelper interface {
-	// WaitPodRunning waits for the Pod to be running for up to given timeout and returns a boolean indicating
+	// WaitPodReady waits for the Pod to be running for up to given timeout and returns a boolean indicating
 	// if the status was reached. If the pod is Failed returns error.
-	WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error)
+	WaitPodReady(ctx context.Context, name string, timeout time.Duration) (bool, error)
 	// Exec executes a non-interactive command described in options and returns the stdout and stderr outputs
 	Exec(ctx context.Context, pod string, container string, command []string, stdin []byte) ([]byte, []byte, error)
 	// AttachEphemeralContainer adds an ephemeral container to a running pod
@@ -134,7 +134,7 @@ func (h *podHelper) waitForCondition(
 	}
 }
 
-func (h *podHelper) WaitPodRunning(ctx context.Context, name string, timeout time.Duration) (bool, error) {
+func (h *podHelper) WaitPodReady(ctx context.Context, name string, timeout time.Duration) (bool, error) {
 	return h.waitForCondition(
 		ctx,
 		h.namespace,
@@ -144,9 +144,13 @@ func (h *podHelper) WaitPodRunning(ctx context.Context, name string, timeout tim
 			if pod.Status.Phase == corev1.PodFailed {
 				return false, errors.New("pod has failed")
 			}
-			if pod.Status.Phase == corev1.PodRunning {
-				return true, nil
+
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+					return true, nil
+				}
 			}
+
 			return false, nil
 		},
 	)
