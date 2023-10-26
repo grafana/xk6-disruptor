@@ -49,8 +49,10 @@ func testSetup() (*testEnv, error) {
 		return nil, err
 	}
 
-	// Constructors for ServiceDisruptor and PodDisruptor will error if they cannot find any target for the supplied
-	// parameters. For this reason, we need to add to the fake k8s client a service and a pod backing it.
+	// Create a Service and a backing pod that match the targets in fault injection methods
+	// We are not testing the fault injection logic, only the arguments passed to the API but
+	// those methods would fail if they don't find a target pod.
+	// Note: the ServiceDisruptor constructor also will fail if the target service doesn't exist
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: "namespace"},
 	}
@@ -71,7 +73,7 @@ func testSetup() (*testEnv, error) {
 		WithIP("192.0.2.6").
 		Build()
 
-	// Constructors for ServiceDisruptor and PodDisruptor will also attempt to inject the disruptor agent into a target
+	// ServiceDisruptor and PodDisruptor will also attempt to inject the disruptor agent into a target
 	// pod once it's discovered, and then wait for that container to be Running. Flagging this pod as ready is hard to
 	// do with the k8s fake client, so we take advantage of the fact that both injection and check are skipped if the
 	// agent container already exists by creating the fake pod with the sidecar already added.
