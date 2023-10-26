@@ -12,7 +12,9 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
+	"github.com/grafana/xk6-disruptor/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -27,6 +29,7 @@ var DefaultTargetPort = intstr.FromInt32(80) //nolint:gochecknoglobals
 type PodDisruptor interface {
 	Disruptor
 	ProtocolFaultInjector
+	PodFaultInjector
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
@@ -38,9 +41,9 @@ type PodDisruptorOptions struct {
 
 // podDisruptor is an instance of a PodDisruptor that uses a PodController to interact with target pods
 type podDisruptor struct {
-	helper     helpers.PodHelper
-	options    PodDisruptorOptions
-	controller *PodController
+	helper  helpers.PodHelper
+	options PodDisruptorOptions
+	targets []corev1.Pod
 }
 
 // PodSelector defines the criteria for selecting a pod for disruption
@@ -136,17 +139,15 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("finding pods matching '%s': %w", selector, ErrSelectorNoPods)
 	}
 
-	controller := NewPodController(targets)
-
 	return &podDisruptor{
-		helper:     helper,
-		options:    options,
-		controller: controller,
+		helper:  helper,
+		options: options,
+		targets: targets,
 	}, nil
 }
 
-func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
-	return d.controller.Targets(ctx)
+func (d *podDisruptor) Targets(_ context.Context) ([]string, error) {
+	return utils.PodNames(d.targets), nil
 }
 
 // InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
@@ -174,7 +175,9 @@ func (d *podDisruptor) InjectHTTPFaults(
 		command,
 	)
 
-	return d.controller.Visit(ctx, visitor)
+	controller := NewPodController(d.targets)
+
+	return controller.Visit(ctx, visitor)
 }
 
 // InjectGrpcFaults injects faults in the grpc requests sent to the disruptor's targets
@@ -196,5 +199,24 @@ func (d *podDisruptor) InjectGrpcFaults(
 		command,
 	)
 
-	return d.controller.Visit(ctx, visitor)
+	controller := NewPodController(d.targets)
+
+	return controller.Visit(ctx, visitor)
+}
+
+// TerminatePods terminates a subset of the target pods of the disruptor
+func (d *podDisruptor) TerminatePods(
+	ctx context.Context,
+	fault PodTerminationFault,
+) ([]string, error) {
+	targets, err := utils.Sample(d.targets, fault.Count)
+	if err != nil {
+		return nil, err
+	}
+
+	controller := NewPodController(targets)
+
+	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout}
+
+	return utils.PodNames(targets), controller.Visit(ctx, visitor)
 }

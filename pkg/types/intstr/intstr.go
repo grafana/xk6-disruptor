@@ -4,6 +4,7 @@ package intstr
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // ValueType defines the type of a IntOrString value
@@ -33,6 +34,24 @@ func (value IntOrString) Type() ValueType {
 // IsInt returns true if the value is an integer
 func (value IntOrString) IsInt() bool {
 	return value.Type() == ValueTypeInt
+}
+
+// AsPercentage return the value of a string transformed in a percentage and reports if
+// this conversion was possible. '10%' return 10 and true, while "10", "foo" return 0 and false.
+func (value IntOrString) AsPercentage() (int32, bool) {
+	if value.Type() == ValueTypeInt {
+		return 0, false
+	}
+	prefix, suffix, found := strings.Cut(value.Str(), "%")
+	if !found || suffix != "" {
+		return 0, false
+	}
+
+	if !IntOrString(prefix).IsInt() {
+		return 0, false
+	}
+
+	return IntOrString(prefix).Int32(), true
 }
 
 // IsZero checks if the IntOrString value is an integer 0

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	corev1 "k8s.io/api/core/v1"
@@ -65,4 +66,41 @@ func PodIP(pod corev1.Pod) (string, error) {
 	}
 
 	return "", fmt.Errorf("pod %s/%s does not have an IP address", pod.Namespace, pod.Name)
+}
+
+// PodNames return the name of the pods in a list
+func PodNames(pods []corev1.Pod) []string {
+	names := make([]string, 0, len(pods))
+	for _, pod := range pods {
+		names = append(names, pod.Name)
+	}
+
+	return names
+}
+
+// Sample a subset of the given list of Pods. The count is defined as a int or a string representing a percentage.
+// If the count is a percentage and there are no enough elements in the pod list, the number is rounded up.
+// If the list is not empty, at least one element is returned
+// For example 25% of a list of 2 pods will return one pod.
+func Sample(pods []corev1.Pod, count intstr.IntOrString) ([]corev1.Pod, error) {
+	var sampleSize int
+	if count.IsInt() {
+		sampleSize = int(count.Int32())
+	} else {
+		percentage, ok := count.AsPercentage()
+		if !ok {
+			return nil, fmt.Errorf("count is not a valid percentage: %s", count)
+		}
+
+		if percentage == 0 {
+			return nil, nil
+		}
+
+		sampleSize = int(math.Max(1, math.Round(float64(len(pods)*int(percentage))/100)))
+	}
+
+	if sampleSize > len(pods) {
+		return nil, fmt.Errorf("cannot sample %d pods out of a total of %d", sampleSize, len(pods))
+	}
+	return pods[:sampleSize], nil
 }

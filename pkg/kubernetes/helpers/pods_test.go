@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -429,6 +430,122 @@ func Test_ListPods(t *testing.T) {
 			}
 			if !assertions.CompareStringArrays(names, tc.expectedPods) {
 				t.Errorf("result does not match expected value. Expected: %s\nActual: %s\n", tc.expectedPods, names)
+				return
+			}
+		})
+	}
+}
+
+func Test_WaitPodDeleted(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		namespace   string
+		pods        []corev1.Pod
+		target      string
+		timeout     time.Duration
+		delay       time.Duration
+		expected    []string
+		expectError bool
+	}{
+		{
+			title:     "terminate pod",
+			namespace: "test-ns",
+			pods: []corev1.Pod{
+				builders.NewPodBuilder("pod-1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-2").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-3").
+					WithNamespace("test-ns").
+					Build(),
+			},
+			target:      "pod-1",
+			timeout:     1 * time.Second,
+			delay:       0,
+			expectError: false,
+		},
+		{
+			title:     "pod does not exist",
+			namespace: "test-ns",
+			pods: []corev1.Pod{
+				builders.NewPodBuilder("pod-2").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-3").
+					WithNamespace("test-ns").
+					Build(),
+			},
+			target:      "pod-1",
+			timeout:     1 * time.Second,
+			delay:       0,
+			expectError: false,
+		},
+		{
+			title:     "timeout",
+			namespace: "test-ns",
+			pods: []corev1.Pod{
+				builders.NewPodBuilder("pod-1").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-2").
+					WithNamespace("test-ns").
+					Build(),
+				builders.NewPodBuilder("pod-3").
+					WithNamespace("test-ns").
+					Build(),
+			},
+			target:      "pod-1",
+			timeout:     1 * time.Second,
+			delay:       2 * time.Second,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			client, err := builders.NewClientBuilder().
+				WithContext(ctx).
+				WithPods(tc.pods...).
+				Build()
+			if err != nil {
+				t.Errorf("failed to create k8s client %v", err)
+				return
+			}
+
+			// delete pod after delay
+			go func() {
+				time.Sleep(tc.delay)
+				err2 := client.CoreV1().Pods(tc.namespace).Delete(context.TODO(), tc.target, metav1.DeleteOptions{})
+				if err2 != nil && !errors.IsNotFound(err2) {
+					t.Logf("deleting pod %v", err2)
+				}
+			}()
+
+			helper := NewPodHelper(client, nil, tc.namespace)
+
+			err = helper.WaitPodDeleted(context.TODO(), tc.target, tc.timeout)
+
+			if tc.expectError && err == nil {
+				t.Errorf("should had failed")
+				return
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("failed: %v", err)
+				return
+			}
+
+			if tc.expectError && err != nil {
 				return
 			}
 		})

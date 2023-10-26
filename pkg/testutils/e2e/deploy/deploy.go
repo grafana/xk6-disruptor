@@ -4,6 +4,7 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -40,21 +41,57 @@ func RunPod(k8s kubernetes.Kubernetes, ns string, pod corev1.Pod, timeout time.D
 	return nil
 }
 
-// ExposeApp deploys a pod in a namespace and exposes it as a service in a cluster
+// RunPodSet runs a set of replicas of an Pod.
+func RunPodSet(k8s kubernetes.Kubernetes, ns string, pod corev1.Pod, replicas int, timeout time.Duration) error {
+	if replicas == 0 {
+		return fmt.Errorf("the number of replicas must be greater than zero")
+	}
+
+	wg := sync.WaitGroup{}
+	errCh := make(chan error, replicas)
+
+	// use the name as a prefix
+	for i := 0; i < replicas; i++ {
+		wg.Add(1)
+
+		go func(pod corev1.Pod, replica int) {
+			defer wg.Done()
+
+			// generate an unique name for the pod
+			pod.Name = fmt.Sprintf("%s-%d", pod.Name, replica)
+
+			if err := RunPod(k8s, ns, pod, timeout); err != nil {
+				errCh <- err
+			}
+		}(pod, i)
+	}
+
+	wg.Wait()
+
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
+	}
+}
+
+// ExposeApp deploys a number of replicas of a pod in a namespace and exposes them as a service in a cluster
 // The ingress routes request that specify the service's name as host to this service.
 func ExposeApp(
 	k8s kubernetes.Kubernetes,
 	namespace string,
 	pod corev1.Pod,
+	replicas int,
 	svc corev1.Service,
 	port intstr.IntOrString,
 	timeout time.Duration,
 ) error {
 	// TODO: use a context with a Deadline to control timeout
 	start := time.Now()
-	err := RunPod(k8s, namespace, pod, timeout)
+	err := RunPodSet(k8s, namespace, pod, replicas, timeout)
 	if err != nil {
-		return fmt.Errorf("failed to create pod %s in namespace %s: %w", pod.Name, namespace, err)
+		return fmt.Errorf("failed to create replicas for pod %s in namespace %s: %w", pod.Name, namespace, err)
 	}
 
 	timeLeft := timeout - time.Since(start)

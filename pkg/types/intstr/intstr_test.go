@@ -129,3 +129,95 @@ func Test_IntStrFrom(t *testing.T) {
 		})
 	}
 }
+
+func Test_AsPercentage(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		value       IntOrString
+		expect      int32
+		expectError bool
+	}{
+		{
+			title:       "percentage value",
+			value:       IntOrString("10%"),
+			expect:      10,
+			expectError: false,
+		},
+		{
+			title:       "float percentage value",
+			value:       IntOrString("10.5%"),
+			expect:      10,
+			expectError: true,
+		},
+		{
+			title:       "non int percentage value",
+			value:       IntOrString("foo%"),
+			expect:      10,
+			expectError: true,
+		},
+		{
+			title:       "int value",
+			value:       IntOrString("10"),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "invalid value",
+			value:       IntOrString("foo"),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "only percentage",
+			value:       IntOrString("%"),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "extra percentage",
+			value:       IntOrString("10%%"),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "leading percentage",
+			value:       IntOrString("%10"),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "nul value",
+			value:       NullValue,
+			expect:      0,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			value, ok := tc.value.AsPercentage()
+
+			if !ok && tc.expectError {
+				return
+			}
+
+			if !ok && !tc.expectError {
+				t.Fatal("failed")
+			}
+
+			if ok && tc.expectError {
+				t.Fatalf("should have failed")
+			}
+
+			if value != tc.expect {
+				t.Fatalf("expected %d got %d", tc.expect, value)
+			}
+		})
+	}
+}

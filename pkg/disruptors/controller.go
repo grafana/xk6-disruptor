@@ -66,16 +66,6 @@ func (c *PodController) Visit(ctx context.Context, visitor PodVisitor) error {
 	}
 }
 
-// Targets return the name of the targets
-func (c *PodController) Targets(_ context.Context) ([]string, error) {
-	names := []string{}
-	for _, pod := range c.targets {
-		names = append(names, pod.Name)
-	}
-
-	return names, nil
-}
-
 // VisitCommands contains the commands to be executed when visiting a pod
 type VisitCommands struct {
 	Exec    []string

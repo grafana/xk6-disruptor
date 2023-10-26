@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -178,6 +179,107 @@ func Test_GetTargetPort(t *testing.T) {
 			if tc.expected != port {
 				t.Errorf("expected %q got %q", tc.expected.Str(), port.Str())
 				return
+			}
+		})
+	}
+}
+
+func Test_Sample(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		title       string
+		numPods     int
+		count       intstr.IntOrString
+		expect      int
+		expectError bool
+	}{
+		{
+			title:       "select one pod",
+			numPods:     3,
+			count:       intstr.FromInt32(1),
+			expect:      1,
+			expectError: false,
+		},
+		{
+			title:       "select all pods",
+			numPods:     3,
+			count:       intstr.FromInt32(3),
+			expect:      3,
+			expectError: false,
+		},
+		{
+			title:       "select too many pods",
+			numPods:     3,
+			count:       intstr.FromInt32(4),
+			expect:      0,
+			expectError: true,
+		},
+		{
+			title:       "select 25% of pods",
+			numPods:     3,
+			count:       intstr.FromString("25%"),
+			expect:      1,
+			expectError: false,
+		},
+		{
+			title:       "select 30% of pods",
+			numPods:     3,
+			count:       intstr.FromString("30%"),
+			expect:      1,
+			expectError: false,
+		},
+		{
+			title:       "select 50% of pods",
+			numPods:     3,
+			count:       intstr.FromString("50%"),
+			expect:      2,
+			expectError: false,
+		},
+		{
+			title:       "select 100% of pods",
+			numPods:     3,
+			count:       intstr.FromString("100%"),
+			expect:      3,
+			expectError: false,
+		},
+		{
+			title:       "select 0% of pods",
+			numPods:     3,
+			count:       intstr.FromString("0%"),
+			expect:      0,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			pods := []corev1.Pod{}
+			for i := 0; i < tc.numPods; i++ {
+				podName := fmt.Sprintf("pod-%d", i)
+				pods = append(pods, builders.NewPodBuilder(podName).Build())
+			}
+
+			sample, err := Sample(pods, tc.count)
+
+			if err != nil && !tc.expectError {
+				t.Fatalf("failed %v", err)
+			}
+
+			if err == nil && tc.expectError {
+				t.Fatalf("should had failed")
+			}
+
+			if err != nil && tc.expectError {
+				return
+			}
+
+			if len(sample) != tc.expect {
+				t.Fatalf("expected %d pods got %d", tc.expect, len(sample))
 			}
 		})
 	}

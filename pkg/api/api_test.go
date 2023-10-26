@@ -428,6 +428,53 @@ func Test_JsPodDisruptor(t *testing.T) {
 			`,
 			expectError: true,
 		},
+		{
+			description: "Terminate Pods (integer count)",
+			script: `
+			const fault = {
+				count: 1
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: false,
+		},
+		{
+			description: "Terminate Pods (percentage count)",
+			script: `
+			const fault = {
+				count: '100%'
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: false,
+		},
+		{
+			description: "Terminate Pods (invalid percentage count)",
+			script: `
+			const fault = {
+				count: '100'
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: true,
+		},
+		{
+			description: "Terminate Pods (missing argument)",
+			script: `
+			d.terminatePods()
+			`,
+			expectError: true,
+		},
+		{
+			description: "Terminate Pods (empty argument)",
+			script: `
+			d.terminatePods({})
+			`,
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -128,9 +128,36 @@ func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...goja.Value) {
 	}
 }
 
+// jsPodFaultInjector implements methods for injecting faults into Pods
+type jsPodFaultInjector struct {
+	ctx context.Context
+	rt  *goja.Runtime
+	disruptors.PodFaultInjector
+}
+
+// TerminatePods is a proxy method. Validates parameters and delegates to the Pod Fault Injector method
+func (p *jsPodFaultInjector) TerminatePods(args ...goja.Value) {
+	if len(args) == 0 {
+		common.Throw(p.rt, fmt.Errorf("PodTermination fault is required"))
+	}
+
+	fault := disruptors.PodTerminationFault{}
+	err := convertValue(p.rt, args[0], &fault)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
+	}
+
+	// TODO: return list of pods terminated
+	_, err = p.PodFaultInjector.TerminatePods(p.ctx, fault)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
+	}
+}
+
 type jsPodDisruptor struct {
 	jsDisruptor
 	jsProtocolFaultInjector
+	jsPodFaultInjector
 }
 
 // buildJsPodDisruptor builds a goja object that implements the PodDisruptor API
@@ -150,6 +177,11 @@ func buildJsPodDisruptor(
 			rt:                    rt,
 			ProtocolFaultInjector: disruptor,
 		},
+		jsPodFaultInjector: jsPodFaultInjector{
+			ctx:              ctx,
+			rt:               rt,
+			PodFaultInjector: disruptor,
+		},
 	}
 
 	return buildObject(rt, d)
@@ -158,6 +190,7 @@ func buildJsPodDisruptor(
 type jsServiceDisruptor struct {
 	jsDisruptor
 	jsProtocolFaultInjector
+	jsPodFaultInjector
 }
 
 // buildJsServiceDisruptor builds a goja object that implements the ServiceDisruptor API
@@ -176,6 +209,11 @@ func buildJsServiceDisruptor(
 			ctx:                   ctx,
 			rt:                    rt,
 			ProtocolFaultInjector: disruptor,
+		},
+		jsPodFaultInjector: jsPodFaultInjector{
+			ctx:              ctx,
+			rt:               rt,
+			PodFaultInjector: disruptor,
 		},
 	}
 
