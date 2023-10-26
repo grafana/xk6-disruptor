@@ -2,7 +2,6 @@ package disruptors
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,9 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// ErrServiceNoTargets is returned by NewServiceDisruptor when passed a service without any pod matching its selector.
-var ErrServiceNoTargets = errors.New("service does not have any backing pods")
 
 // ServiceDisruptor defines operations for injecting faults in services
 type ServiceDisruptor interface {
@@ -33,10 +29,10 @@ type ServiceDisruptorOptions struct {
 
 // serviceDisruptor is an instance of a ServiceDisruptor
 type serviceDisruptor struct {
-	service corev1.Service
-	helper  helpers.PodHelper
-	options ServiceDisruptorOptions
-	targets []corev1.Pod
+	service  corev1.Service
+	helper   helpers.PodHelper
+	selector *ServicePodSelector
+	options  ServiceDisruptorOptions
 }
 
 // NewServiceDisruptor creates a new instance of a ServiceDisruptor that targets the given service
@@ -51,29 +47,25 @@ func NewServiceDisruptor(
 		return nil, fmt.Errorf("must specify a service name")
 	}
 
+	if namespace == "" {
+		return nil, fmt.Errorf("must specify a namespace")
+	}
+
 	svc, err := k8s.Client().CoreV1().Services(namespace).Get(ctx, service, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	sh := k8s.ServiceHelper(namespace)
-
-	targets, err := sh.GetTargets(ctx, service)
+	selector, err := NewServicePodSelector(service, namespace, k8s.ServiceHelper(namespace))
 	if err != nil {
 		return nil, err
 	}
 
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("creating disruptor for service %s/%s: %w", service, namespace, ErrServiceNoTargets)
-	}
-
-	helper := k8s.PodHelper(namespace)
-
 	return &serviceDisruptor{
-		service: *svc,
-		helper:  helper,
-		options: options,
-		targets: targets,
+		service:  *svc,
+		helper:   k8s.PodHelper(namespace),
+		selector: selector,
+		options:  options,
 	}, nil
 }
 
@@ -103,7 +95,12 @@ func (d *serviceDisruptor) InjectHTTPFaults(
 		command,
 	)
 
-	controller := NewPodController(d.targets)
+	targets, err := d.selector.Targets(ctx)
+	if err != nil {
+		return err
+	}
+
+	controller := NewPodController(targets)
 
 	return controller.Visit(ctx, visitor)
 }
@@ -134,13 +131,23 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 		command,
 	)
 
-	controller := NewPodController(d.targets)
+	targets, err := d.selector.Targets(ctx)
+	if err != nil {
+		return err
+	}
+
+	controller := NewPodController(targets)
 
 	return controller.Visit(ctx, visitor)
 }
 
-func (d *serviceDisruptor) Targets(_ context.Context) ([]string, error) {
-	return utils.PodNames(d.targets), nil
+func (d *serviceDisruptor) Targets(ctx context.Context) ([]string, error) {
+	targets, err := d.selector.Targets(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.PodNames(targets), nil
 }
 
 // TerminatePods terminates a subset of the target pods of the disruptor
@@ -148,7 +155,12 @@ func (d *serviceDisruptor) TerminatePods(
 	ctx context.Context,
 	fault PodTerminationFault,
 ) ([]string, error) {
-	targets, err := utils.Sample(d.targets, fault.Count)
+	targets, err := d.selector.Targets(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	targets, err = utils.Sample(targets, fault.Count)
 	if err != nil {
 		return nil, err
 	}
