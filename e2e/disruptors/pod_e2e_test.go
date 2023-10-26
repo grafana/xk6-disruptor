@@ -152,7 +152,7 @@ func Test_PodDisruptor(t *testing.T) {
 				}
 
 				// create pod disruptor that will select the service's pods
-				selector := disruptors.PodSelector{
+				selector := disruptors.PodSelectorSpec{
 					Namespace: namespace,
 					Select: disruptors.PodAttributes{
 						Labels: tc.service.Spec.Selector,
@@ -242,7 +242,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 
 		// create pod disruptor that will select the service's pods
-		selector := disruptors.PodSelector{
+		selector := disruptors.PodSelectorSpec{
 			Namespace: namespace,
 			Select: disruptors.PodAttributes{
 				Labels: service.Spec.Selector,
@@ -299,7 +299,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 
 		// create pod disruptor that will select all pods
-		selector := disruptors.PodSelector{
+		selector := disruptors.PodSelectorSpec{
 			Namespace: namespace,
 		}
 		options := disruptors.PodDisruptorOptions{}

@@ -232,7 +232,7 @@ func NewPodDisruptor(
 		return nil, fmt.Errorf("PodDisruptor constructor expects a non null PodSelector argument")
 	}
 
-	selector := disruptors.PodSelector{}
+	selector := disruptors.PodSelectorSpec{}
 	err := convertValue(rt, c.Argument(0), &selector)
 	if err != nil {
 		return nil, fmt.Errorf("invalid PodSelector: %w", err)
