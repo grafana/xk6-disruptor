@@ -147,16 +147,6 @@ func Test_PodAgentVisitor(t *testing.T) {
 	}
 }
 
-type fakePodVisitor struct {
-	delay time.Duration
-	err   error
-}
-
-func (f fakePodVisitor) Visit(_ context.Context, _ corev1.Pod) error {
-	time.Sleep(f.delay)
-	return f.err
-}
-
 var errFailed = errors.New("failed")
 
 func Test_PodController(t *testing.T) {
@@ -169,7 +159,7 @@ func Test_PodController(t *testing.T) {
 		expectError error
 	}{
 		{
-			title: "visit pods",
+			title: "successful visits",
 			targets: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
@@ -180,11 +170,13 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor:     fakePodVisitor{},
+			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+				return nil
+			}),
 			expectError: nil,
 		},
 		{
-			title: "failed visit command",
+			title: "failed visit",
 			targets: []corev1.Pod{
 				builders.NewPodBuilder("pod1").
 					WithNamespace("test-ns").
@@ -195,8 +187,32 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor:     fakePodVisitor{err: errFailed},
+			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+				return errFailed
+			}),
 			expectError: errFailed,
+		},
+		{
+			title: "one failed visit",
+			targets: []corev1.Pod{
+				builders.NewPodBuilder("pod1").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.6").
+					Build(),
+				builders.NewPodBuilder("pod2").
+					WithNamespace("test-ns").
+					WithIP("192.0.2.7").
+					Build(),
+			},
+			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+				// for pod-1 return error, for pod-2 wait until context expires
+				if pod.Name == "pod1" {
+					return errFailed
+				}
+				time.Sleep(2 * time.Second)
+				return nil
+			}),
+			expectError: errFailed, // if error is not handled immediately, DeadlineExceeded would be returned
 		},
 		{
 			title: "context expired",
@@ -210,7 +226,10 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor:     fakePodVisitor{delay: 2 * time.Second},
+			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+				time.Sleep(2 * time.Second)
+				return nil
+			}),
 			expectError: context.DeadlineExceeded,
 		},
 	}

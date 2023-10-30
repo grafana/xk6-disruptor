@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/internal/version"
@@ -40,29 +39,28 @@ func (c *PodController) Visit(ctx context.Context, visitor PodVisitor) error {
 	defer cancelVisit()
 
 	// make space to prevent blocking go routines
-	errCh := make(chan error, len(c.targets))
+	doneCh := make(chan error, len(c.targets))
 
-	wg := sync.WaitGroup{}
 	for _, pod := range c.targets {
-		wg.Add(1)
 		go func(pod corev1.Pod) {
-			if err := visitor.Visit(visitCtx, pod); err != nil {
-				errCh <- err
-			}
-
-			wg.Done()
+			doneCh <- visitor.Visit(visitCtx, pod)
 		}(pod)
 	}
 
-	wg.Wait()
-
-	select {
-	case e := <-errCh:
-		return e
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		return nil
+	pending := len(c.targets)
+	for {
+		select {
+		case e := <-doneCh:
+			if e != nil {
+				return e
+			}
+			pending--
+			if pending == 0 {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
@@ -75,6 +73,15 @@ type VisitCommands struct {
 // PodVisitor is the interface implemented by objects that perform actions on a Pod
 type PodVisitor interface {
 	Visit(context.Context, corev1.Pod) error
+}
+
+// PodVisitorFunc defines a function that implements the PodVisitor interface
+// This allows using anonymous functions as pod visitor:
+type PodVisitorFunc func(context.Context, corev1.Pod) error
+
+// Visit implements PodVisitor interface's Visit function
+func (f PodVisitorFunc) Visit(ctx context.Context, pod corev1.Pod) error {
+	return f(ctx, pod)
 }
 
 // PodAgentVisitor implements PodVisitor, performing actions in a Pod by means of running a PodVisitCommand on the pod.
