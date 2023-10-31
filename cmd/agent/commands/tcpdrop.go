@@ -53,7 +53,7 @@ func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Comma
 
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")
 	cmd.Flags().UintVarP(&disruption.Port, "port", "p", 8000, "target port of the connections to be disrupted")
-	cmd.Flags().Float64VarP(&disruption.DropRate, "rate", "r", 0, "error rate")
+	cmd.Flags().Float64VarP(&disruption.DropRate, "rate", "r", 0, "fraction of connections to drop")
 
 	return cmd
 }
