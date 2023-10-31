@@ -40,7 +40,7 @@ func (d Disruptor) Apply(ctx context.Context, duration time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 
-	packets := make(chan Packet, 2)
+	packets := make(chan Packet, 1)
 	defer close(packets)
 
 	dropper := TCPConnectionDropper{
