@@ -21,10 +21,6 @@ type Disruption struct {
 	Port uint
 	// DropRate is the rate in [0, 1] range of connections that should be dropped.
 	DropRate float64
-	// DropPeriod defines how often connections will be terminated according to DropRate.
-	// If set to zero, connections will only be terminated once. If it is set to a non-zero value, connections will be
-	// re-evaluated for termination when this period passes.
-	DropPeriod time.Duration
 }
 
 // ErrDurationTooShort is returned when the supplied duration is smaller than 1s.

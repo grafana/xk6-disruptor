@@ -16,7 +16,6 @@ type Dropper interface {
 // TCPConnectionDropper is a dropper that drops a defined percentage of TCP the connections it sees.
 type TCPConnectionDropper struct {
 	DropRate float64
-	// TODO: Add DropPeriod.
 }
 
 // Drop decides whether a packet should be dropped by taking the modulus of hash of the connection it belongs to and
