@@ -8,20 +8,21 @@ import (
 )
 
 // Test_rules checks that the queue returns the correct rules for a given config and disruption.
-func Test_NFQueueRules(t *testing.T) {
+func Test_DisruptorRules(t *testing.T) {
 	t.Parallel()
 
-	q := NFQueue{
-		NFQConfig: NFQConfig{
-			QueueID:    1,
-			RejectMark: 2,
-		},
-		Disruption: Disruption{
+	d := Disruptor{
+		Filter: Filter{
 			Port: 6666,
 		},
 	}
 
-	actual := q.rules()
+	config := nfqConfig{
+		queueID:    1,
+		rejectMark: 2,
+	}
+
+	actual := d.rules(config)
 	expected := []iptables.Rule{
 		{
 			Table: "filter", Chain: "INPUT",
