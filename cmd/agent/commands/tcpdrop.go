@@ -12,8 +12,9 @@ import (
 
 // BuildTCPDropCmd returns a cobra command with the specification of the tcp-drop command.
 func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
-	disruption := tcpconn.Disruption{}
 	var duration time.Duration
+	filter := tcpconn.Filter{}
+	dropRate := 0.0
 
 	cmd := &cobra.Command{
 		Use:   "tcp-drop",
@@ -22,7 +23,7 @@ func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Comma
 			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
 			" iptable rules.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if disruption.Port == 0 {
+			if filter.Port == 0 {
 				return fmt.Errorf("target port for fault injection is required")
 			}
 
@@ -33,18 +34,14 @@ func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Comma
 
 			defer agent.Stop()
 
-			nfqConfig := tcpconn.RandomNFQConfig()
-
-			queue := tcpconn.NFQueue{
-				NFQConfig:  nfqConfig,
-				Disruption: disruption,
-				Executor:   env.Executor(),
+			dropper := tcpconn.TCPConnectionDropper{
+				DropRate: dropRate,
 			}
 
 			disruptor := tcpconn.Disruptor{
-				NFQConfig:  nfqConfig,
-				Disruption: disruption,
-				Queue:      queue,
+				Executor: env.Executor(),
+				Filter:   filter,
+				Dropper:  dropper,
 			}
 
 			return agent.ApplyDisruption(cmd.Context(), disruptor, duration)
@@ -52,8 +49,8 @@ func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Comma
 	}
 
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")
-	cmd.Flags().UintVarP(&disruption.Port, "port", "p", 8000, "target port of the connections to be disrupted")
-	cmd.Flags().Float64VarP(&disruption.DropRate, "rate", "r", 0, "fraction of connections to drop")
+	cmd.Flags().UintVarP(&filter.Port, "port", "p", 8000, "target port of the connections to be disrupted")
+	cmd.Flags().Float64VarP(&dropRate, "rate", "r", 0, "fraction of connections to drop")
 
 	return cmd
 }
