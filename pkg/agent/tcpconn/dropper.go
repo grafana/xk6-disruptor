@@ -1,7 +1,7 @@
 package tcpconn
 
 import (
-	"fmt"
+	"encoding/binary"
 	"hash/crc32"
 
 	"github.com/google/gopacket"
@@ -35,13 +35,30 @@ func (tcd TCPConnectionDropper) Drop(packetBytes []byte) bool {
 	}
 	tcp, _ := tcpLayer.(*layers.TCP)
 
-	// fourTuple uniquely identifies this connection by its 4-tuple: source address and port, and destination address
-	// and port.
-	fourTuple := fmt.Sprintf("%v:%d:%v:%d", ip.SrcIP, tcp.SrcPort, ip.DstIP, tcp.DstPort)
+	ftBuf := make([]byte, 36)
+	fourTuple(ftBuf, ip, tcp)
 
 	hash := crc32.NewIEEE()
-	_, _ = hash.Write([]byte(fourTuple))
+	_, _ = hash.Write(ftBuf)
 	checksum := hash.Sum32()
 
 	return (checksum % 100) < uint32(100*tcd.DropRate)
+}
+
+// 4 tuple writes the 4-tuple of a given packet in to dst, given its ip and tcp layers.
+// dst must be at least 36 bytes long.
+func fourTuple(dst []byte, ip *layers.IPv4, tcp *layers.TCP) {
+	offset := 0
+
+	// Go's ip.IP representation can always be 16 bytes, even for v4 addresses.
+	copy(dst[offset:], ip.SrcIP)
+	offset += 16
+
+	copy(dst[offset:], ip.DstIP)
+	offset += 16
+
+	binary.LittleEndian.PutUint16(dst[offset:], uint16(tcp.SrcPort))
+	offset += 2
+
+	binary.LittleEndian.PutUint16(dst[offset:], uint16(tcp.DstPort))
 }

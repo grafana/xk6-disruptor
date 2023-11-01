@@ -1,0 +1,59 @@
+With printf:
+
+goos: linux
+goarch: amd64
+pkg: github.com/grafana/xk6-disruptor/pkg/agent/tcpconn
+cpu: Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	5603779208 ns/op	      3390 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4944936075 ns/op	      5082 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4759099532 ns/op	      5082 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4766988543 ns/op	      3397 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4612135500 ns/op	      3386 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4725495315 ns/op	      5091 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4749048971 ns/op	      3391 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4719424771 ns/op	      5068 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4548333090 ns/op	      3385 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4860284601 ns/op	      5090 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11216304335 ns/op	       159.4 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10939411358 ns/op	       154.6 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	12255563572 ns/op	       132.5 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10730306312 ns/op	       162.0 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10933200240 ns/op	       159.4 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10622811473 ns/op	       162.0 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10899302583 ns/op	       154.6 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	12439242417 ns/op	       132.5 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11246890227 ns/op	       152.3 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11371617435 ns/op	       152.3 MiB/s
+PASS
+ok  	github.com/grafana/xk6-disruptor/pkg/agent/tcpconn	174.995s
+
+
+With binary:
+
+goos: linux
+goarch: amd64
+pkg: github.com/grafana/xk6-disruptor/pkg/agent/tcpconn
+cpu: Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	5133993561 ns/op	      5091 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4450578743 ns/op	      5049 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4571364588 ns/op	      3397 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4530964040 ns/op	      5084 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4826679764 ns/op	      5072 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4610344644 ns/op	      5071 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4663539509 ns/op	      5092 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4648757006 ns/op	      3395 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4772370737 ns/op	      3396 MiB/s
+Benchmark_DisruptorThroughput/disruption=agent-disabled-16         	       1	4614075378 ns/op	      3393 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11090325193 ns/op	       152.3 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11146554238 ns/op	       150.1 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10071293977 ns/op	       175.9 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10559728677 ns/op	       167.3 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11277076783 ns/op	       147.9 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11470568318 ns/op	       145.6 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11209702655 ns/op	       152.3 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10535403751 ns/op	       170.1 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	11258844511 ns/op	       147.9 MiB/s
+Benchmark_DisruptorThroughput/disruption=accept-all-16             	       1	10295333791 ns/op	       172.9 MiB/s
+PASS
+ok  	github.com/grafana/xk6-disruptor/pkg/agent/tcpconn	171.685s
+
