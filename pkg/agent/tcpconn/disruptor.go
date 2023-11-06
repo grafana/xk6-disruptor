@@ -37,7 +37,6 @@ func (d Disruptor) Apply(ctx context.Context, duration time.Duration) error {
 		return ErrDurationTooShort
 	}
 
-	// Set context timeout only if duration is not 0 (forever).
 	ctx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 
