@@ -10,13 +10,12 @@ import (
 
 	"github.com/florianl/go-nfqueue"
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
-	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
 // Disruptor applies TCP Connection disruptions by dropping connections according to a Dropper. A filter decides which
 // connections are considered for dropping.
 type Disruptor struct {
-	Executor runtime.Executor
+	Iptables iptables.Iptables
 	Dropper  Dropper
 	Filter   Filter
 }
@@ -36,13 +35,13 @@ func (d Disruptor) Apply(ctx context.Context, duration time.Duration) error {
 		return ErrDurationTooShort
 	}
 
-	iptables := iptables.New(d.Executor)
+	ruleset := iptables.NewRuleSet(d.Iptables)
 	//nolint:errcheck // Errors while removing rules are not actionable.
-	defer iptables.Remove()
+	defer ruleset.Remove()
 
 	config := randomNFQConfig()
 	for _, r := range d.rules(config) {
-		err := iptables.Add(r)
+		err := ruleset.Add(r)
 		if err != nil {
 			return err
 		}

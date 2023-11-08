@@ -8,21 +8,21 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
-func Test_IptablesAddsRemovesRules(t *testing.T) {
+func Test_RulesetAddsRemovesRules(t *testing.T) {
 	t.Parallel()
 
 	exec := runtime.NewFakeExecutor(nil, nil)
-	ipt := iptables.New(exec)
+	ruleset := iptables.NewRuleSet(iptables.New(exec))
 
 	// Add two rules
-	err := ipt.Add(iptables.Rule{
+	err := ruleset.Add(iptables.Rule{
 		Table: "table1", Chain: "CHAIN1", Args: "--foo foo --bar bar",
 	})
 	if err != nil {
 		t.Fatalf("error adding rule: %v", err)
 	}
 
-	err = ipt.Add(iptables.Rule{
+	err = ruleset.Add(iptables.Rule{
 		Table: "table2", Chain: "CHAIN2", Args: "--boo boo --baz baz",
 	})
 	if err != nil {
@@ -42,7 +42,7 @@ func Test_IptablesAddsRemovesRules(t *testing.T) {
 	exec.Reset()
 
 	// Remove the rules.
-	err = ipt.Remove()
+	err = ruleset.Remove()
 	if err != nil {
 		t.Fatalf("error removing rules: %v", err)
 	}
@@ -60,7 +60,7 @@ func Test_IptablesAddsRemovesRules(t *testing.T) {
 	exec.Reset()
 
 	// After removing the rules, add a new one.
-	err = ipt.Add(iptables.Rule{
+	err = ruleset.Add(iptables.Rule{
 		Table: "table3", Chain: "CHAIN3", Args: "--zoo zoo --zap zap",
 	})
 	if err != nil {
@@ -78,7 +78,7 @@ func Test_IptablesAddsRemovesRules(t *testing.T) {
 	exec.Reset()
 
 	// Remove the rule.
-	err = ipt.Remove()
+	err = ruleset.Remove()
 	if err != nil {
 		t.Fatalf("error removing rules: %v", err)
 	}
