@@ -69,7 +69,7 @@ func BuildHTTPCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 					RedirectPort:    port,       // to the proxy port.
 				}
 
-				redirector, err = iptables.NewTrafficRedirector(tr, env.Executor())
+				redirector, err = iptables.NewTrafficRedirector(tr, iptables.New(env.Executor()))
 				if err != nil {
 					return err
 				}

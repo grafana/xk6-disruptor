@@ -6,6 +6,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/agent/tcpconn"
+	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
@@ -38,7 +39,7 @@ func BuildTCPDropCmd(env runtime.Environment, config *agent.Config) *cobra.Comma
 			}
 
 			disruptor := tcpconn.Disruptor{
-				Executor: env.Executor(),
+				Iptables: iptables.New(env.Executor()),
 				Filter:   filter,
 				Dropper:  dropper,
 			}
