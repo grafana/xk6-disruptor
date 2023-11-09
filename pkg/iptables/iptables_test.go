@@ -1,12 +1,87 @@
 package iptables_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
+
+func Test_Iptables(t *testing.T) {
+	t.Parallel()
+
+	anError := errors.New("an error occurred")
+
+	for _, tc := range []struct {
+		name             string
+		testFunc         func(iptables.Iptables) error
+		execError        error
+		expectedCommands []string
+		expectedError    error
+	}{
+		{
+			name: "Adds rule",
+			testFunc: func(i iptables.Iptables) error {
+				return i.Add(iptables.Rule{
+					Table: "some",
+					Chain: "ECHO",
+					Args:  "foo -t bar -w xx",
+				})
+			},
+			expectedCommands: []string{
+				"iptables -t some -A ECHO foo -t bar -w xx",
+			},
+		},
+		{
+			name: "Removes rule",
+			testFunc: func(i iptables.Iptables) error {
+				return i.Remove(iptables.Rule{
+					Table: "some",
+					Chain: "ECHO",
+					Args:  "foo -t bar -w xx",
+				})
+			},
+			expectedCommands: []string{
+				"iptables -t some -D ECHO foo -t bar -w xx",
+			},
+		},
+		{
+			name: "Propagates error",
+			testFunc: func(i iptables.Iptables) error {
+				return i.Remove(iptables.Rule{
+					Table: "some",
+					Chain: "ECHO",
+					Args:  "foo -t bar -w xx",
+				})
+			},
+			execError: anError,
+			expectedCommands: []string{
+				"iptables -t some -D ECHO foo -t bar -w xx",
+			},
+			expectedError: anError,
+		},
+	} {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			fakeExec := runtime.NewFakeExecutor(nil, tc.execError)
+			ipt := iptables.New(fakeExec)
+			err := tc.testFunc(ipt)
+			if !errors.Is(err, tc.expectedError) {
+				t.Fatalf("Expected error to be %v, got %v", tc.expectedError, err)
+			}
+
+			commands := fakeExec.CmdHistory()
+			if diff := cmp.Diff(commands, tc.expectedCommands); diff != "" {
+				t.Fatalf("Ran commands do not match expected:\n%s", diff)
+			}
+		})
+	}
+}
 
 func Test_RulesetAddsRemovesRules(t *testing.T) {
 	t.Parallel()
