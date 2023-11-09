@@ -31,7 +31,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 		Long: "Disrupts http request by introducing delays and errors." +
 			" When running as a transparent proxy requires NET_ADMIM capabilities for setting" +
 			" iptable rules.",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if targetPort == 0 {
 				return fmt.Errorf("target port for fault injection is required")
 			}
@@ -65,12 +65,12 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 			// Redirect traffic to the proxy
 			var redirector protocol.TrafficRedirector
 			if transparent {
-				tr := &iptables.TrafficRedirectionSpec{
+				tr := &protocol.TrafficRedirectionSpec{
 					DestinationPort: targetPort, // Redirect traffic from the application (target) port...
 					RedirectPort:    port,       // to the proxy port.
 				}
 
-				redirector, err = iptables.NewTrafficRedirector(tr, iptables.New(env.Executor()))
+				redirector, err = protocol.NewTrafficRedirector(tr, iptables.New(env.Executor()))
 				if err != nil {
 					return err
 				}

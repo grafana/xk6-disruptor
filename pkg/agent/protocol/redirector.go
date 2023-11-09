@@ -1,10 +1,9 @@
-// Package iptables implements helpers for manipulating the iptables.
-// Requires the iptables command to be installed.
-// Requires 'NET_ADMIN' capabilities for manipulating the iptables.
-package iptables
+package protocol
 
 import (
 	"fmt"
+
+	"github.com/grafana/xk6-disruptor/pkg/iptables"
 )
 
 // TrafficRedirectionSpec specifies the redirection of traffic to a destination
@@ -19,13 +18,13 @@ type TrafficRedirectionSpec struct {
 // Redirector is an implementation of TrafficRedirector that uses iptables rules.
 type Redirector struct {
 	*TrafficRedirectionSpec
-	iptables Iptables
+	iptables iptables.Iptables
 }
 
 // NewTrafficRedirector creates instances of an iptables traffic redirector
 func NewTrafficRedirector(
 	tr *TrafficRedirectionSpec,
-	iptables Iptables,
+	iptables iptables.Iptables,
 ) (*Redirector, error) {
 	if tr.DestinationPort == 0 || tr.RedirectPort == 0 {
 		return nil, fmt.Errorf("DestinationPort and RedirectPort must be specified")
@@ -66,14 +65,14 @@ func NewTrafficRedirector(
 // +-----------+---------------+------------------------+
 // | lo        | ! 127.0.0.0/8 | Proxy traffic          |
 // +-----------+---------------+------------------------+
-func (tr *Redirector) rules() []Rule {
+func (tr *Redirector) rules() []iptables.Rule {
 	// redirectLocalRule is a netfilter rule that intercepts locally-originated traffic, such as that coming from sidecars
 	// or `kubectl port-forward, directed to the application and redirects it to the proxy.
 	// As per https://upload.wikimedia.org/wikipedia/commons/3/37/Netfilter-packet-flow.svg, locally originated traffic
 	// traverses OUTPUT instead of PREROUTING.
 	// Traffic created by the proxy itself to the application also traverses this chain, but is not redirected by this rule
 	// as the proxy targets the pod IP and not the loopback address.
-	redirectLocalRule := Rule{
+	redirectLocalRule := iptables.Rule{
 		Table: "nat",
 		Chain: "OUTPUT", // For local traffic
 		Args: "-s 127.0.0.0/8 -d 127.0.0.1/32 " + // Coming from and directed to localhost, i.e. not the pod IP.
@@ -85,7 +84,7 @@ func (tr *Redirector) rules() []Rule {
 	// it to the proxy.
 	// Traffic created by the proxy itself to the application traverses is not redirected by this rule as it traverses the
 	// OUTPUT chain, not PREROUTING.
-	redirectExternalRule := Rule{
+	redirectExternalRule := iptables.Rule{
 		Table: "nat",
 		Chain: "PREROUTING", // For remote traffic
 		Args: "! -i lo " + // Not coming form loopback. Technically not needed, but doesn't hurt and helps readability.
@@ -98,7 +97,7 @@ func (tr *Redirector) rules() []Rule {
 	// This rule matches connections from sidecars and `kubectl port-forward`.
 	// Connections from the proxy itself do not match this rule, as although they flow through `lo`, they are directed to
 	// the pod's external IP and not the loopback address.
-	resetLocalRule := Rule{
+	resetLocalRule := iptables.Rule{
 		Table: "filter",
 		Chain: "INPUT", // For traffic traversing the INPUT chain
 		Args: "-i lo " + // On the loopback interface
@@ -112,7 +111,7 @@ func (tr *Redirector) rules() []Rule {
 	// coming from anywhere except the local IP.
 	// This rule matches external connections to the pod's IP address.
 	// Connections from the proxy itself do not match this rule, as they flow through the `lo` interface.
-	resetExternalRule := Rule{
+	resetExternalRule := iptables.Rule{
 		Table: "filter",
 		Chain: "INPUT", // For traffic traversing the INPUT chain
 		Args: "! -i lo " + // Not coming form loopback. This is technically not needed as loopback traffic does not
@@ -122,7 +121,7 @@ func (tr *Redirector) rules() []Rule {
 			"-j REJECT --reject-with tcp-reset", // Reject it
 	}
 
-	return []Rule{
+	return []iptables.Rule{
 		redirectLocalRule,
 		redirectExternalRule,
 		resetLocalRule,
@@ -133,8 +132,8 @@ func (tr *Redirector) rules() []Rule {
 // proxyResetRule returns a netfilter rule that rejects traffic to the proxy.
 // This rule is set up after injection finishes to kill any leftover connection to the proxy.
 // TODO: Run some tests to check if this is really necessary, as the proxy may already be killing conns on termination.
-func (tr *Redirector) resetProxyRule() Rule {
-	return Rule{
+func (tr *Redirector) resetProxyRule() iptables.Rule {
+	return iptables.Rule{
 		Table: "filter",
 		Chain: "INPUT",
 		Args: fmt.Sprintf("-p tcp --dport %d ", tr.RedirectPort) + // Directed to the proxy port
@@ -147,7 +146,7 @@ func (tr *Redirector) Start() error {
 	// Remove reset rule for the proxy in case it exists from a previous run.
 	_ = tr.iptables.Remove(tr.resetProxyRule())
 
-	// TODO: Use RuleSet instead, which takes care of automatically cleaning the rules.
+	// TODO: Use iptables.RuleSet instead, which takes care of automatically cleaning the rules.
 	for _, rule := range tr.rules() {
 		err := tr.iptables.Add(rule)
 		if err != nil {
