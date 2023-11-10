@@ -1,11 +1,10 @@
-package protocol_test
+package protocol
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
@@ -15,12 +14,12 @@ func Test_validateTrafficRedirect(t *testing.T) {
 
 	TestCases := []struct {
 		title       string
-		redirect    protocol.TrafficRedirectionSpec
+		redirect    TrafficRedirectionSpec
 		expectError bool
 	}{
 		{
 			title: "Valid redirect",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
@@ -28,7 +27,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		},
 		{
 			title: "Same target and proxy port",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 8080,
 				RedirectPort:    8080,
 			},
@@ -36,7 +35,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 		},
 		{
 			title:       "Ports not specified",
-			redirect:    protocol.TrafficRedirectionSpec{},
+			redirect:    TrafficRedirectionSpec{},
 			expectError: true,
 		},
 	}
@@ -48,7 +47,7 @@ func Test_validateTrafficRedirect(t *testing.T) {
 			t.Parallel()
 
 			executor := runtime.NewFakeExecutor(nil, nil)
-			_, err := protocol.NewTrafficRedirector(
+			_, err := NewTrafficRedirector(
 				&tc.redirect,
 				iptables.New(executor),
 			)
@@ -68,20 +67,20 @@ func Test_Commands(t *testing.T) {
 
 	TestCases := []struct {
 		title        string
-		redirect     protocol.TrafficRedirectionSpec
+		redirect     TrafficRedirectionSpec
 		expectedCmds []string
 		expectError  bool
 		fakeError    error
 		fakeOutput   []byte
-		testFunction func(protocol.TrafficRedirector) error
+		testFunction func(TrafficRedirector) error
 	}{
 		{
 			title: "Start valid redirect",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
+			testFunction: func(tr TrafficRedirector) error {
 				return tr.Start()
 			},
 			//nolint:lll
@@ -98,11 +97,11 @@ func Test_Commands(t *testing.T) {
 		},
 		{
 			title: "Stop active redirect",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
+			testFunction: func(tr TrafficRedirector) error {
 				return tr.Stop()
 			},
 			//nolint:lll
@@ -119,11 +118,11 @@ func Test_Commands(t *testing.T) {
 		},
 		{
 			title: "Error invoking iptables command in Start",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
+			testFunction: func(tr TrafficRedirector) error {
 				return tr.Start()
 			},
 			expectedCmds: []string{},
@@ -133,11 +132,11 @@ func Test_Commands(t *testing.T) {
 		},
 		{
 			title: "Error invoking iptables command in Stop",
-			redirect: protocol.TrafficRedirectionSpec{
+			redirect: TrafficRedirectionSpec{
 				DestinationPort: 80,
 				RedirectPort:    8080,
 			},
-			testFunction: func(tr protocol.TrafficRedirector) error {
+			testFunction: func(tr TrafficRedirector) error {
 				return tr.Stop()
 			},
 			expectedCmds: []string{},
@@ -154,7 +153,7 @@ func Test_Commands(t *testing.T) {
 			t.Parallel()
 
 			executor := runtime.NewFakeExecutor(tc.fakeOutput, tc.fakeError)
-			redirector, err := protocol.NewTrafficRedirector(&tc.redirect, iptables.New(executor))
+			redirector, err := NewTrafficRedirector(&tc.redirect, iptables.New(executor))
 			if err != nil {
 				t.Errorf("failed creating traffic redirector with error %v", err)
 				return
