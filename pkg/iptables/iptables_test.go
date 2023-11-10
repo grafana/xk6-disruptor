@@ -1,11 +1,10 @@
-package iptables_test
+package iptables
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/grafana/xk6-disruptor/pkg/iptables"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
@@ -16,15 +15,15 @@ func Test_Iptables(t *testing.T) {
 
 	for _, tc := range []struct {
 		name             string
-		testFunc         func(iptables.Iptables) error
+		testFunc         func(Iptables) error
 		execError        error
 		expectedCommands []string
 		expectedError    error
 	}{
 		{
 			name: "Adds rule",
-			testFunc: func(i iptables.Iptables) error {
-				return i.Add(iptables.Rule{
+			testFunc: func(i Iptables) error {
+				return i.Add(Rule{
 					Table: "some",
 					Chain: "ECHO",
 					Args:  "foo -t bar -w xx",
@@ -36,8 +35,8 @@ func Test_Iptables(t *testing.T) {
 		},
 		{
 			name: "Removes rule",
-			testFunc: func(i iptables.Iptables) error {
-				return i.Remove(iptables.Rule{
+			testFunc: func(i Iptables) error {
+				return i.Remove(Rule{
 					Table: "some",
 					Chain: "ECHO",
 					Args:  "foo -t bar -w xx",
@@ -49,8 +48,8 @@ func Test_Iptables(t *testing.T) {
 		},
 		{
 			name: "Propagates error",
-			testFunc: func(i iptables.Iptables) error {
-				return i.Remove(iptables.Rule{
+			testFunc: func(i Iptables) error {
+				return i.Remove(Rule{
 					Table: "some",
 					Chain: "ECHO",
 					Args:  "foo -t bar -w xx",
@@ -69,7 +68,7 @@ func Test_Iptables(t *testing.T) {
 			t.Parallel()
 
 			fakeExec := runtime.NewFakeExecutor(nil, tc.execError)
-			ipt := iptables.New(fakeExec)
+			ipt := New(fakeExec)
 			err := tc.testFunc(ipt)
 			if !errors.Is(err, tc.expectedError) {
 				t.Fatalf("Expected error to be %v, got %v", tc.expectedError, err)
@@ -87,17 +86,17 @@ func Test_RulesetAddsRemovesRules(t *testing.T) {
 	t.Parallel()
 
 	exec := runtime.NewFakeExecutor(nil, nil)
-	ruleset := iptables.NewRuleSet(iptables.New(exec))
+	ruleset := NewRuleSet(New(exec))
 
 	// Add two rules
-	err := ruleset.Add(iptables.Rule{
+	err := ruleset.Add(Rule{
 		Table: "table1", Chain: "CHAIN1", Args: "--foo foo --bar bar",
 	})
 	if err != nil {
 		t.Fatalf("error adding rule: %v", err)
 	}
 
-	err = ruleset.Add(iptables.Rule{
+	err = ruleset.Add(Rule{
 		Table: "table2", Chain: "CHAIN2", Args: "--boo boo --baz baz",
 	})
 	if err != nil {
@@ -135,7 +134,7 @@ func Test_RulesetAddsRemovesRules(t *testing.T) {
 	exec.Reset()
 
 	// After removing the rules, add a new one.
-	err = ruleset.Add(iptables.Rule{
+	err = ruleset.Add(Rule{
 		Table: "table3", Chain: "CHAIN3", Args: "--zoo zoo --zap zap",
 	})
 	if err != nil {
