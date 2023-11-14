@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/grpc/dynamic"
+	tcutils "github.com/grafana/xk6-disruptor/pkg/testutils/testcontainers"
 	testcontainers "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"google.golang.org/grpc"
@@ -453,5 +455,108 @@ func Test_Non_Transparent_Proxy(t *testing.T) {
 	err = checkHTTPRequest(agentUrl, 418)
 	if err != nil {
 		t.Fatalf("failed %v", err)
+	}
+}
+
+func stressCPU(load uint) []string {
+	return []string{
+		"xk6-disruptor-agent",
+		"stress",
+		"--duration",
+		"20s",
+		"--load",
+		fmt.Sprintf("%d", load),
+	}
+}
+
+const cpuLoadTolerance = 10
+
+func Test_CPUStressor(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct{
+		title string
+		load  uint
+	}{
+		{
+			title: "100% CPU",
+			load:  100,
+		},
+		{
+			title: "80% CPU",
+			load:  80,
+		},
+		{
+			title: "60% CPU",
+			load:  60,
+		},
+		{
+			title: "40% CPU",
+			load:  40,
+		},
+		{
+			title: "20% CPU",
+			load:  20,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.TODO()
+
+			// start the container with the agent using a fake upstream address because the agent requires it
+			gcr := testcontainers.GenericContainerRequest{
+				ProviderType: testcontainers.ProviderDocker,
+				ContainerRequest: testcontainers.ContainerRequest{
+					Image:      "ghcr.io/grafana/xk6-disruptor-agent",
+					Cmd:        stressCPU(tc.load),
+					Privileged: true,
+				},
+				Started: true,
+			}
+
+			agent, err := testcontainers.GenericContainer(ctx, gcr)
+			if err != nil {
+				t.Fatalf("failed to create agent container %v", err)
+			}
+			t.Cleanup(func() {
+				_ = agent.Terminate(ctx)
+			})
+
+			stats := []tcutils.ContainerStats{}
+			for {
+				state, err := agent.State(ctx)
+				if err != nil {
+					t.Fatalf("getting container status %v", err)
+				}
+
+				if !state.Running {
+					break
+				}
+
+				s, err := tcutils.Stats(context.TODO(), agent.GetContainerID())
+				if err != nil {
+					t.Fatalf("getting container stats %v", err)
+				}
+				stats = append(stats, s)
+			}
+
+			if len(stats) == 0 {
+				t.Fatalf("no stats for container")
+			}
+
+			avgCPU := 0.0
+			for _, s := range stats {
+				avgCPU += s.CPUPercentage
+			}
+			avgCPU = avgCPU/float64(len(stats))
+
+			if math.Abs(avgCPU-float64(tc.load)) > float64(tc.load)*cpuLoadTolerance {
+				t.Fatalf("Average CPU expected: %d got %f (tolerance %d%%)", tc.load, avgCPU, cpuLoadTolerance)
+			}
+		})
 	}
 }
