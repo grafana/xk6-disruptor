@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/xk6-disruptor/pkg/agent"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 )
 
@@ -22,11 +23,6 @@ type TrafficRedirector interface {
 	// Stop restores the traffic to the original target and resets existing connections
 	// to the redirection target
 	Stop() error
-}
-
-// Disruptor defines the interface agent
-type Disruptor interface {
-	Apply(context.Context, time.Duration) error
 }
 
 // Proxy defines an interface for a proxy
@@ -63,7 +59,7 @@ func NewDisruptor(
 	executor runtime.Executor,
 	proxy Proxy,
 	redirector TrafficRedirector,
-) (Disruptor, error) {
+) (agent.Disruptor, error) {
 	if proxy == nil {
 		return nil, fmt.Errorf("proxy cannot be null")
 	}
