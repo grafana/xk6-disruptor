@@ -507,13 +507,12 @@ func Test_CPUStressor(t *testing.T) {
 
 			ctx := context.TODO()
 
-			// start the container with the agent using a fake upstream address because the agent requires it
 			gcr := testcontainers.GenericContainerRequest{
 				ProviderType: testcontainers.ProviderDocker,
 				ContainerRequest: testcontainers.ContainerRequest{
 					Image:      "ghcr.io/grafana/xk6-disruptor-agent",
 					Cmd:        stressCPU(tc.load),
-					Privileged: true,
+					Privileged: false,
 				},
 				Started: true,
 			}
@@ -526,7 +525,11 @@ func Test_CPUStressor(t *testing.T) {
 				_ = agent.Terminate(ctx)
 			})
 
-			stats := []tcutils.ContainerStats{}
+			// collect stats while the container is running.
+			// the Stats method has a 1 second delay, therefore it is not
+			// necessary to sleep in the loop between iterations
+			avgCPU := 0.0
+			iterations := 0
 			for {
 				state, err := agent.State(ctx)
 				if err != nil {
@@ -541,18 +544,16 @@ func Test_CPUStressor(t *testing.T) {
 				if err != nil {
 					t.Fatalf("getting container stats %v", err)
 				}
-				stats = append(stats, s)
+
+				avgCPU += s.CPUPercentage
+				iterations++
 			}
 
-			if len(stats) == 0 {
+			if iterations == 0 {
 				t.Fatalf("no stats for container")
 			}
 
-			avgCPU := 0.0
-			for _, s := range stats {
-				avgCPU += s.CPUPercentage
-			}
-			avgCPU = avgCPU/float64(len(stats))
+			avgCPU = avgCPU/float64(iterations)
 
 			if math.Abs(avgCPU-float64(tc.load)) > float64(tc.load)*cpuLoadTolerance {
 				t.Fatalf("Average CPU expected: %d got %f (tolerance %d%%)", tc.load, avgCPU, cpuLoadTolerance)

@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/agent"
-	stressors "github.com/grafana/xk6-disruptor/pkg/agent/stressors"
+	"github.com/grafana/xk6-disruptor/pkg/agent/stressors"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/spf13/cobra"
 )
 
-// BuildStressCmd returns a cobra command with the specification of the grpc command
+// BuildStressCmd returns a cobra command with the specification of the stress command
 func BuildStressCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	var duration time.Duration
 	var d stressors.ResourceDisruption
