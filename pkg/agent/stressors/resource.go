@@ -14,6 +14,7 @@ const DefaultSlice = 100 * time.Millisecond
 // CPUStressor defines a stressor for CPU
 type CPUStressor struct {
 	Slice time.Duration
+	Load  int
 }
 
 // CPUDisruption defines a disruption that stress the CPU
@@ -24,7 +25,7 @@ type CPUDisruption struct {
 
 // Apply stresses one CPU until the context is done
 // This code is based on the cpu stress routing in stress-ng
-func (s *CPUStressor) Apply(ctx context.Context, d CPUDisruption) error {
+func (s *CPUStressor) Apply(ctx context.Context) error {
 	// scheduleTime is used to compensate time go routine is not scheduled
 	scheduleTime := 0.0
 	for {
@@ -59,7 +60,7 @@ func (s *CPUStressor) Apply(ctx context.Context, d CPUDisruption) error {
 			//
 			// The following formula uses this relationship and adjusts for any idle time consuming CPU (busy-elapsed)
 			// and idle time not accounted from previous cycle (scheduleTime)
-			idle := float64(int64(100-d.Load)*int64(busy))/float64(d.Load) + float64(busy-elapsed) - scheduleTime
+			idle := float64(int64(100-s.Load)*int64(busy))/float64(s.Load) + float64(busy-elapsed) - scheduleTime
 
 			if idle < 0.0 {
 				scheduleTime = 0.0
@@ -90,40 +91,45 @@ type ResourceStressOptions struct {
 
 // ResourceStressor defines a resource stressor
 type ResourceStressor struct {
-	Options ResourceStressOptions
+	Options    ResourceStressOptions
+	Disruption ResourceDisruption
 }
 
 // NewResourceStressor creates a new ResourceStressor using the given options
-func NewResourceStressor(opts ResourceStressOptions) (*ResourceStressor, error) {
-	if opts.Slice == 0 {
-		opts.Slice = DefaultSlice
+func NewResourceStressor(disruption ResourceDisruption, options ResourceStressOptions) (*ResourceStressor, error) {
+	if options.Slice == 0 {
+		options.Slice = DefaultSlice
 	}
 
 	return &ResourceStressor{
-		Options: opts,
+		Options:    options,
+		Disruption: disruption,
 	}, nil
 }
 
 // Apply applies the resource stress disruption for a given duration
-func (r *ResourceStressor) Apply(ctx context.Context, d ResourceDisruption, duration time.Duration) error {
-	if d.CPUs == 0 {
+func (r *ResourceStressor) Apply(ctx context.Context, duration time.Duration) error {
+	if r.Disruption.CPUs == 0 {
 		return fmt.Errorf("at least one CPU must be stressed")
 	}
 
 	stressorsCtx, done := context.WithTimeout(ctx, duration)
 	defer done()
 
-	doneCh := make(chan error, d.CPUs)
+	doneCh := make(chan error, r.Disruption.CPUs)
 	// create a CPUStressor for each CPU
-	for i := 0; i < d.CPUs; i++ {
+	for i := 0; i < r.Disruption.CPUs; i++ {
 		go func() {
-			s := CPUStressor{Slice: r.Options.Slice}
-			doneCh <- s.Apply(stressorsCtx, d.CPUDisruption)
+			s := CPUStressor{
+				Slice: r.Options.Slice,
+				Load:  r.Disruption.Load,
+			}
+			doneCh <- s.Apply(stressorsCtx)
 		}()
 	}
 
 	// wait for all stressors to finish or context to be done
-	pending := d.CPUs
+	pending := r.Disruption.CPUs
 	for pending > 0 {
 		select {
 		case <-ctx.Done():

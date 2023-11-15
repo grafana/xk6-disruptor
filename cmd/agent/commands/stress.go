@@ -13,7 +13,7 @@ import (
 // BuildStressCmd returns a cobra command with the specification of the stress command
 func BuildStressCmd(env runtime.Environment, config *agent.Config) *cobra.Command {
 	var duration time.Duration
-	var d stressors.ResourceDisruption
+	var disruption stressors.ResourceDisruption
 	var opts stressors.ResourceStressOptions
 
 	cmd := &cobra.Command{
@@ -27,18 +27,18 @@ func BuildStressCmd(env runtime.Environment, config *agent.Config) *cobra.Comman
 			}
 			defer agent.Stop()
 
-			s, err := stressors.NewResourceStressor(opts)
+			s, err := stressors.NewResourceStressor(disruption, opts)
 			if err != nil {
 				return err
 			}
 
-			return s.Apply(cmd.Context(), d, duration)
+			return s.Apply(cmd.Context(), duration)
 		},
 	}
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")
 	cmd.Flags().DurationVarP(&opts.Slice, "slice", "s", 100, "CPU stress cycle in milliseconds (default 100ms)")
-	cmd.Flags().IntVarP(&d.Load, "load", "l", 100, "CPU load percentage (default 100%)")
-	cmd.Flags().IntVarP(&d.CPUs, "cpus", "c", 1, "number of CPUs to stress (default 1)")
+	cmd.Flags().IntVarP(&disruption.Load, "load", "l", 100, "CPU load percentage (default 100%)")
+	cmd.Flags().IntVarP(&disruption.CPUs, "cpus", "c", 1, "number of CPUs to stress (default 1)")
 
 	return cmd
 }
