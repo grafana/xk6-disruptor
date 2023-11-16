@@ -27,6 +27,7 @@ func NewRootCommand(env runtime.Environment) *RootCommand {
 	rootCmd.AddCommand(BuildHTTPCmd(env, config))
 	rootCmd.AddCommand(BuildGrpcCmd(env, config))
 	rootCmd.AddCommand(BuildTCPDropCmd(env, config))
+	rootCmd.AddCommand(BuildStressCmd(env, config))
 	rootCmd.AddCommand(BuiltCleanupCmd(env))
 
 	return &RootCommand{

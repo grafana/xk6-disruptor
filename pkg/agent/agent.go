@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/runtime"
 	"github.com/grafana/xk6-disruptor/pkg/runtime/profiler"
 )
@@ -24,6 +23,11 @@ type Agent struct {
 	env           runtime.Environment
 	sc            <-chan os.Signal
 	profileCloser io.Closer
+}
+
+// Disruptor defines the interface for applying disruptions
+type Disruptor interface {
+	Apply(context.Context, time.Duration) error
 }
 
 // Start creates and starts a new instance of an agent.
@@ -65,7 +69,7 @@ func (a *Agent) start(config *Config) error {
 }
 
 // ApplyDisruption applies a disruption to the target
-func (a *Agent) ApplyDisruption(ctx context.Context, disruptor protocol.Disruptor, duration time.Duration) error {
+func (a *Agent) ApplyDisruption(ctx context.Context, disruptor Disruptor, duration time.Duration) error {
 	// set context for command
 	ctx, cancel := context.WithCancel(ctx)
 
