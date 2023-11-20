@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha1" //nolint:gosec
 	"fmt"
+	"os"
 	"runtime"
+	"syscall"
 	"time"
 )
 
@@ -76,9 +78,41 @@ func (s *CPUStressor) Apply(ctx context.Context) error {
 	}
 }
 
+// VMStressor defines a stressor for memroy
+type VMStressor struct {
+	VMBytes uint64
+}
+
+// MemoryDisruption defines a disruption that stress the memeory
+type MemoryDisruption struct {
+	VMSize uint64
+}
+
+// Apply stresses Virtual memory
+func (s *VMStressor) Apply(ctx context.Context) error {
+	if s.VMBytes == 0 {
+		return nil
+	}
+	mmapFlags := syscall.MAP_PRIVATE | syscall.MAP_ANONYMOUS
+	mmapProt := syscall.PROT_READ | syscall.PROT_WRITE
+	mmapSize := int(s.VMBytes & ^(uint64(os.Getpagesize()) - 1)) // round up to pageSize
+	buff, err := syscall.Mmap(0, 0, mmapSize, mmapProt, mmapFlags)
+	if err != nil {
+		return fmt.Errorf("mapping virtual memory: %w", err)
+	}
+	defer func() {
+		_ = syscall.Munmap(buff)
+	}()
+
+	// wait context end
+	<-ctx.Done()
+	return nil
+}
+
 // ResourceDisruption defines a disruption that stress the CPU and Memory of a target
 type ResourceDisruption struct {
 	CPUDisruption
+	MemoryDisruption
 }
 
 // ResourceStressOptions defines options that control the resource stressing
@@ -109,14 +143,14 @@ func NewResourceStressor(disruption ResourceDisruption, options ResourceStressOp
 
 // Apply applies the resource stress disruption for a given duration
 func (r *ResourceStressor) Apply(ctx context.Context, duration time.Duration) error {
-	if r.Disruption.CPUs == 0 {
-		return fmt.Errorf("at least one CPU must be stressed")
-	}
+	// one stressor goroutine per CPU and one for memory
+	stressRoutines := r.Disruption.CPUs + 1
 
 	stressorsCtx, done := context.WithTimeout(ctx, duration)
 	defer done()
 
-	doneCh := make(chan error, r.Disruption.CPUs)
+	doneCh := make(chan error, stressRoutines)
+
 	// create a CPUStressor for each CPU
 	for i := 0; i < r.Disruption.CPUs; i++ {
 		go func() {
@@ -128,8 +162,16 @@ func (r *ResourceStressor) Apply(ctx context.Context, duration time.Duration) er
 		}()
 	}
 
+	// create a goroutine for memory stress
+	go func() {
+		m := VMStressor{
+			VMBytes: r.Disruption.VMSize,
+		}
+		doneCh <- m.Apply(stressorsCtx)
+	}()
+
 	// wait for all stressors to finish or context to be done
-	pending := r.Disruption.CPUs
+	pending := stressRoutines
 	for pending > 0 {
 		select {
 		case <-ctx.Done():
