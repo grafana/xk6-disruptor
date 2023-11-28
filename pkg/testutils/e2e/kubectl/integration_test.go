@@ -14,7 +14,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/deploy"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/k3sutils"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
 
@@ -31,15 +30,6 @@ func Test_Kubectl(t *testing.T) {
 	container, err := k3s.RunContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// wait for the api server to complete initialization.
-	// see this issue for more details:
-	// https://github.com/testcontainers/testcontainers-go/issues/1547
-	timeout := time.Second * 30
-	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
-	if err != nil {
-		t.Fatalf("failed waiting for cluster ready: %s", err)
 	}
 
 	// Clean up the container after the test is complete
