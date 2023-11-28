@@ -11,7 +11,6 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes/helpers"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/fixtures"
-	"github.com/grafana/xk6-disruptor/pkg/testutils/k3sutils"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
@@ -45,15 +44,6 @@ func Test_Kubernetes(t *testing.T) {
 	container, err := k3s.RunContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// wait for the api server to complete initialization.
-	// see this issue for more details:
-	// https://github.com/testcontainers/testcontainers-go/issues/1547
-	timeout := time.Second * 30
-	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
-	if err != nil {
-		t.Fatalf("failed waiting for cluster ready: %s", err)
 	}
 
 	// Clean up the container after the test is complete
@@ -271,15 +261,6 @@ func Test_UnsupportedKubernetesVersion(t *testing.T) {
 	container, err := k3s.RunContainer(ctx, testcontainers.WithImage("docker.io/rancher/k3s:v1.22.17-k3s1"))
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// wait for the api server to complete initialization.
-	// see this issue for more details:
-	// https://github.com/testcontainers/testcontainers-go/issues/1547
-	timeout := time.Second * 30
-	err = k3sutils.WaitForRegex(ctx, container, ".*Node controller sync successful.*", timeout)
-	if err != nil {
-		t.Fatalf("failed waiting for cluster ready: %s", err)
 	}
 
 	// Clean up the container after the test is complete
