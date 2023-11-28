@@ -3,7 +3,7 @@ module github.com/grafana/xk6-disruptor
 go 1.19
 
 require (
-	github.com/docker/docker v24.0.6+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/dop251/goja v0.0.0-20230919151941-fc55792775de
 	github.com/florianl/go-nfqueue v1.3.1
