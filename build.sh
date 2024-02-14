@@ -17,6 +17,7 @@ $0 [OPTIONS]
 options:
   -a, --arch: target architecture (valid option amd64, arm64. Defaults to GOARCH)
   -b, --build: directory for building binaries (defaults to 'build. Created if it does not exist)
+  -k, --k6-version: version of k6 to use
   -n, --name: package base name. Defaults to 'xk6-disruptor'
   -o, --os: target operating systems (valid options linux, darwing, windows. Defaults to GOOS)
   -r, --replace: module that replaces xk6-distruptor module
@@ -44,6 +45,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -b|--build)
       BUILD="$2"
+      shift
+      ;;
+    -k|--k6-version)
+      K6_VERSION="$2"
       shift
       ;;
     -o|--os)
@@ -112,6 +117,6 @@ fi
   export GOARCH=$ARCH
   export GOOS=$OS
   export XK6_BUILD_FLAGS='-ldflags "-w -s'
-  xk6 build --with $MOD=${REPLACE} --output $BUILD/$BINARY
+  xk6 build $K6_VERSION --with $MOD=${REPLACE} --output $BUILD/$BINARY
 )
 
