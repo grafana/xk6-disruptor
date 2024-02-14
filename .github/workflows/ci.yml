@@ -17,6 +17,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
+      - name: get k6 version
+        run: |
+          K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
+          echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install Go
@@ -24,6 +28,8 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build with xk6
+        env:
+          K6_VERSION: ${{ env.K6_VERSION }}
         run: |
           go install go.k6.io/xk6/cmd/xk6@latest
           xk6 build --with $(go list -m)=.
@@ -31,11 +37,20 @@ jobs:
   build-with-xk6-docker:
     runs-on: ubuntu-latest
     steps:
+      - name: get k6 version
+        run: |
+            K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
+            echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build with xk6
+        env:
+          K6_VERSION: ${{ env.K6_VERSION }}
         run: |
-          docker run --rm -i -u "$(id -u):$(id -g)" -v "${PWD}:/xk6" grafana/xk6 build --with $(go list -m)=/xk6
+          docker run --rm -i -u "$(id -u):$(id -g)" \
+             -v "${PWD}:/xk6-disruptor" \
+             -e K6_VERSION="${K6_VERSION}" \
+             grafana/xk6 build --with $(go list -m)=/xk6-disruptor
 
   run-unit-tests:
     runs-on: ${{ matrix.os }}
