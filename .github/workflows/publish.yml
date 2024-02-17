@@ -84,7 +84,6 @@ jobs:
           name: binaries
           path: dist/
           retention-days: 7
-          overwrite: true
       - name: Export version
         id: export-version
         env:
@@ -136,7 +135,6 @@ jobs:
           path: |
             packaging/*.msi
           retention-days: 7
-          overwrite: true
 
   publish-images:
     runs-on: ubuntu-latest
@@ -207,7 +205,6 @@ jobs:
         with:
           name: binaries
           path: dist
-          merge-multiple: true
       - name: Generate checksum file
         env:
            VERSION: ${{ env.VERSION }}
