@@ -82,7 +82,7 @@ jobs:
           echo "LINT_VERSION=${LINT_VERSION}" >> $GITHUB_ENV
         id: version
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           version: ${{ env.LINT_VERSION }}
 
