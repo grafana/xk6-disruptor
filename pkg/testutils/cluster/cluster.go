@@ -264,7 +264,6 @@ func (c *Config) Create() (*Cluster, error) {
 		c.name,
 		kindOptions...,
 	)
-
 	if err != nil {
 		return nil, err
 	}
