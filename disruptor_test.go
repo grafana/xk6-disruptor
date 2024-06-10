@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	"github.com/sirupsen/logrus"
@@ -22,7 +22,7 @@ import (
 
 // testVU creates a test VU
 func testVU() modules.VU {
-	rt := goja.New()
+	rt := sobek.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	testLog := logrus.New()

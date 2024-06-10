@@ -39,7 +39,6 @@ func NewMemoryProbe(config MemoryConfig) (Probe, error) {
 func (m *memoryProbe) Start() (io.Closer, error) {
 	var err error
 	m.file, err = os.Create(m.config.FileName)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating memory profiling file %q: %w", m.config.FileName, err)
 	}
