@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 	"go.k6.io/k6/js/common"
@@ -17,19 +17,19 @@ import (
 
 // test environment
 type testEnv struct {
-	rt     *goja.Runtime
+	rt     *sobek.Runtime
 	client *fake.Clientset
 	k8s    kubernetes.Kubernetes
 }
 
 // a function that constructs an object
-type constructor func(*testEnv, goja.ConstructorCall) (*goja.Object, error)
+type constructor func(*testEnv, sobek.ConstructorCall) (*sobek.Object, error)
 
 // registers a constructor with a name in the environment's runtime
 func (env *testEnv) registerConstructor(name string, constructor constructor) error {
-	var object *goja.Object
+	var object *sobek.Object
 	var err error
-	err = env.rt.Set(name, func(c goja.ConstructorCall) *goja.Object {
+	err = env.rt.Set(name, func(c sobek.ConstructorCall) *sobek.Object {
 		object, err = constructor(env, c)
 		if err != nil {
 			common.Throw(env.rt, fmt.Errorf("error creating %s: %w", name, err))
@@ -40,7 +40,7 @@ func (env *testEnv) registerConstructor(name string, constructor constructor) er
 }
 
 func testSetup() (*testEnv, error) {
-	rt := goja.New()
+	rt := sobek.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	client := fake.NewSimpleClientset()
@@ -201,7 +201,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 				return
 			}
 
-			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
+			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
 				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {
@@ -490,7 +490,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 				return
 			}
 
-			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
+			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
 				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {
@@ -594,7 +594,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 				return
 			}
 
-			err = env.registerConstructor("ServiceDisruptor", func(e *testEnv, c goja.ConstructorCall) (*goja.Object, error) {
+			err = env.registerConstructor("ServiceDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
 				return NewServiceDisruptor(context.TODO(), e.rt, c, e.k8s)
 			})
 			if err != nil {

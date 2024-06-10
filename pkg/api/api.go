@@ -11,19 +11,19 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 	"github.com/grafana/xk6-disruptor/pkg/disruptors"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
 	"go.k6.io/k6/js/common"
 )
 
 // TODO: call directly Convert from API methods
-func convertValue(_ *goja.Runtime, value goja.Value, target interface{}) error {
+func convertValue(_ *sobek.Runtime, value sobek.Value, target interface{}) error {
 	return Convert(value.Export(), target)
 }
 
 // buildObject returns the value as a
-func buildObject(rt *goja.Runtime, value interface{}) (*goja.Object, error) {
+func buildObject(rt *sobek.Runtime, value interface{}) (*sobek.Object, error) {
 	obj := rt.NewObject()
 
 	t := reflect.TypeOf(value)
@@ -43,12 +43,12 @@ func buildObject(rt *goja.Runtime, value interface{}) (*goja.Object, error) {
 // jsDisruptor implements the JS interface for Disruptor
 type jsDisruptor struct {
 	ctx context.Context // this context controls the object's lifecycle
-	rt  *goja.Runtime
+	rt  *sobek.Runtime
 	disruptors.Disruptor
 }
 
 // Targets is a proxy method. Validates parameters and delegates to the PodDisruptor method
-func (p *jsDisruptor) Targets() goja.Value {
+func (p *jsDisruptor) Targets() sobek.Value {
 	targets, err := p.Disruptor.Targets(p.ctx)
 	if err != nil {
 		common.Throw(p.rt, fmt.Errorf("error getting kubernetes config path: %w", err))
@@ -60,12 +60,12 @@ func (p *jsDisruptor) Targets() goja.Value {
 // jsProtocolFaultInjector implements the JS interface for jsProtocolFaultInjector
 type jsProtocolFaultInjector struct {
 	ctx context.Context // this context controls the object's lifecycle
-	rt  *goja.Runtime
+	rt  *sobek.Runtime
 	disruptors.ProtocolFaultInjector
 }
 
 // injectHTTPFaults is a proxy method. Validates parameters and delegates to the Protocol Disruptor method
-func (p *jsProtocolFaultInjector) InjectHTTPFaults(args ...goja.Value) {
+func (p *jsProtocolFaultInjector) InjectHTTPFaults(args ...sobek.Value) {
 	if len(args) < 2 {
 		common.Throw(p.rt, fmt.Errorf("HTTPFault and duration are required"))
 	}
@@ -97,7 +97,7 @@ func (p *jsProtocolFaultInjector) InjectHTTPFaults(args ...goja.Value) {
 }
 
 // InjectGrpcFaults is a proxy method. Validates parameters and delegates to the PodDisruptor method
-func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...goja.Value) {
+func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...sobek.Value) {
 	if len(args) < 2 {
 		common.Throw(p.rt, fmt.Errorf("GrpcFault and duration are required"))
 	}
@@ -131,12 +131,12 @@ func (p *jsProtocolFaultInjector) InjectGrpcFaults(args ...goja.Value) {
 // jsPodFaultInjector implements methods for injecting faults into Pods
 type jsPodFaultInjector struct {
 	ctx context.Context
-	rt  *goja.Runtime
+	rt  *sobek.Runtime
 	disruptors.PodFaultInjector
 }
 
 // TerminatePods is a proxy method. Validates parameters and delegates to the Pod Fault Injector method
-func (p *jsPodFaultInjector) TerminatePods(args ...goja.Value) {
+func (p *jsPodFaultInjector) TerminatePods(args ...sobek.Value) {
 	if len(args) == 0 {
 		common.Throw(p.rt, fmt.Errorf("PodTermination fault is required"))
 	}
@@ -163,9 +163,9 @@ type jsPodDisruptor struct {
 // buildJsPodDisruptor builds a goja object that implements the PodDisruptor API
 func buildJsPodDisruptor(
 	ctx context.Context,
-	rt *goja.Runtime,
+	rt *sobek.Runtime,
 	disruptor disruptors.PodDisruptor,
-) (*goja.Object, error) {
+) (*sobek.Object, error) {
 	d := &jsPodDisruptor{
 		jsDisruptor: jsDisruptor{
 			ctx:       ctx,
@@ -196,9 +196,9 @@ type jsServiceDisruptor struct {
 // buildJsServiceDisruptor builds a goja object that implements the ServiceDisruptor API
 func buildJsServiceDisruptor(
 	ctx context.Context,
-	rt *goja.Runtime,
+	rt *sobek.Runtime,
 	disruptor disruptors.ServiceDisruptor,
-) (*goja.Object, error) {
+) (*sobek.Object, error) {
 	d := &jsServiceDisruptor{
 		jsDisruptor: jsDisruptor{
 			ctx:       ctx,
@@ -224,11 +224,11 @@ func buildJsServiceDisruptor(
 // The context passed to this constructor is expected to control the lifecycle of the PodDisruptor
 func NewPodDisruptor(
 	ctx context.Context,
-	rt *goja.Runtime,
-	c goja.ConstructorCall,
+	rt *sobek.Runtime,
+	c sobek.ConstructorCall,
 	k8s kubernetes.Kubernetes,
-) (*goja.Object, error) {
-	if c.Argument(0).Equals(goja.Null()) {
+) (*sobek.Object, error) {
+	if c.Argument(0).Equals(sobek.Null()) {
 		return nil, fmt.Errorf("PodDisruptor constructor expects a non null PodSelector argument")
 	}
 
@@ -264,10 +264,10 @@ func NewPodDisruptor(
 // The context passed to this constructor is expected to control the lifecycle of the ServiceDisruptor
 func NewServiceDisruptor(
 	ctx context.Context,
-	rt *goja.Runtime,
-	c goja.ConstructorCall,
+	rt *sobek.Runtime,
+	c sobek.ConstructorCall,
 	k8s kubernetes.Kubernetes,
-) (*goja.Object, error) {
+) (*sobek.Object, error) {
 	if len(c.Arguments) < 2 {
 		return nil, fmt.Errorf("ServiceDisruptor constructor requires service and namespace parameters")
 	}
