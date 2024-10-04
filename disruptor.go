@@ -8,7 +8,7 @@ import (
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 
 	"github.com/grafana/xk6-disruptor/pkg/api"
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
@@ -60,7 +60,7 @@ func (m *ModuleInstance) Exports() modules.Exports {
 }
 
 // creates an instance of a PodDisruptor
-func (m *ModuleInstance) newPodDisruptor(c goja.ConstructorCall) *goja.Object {
+func (m *ModuleInstance) newPodDisruptor(c sobek.ConstructorCall) *sobek.Object {
 	rt := m.vu.Runtime()
 	ctx := m.vu.Context()
 
@@ -72,7 +72,7 @@ func (m *ModuleInstance) newPodDisruptor(c goja.ConstructorCall) *goja.Object {
 }
 
 // creates an instance of a ServiceDisruptor
-func (m *ModuleInstance) newServiceDisruptor(c goja.ConstructorCall) *goja.Object {
+func (m *ModuleInstance) newServiceDisruptor(c sobek.ConstructorCall) *sobek.Object {
 	rt := m.vu.Runtime()
 	ctx := m.vu.Context()
 

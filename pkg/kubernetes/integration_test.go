@@ -230,7 +230,6 @@ func Test_Kubernetes(t *testing.T) {
 				Timeout: 15 * time.Second,
 			},
 		)
-
 		if err != nil {
 			t.Fatalf("error attaching ephemeral container to pod: %v", err)
 		}

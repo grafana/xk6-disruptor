@@ -16,7 +16,6 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/testutils/e2e/kubernetes/namespace"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/kubernetes/builders"
 
-
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 
 	"k8s.io/client-go/tools/clientcmd"

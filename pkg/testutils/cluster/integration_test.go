@@ -111,9 +111,9 @@ func Test_PreloadImages(t *testing.T) {
 	busybox := builders.NewPodBuilder("busybox").
 		WithContainer(
 			builders.NewContainerBuilder("busybox").
-			WithImage("busybox").
-			WithPullPolicy(corev1.PullNever).
-			Build(),
+				WithImage("busybox").
+				WithPullPolicy(corev1.PullNever).
+				Build(),
 		).
 		Build()
 

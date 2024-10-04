@@ -474,7 +474,7 @@ const cpuLoadTolerance = 10
 func Test_CPUStressor(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct{
+	testCases := []struct {
 		title string
 		load  uint
 	}{
@@ -553,7 +553,7 @@ func Test_CPUStressor(t *testing.T) {
 				t.Fatalf("no stats for container")
 			}
 
-			avgCPU = avgCPU/float64(iterations)
+			avgCPU = avgCPU / float64(iterations)
 
 			if math.Abs(avgCPU-float64(tc.load)) > float64(tc.load)*cpuLoadTolerance {
 				t.Fatalf("Average CPU expected: %d got %f (tolerance %d%%)", tc.load, avgCPU, cpuLoadTolerance)
