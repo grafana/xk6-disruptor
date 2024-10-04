@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/florianl/go-nfqueue v1.3.2
+	github.com/florianl/go-nfqueue/v2 v2.0.0
 	github.com/florianl/go-nfqueue/v2 v2.0.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gopacket v1.1.19
