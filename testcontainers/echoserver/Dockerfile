@@ -1,4 +1,4 @@
-FROM golang:1.23
+FROM golang:1.21
 
 WORKDIR /echoserver
 COPY echoserver.go .
