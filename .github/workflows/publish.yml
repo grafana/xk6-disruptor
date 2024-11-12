@@ -79,7 +79,7 @@ jobs:
             tar -zcf dist/$AGENT-${PKG_VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: dist/
@@ -129,7 +129,7 @@ jobs:
           .\wix311\candle.exe -arch x64 "-dVERSION=$Env:VERSION" xk6disruptor.wxs
           .\wix311\light.exe -ext WixUIExtension -o "$Env:PKGNAME.msi" xk6disruptor.wixobj
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: |
