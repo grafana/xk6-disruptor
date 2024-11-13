@@ -2,6 +2,30 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    groups:
+      k8s:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+      k6:
+        patterns:
+          - "go.k6.io/*"
+          - "github.com/grafana/sobek"
+      miscellaneous:
+        patterns:
+          - "github.com/sirupsen/logrus"
+          - "github.com/spf13/cobra"
+      test:
+        patterns:
+          - "github.com/testcontainers/testcontainers-go"
+          - "github.com/docker/docker"
+      experimental:
+        patterns:
+          - "github.com/docker/go-connections"
+          - "github.com/florianl/go-nfqueue"
+          - "github.com/google/go-cmp"
+          - "github.com/google/gopacket"
+
     schedule:
       interval: "weekly"
       day: "sunday"
