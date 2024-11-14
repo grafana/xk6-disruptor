@@ -6,6 +6,7 @@ import (
 
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 	corev1 "k8s.io/api/core/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth" // initialize auth plugins
 )
 
 // GetTargetPort returns the target port for the given service port
