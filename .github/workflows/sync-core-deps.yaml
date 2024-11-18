@@ -22,7 +22,6 @@ jobs:
           go-version: "1.21"
       - name: Sync dependencies
         run: |
-          git checkout -b "$BRANCH_NAME"
           ./hack/depsync.sh
 
           if [[ -z "$(git status --porcelain --untracked-files=no)" ]]; then

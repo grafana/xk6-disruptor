@@ -2,9 +2,13 @@
 
 set -eo pipefail
 
+go install github.com/grafana/go-depsync@latest
+
 tmpdir=$(mktemp -d)
 
-gogetcmd=$(go run ./hack/depsync 2>"$tmpdir/deps.log")
+
+
+gogetcmd=$(go-depsync --parent go.k6.io/k6  2>"$tmpdir/deps.log")
 
 if [[ -z $gogetcmd ]]; then
 	echo "Nothing to do."
