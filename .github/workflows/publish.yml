@@ -193,11 +193,6 @@ jobs:
     needs: [build-binaries, build-windows-installer]
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
-      - name: get release version
-        run: |
-          VERSION=$GITHUB_REF_NAME
-          VERSION_SHA=$GITHUB_SHA
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Download binaries
@@ -211,18 +206,9 @@ jobs:
           name: windows-installer
           path: dist
       - name: Generate checksum file
-        env:
-           VERSION: ${{ env.VERSION }}
-        run: sha256sum dist/* > "xk6-disruptor-${VERSION}-checksums.txt"
+        run: sha256sum dist/* > "xk6-disruptor-${{ github.REF_NAME }}-checksums.txt"
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ env.VERSION }}
         run: |
-          MESSAGE="$(cat ./releases/${VERSION}.md)"
-          assets=()
-          for asset in ./dist/*; do
-            assets+=("$asset")
-          done
-          gh release create "$VERSION" --target "$VERSION_SHA" -F "./releases/${VERSION}.md" "${assets[@]}"
-
+          gh release upload "${{ github.REF_NAME }}" ./dist/*
