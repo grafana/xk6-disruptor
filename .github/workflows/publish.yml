@@ -79,7 +79,7 @@ jobs:
             tar -zcf dist/$AGENT-${PKG_VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: dist/
@@ -112,7 +112,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Download binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: binaries
           path: dist
@@ -129,9 +129,9 @@ jobs:
           .\wix311\candle.exe -arch x64 "-dVERSION=$Env:VERSION" xk6disruptor.wxs
           .\wix311\light.exe -ext WixUIExtension -o "$Env:PKGNAME.msi" xk6disruptor.wixobj
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: binaries
+          name: windows-installer
           path: |
             packaging/*.msi
           retention-days: 7
@@ -153,7 +153,7 @@ jobs:
           echo "PKG_VERSION=${{needs.build-binaries.outputs.pkg_version}}" >> $GITHUB_ENV
           echo "IMAGE_VERSION=${{needs.build-binaries.outputs.image_version}}" >> $GITHUB_ENV
       - name: Download binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: binaries
           path: dist
@@ -201,9 +201,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Download binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: binaries
+          path: dist
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
           path: dist
       - name: Generate checksum file
         env:
