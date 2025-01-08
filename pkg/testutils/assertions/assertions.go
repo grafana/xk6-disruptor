@@ -15,7 +15,7 @@ func CompareStringArrays(a, b []string) bool {
 		return true
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if a[i] != b[i] {
 			return false
 		}

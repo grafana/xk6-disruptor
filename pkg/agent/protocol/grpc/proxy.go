@@ -22,7 +22,7 @@ type Disruption struct {
 	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
 	ErrorRate float32
 	// Status code to be returned by requests selected to return an error
-	StatusCode int32
+	StatusCode uint32
 	// Status message to be returned in requests selected to return an error
 	StatusMessage string
 	// List of grpc services to be excluded from disruptions

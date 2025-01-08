@@ -74,7 +74,6 @@ func Test_WithPodObservers(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
@@ -94,7 +93,7 @@ func Test_WithPodObservers(t *testing.T) {
 				WithPodObserver(
 					"default",
 					tc.event,
-					func(action ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
+					func(action ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) { //nolint:revive
 						if tc.event != ObjectEventAll && action != tc.event {
 							return nil, false, fmt.Errorf("invalid action. Expected: %s got %s", tc.event, action)
 						}

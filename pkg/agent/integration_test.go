@@ -173,7 +173,6 @@ func Test_HTTPFaultInjection(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
@@ -267,7 +266,6 @@ func Test_GrpcFaultInjection(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
@@ -501,7 +499,6 @@ func Test_CPUStressor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

@@ -28,7 +28,7 @@ func buildObject(rt *sobek.Runtime, value interface{}) (*sobek.Object, error) {
 
 	t := reflect.TypeOf(value)
 	v := reflect.ValueOf(value)
-	for i := 0; i < t.NumMethod(); i++ {
+	for i := range t.NumMethod() {
 		name := t.Method(i).Name
 		f := v.MethodByName(name)
 		err := obj.Set(toCamelCase(name), f.Interface())

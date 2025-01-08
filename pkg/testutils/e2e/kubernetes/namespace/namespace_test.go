@@ -43,7 +43,7 @@ func Test_CreateNamespace(t *testing.T) {
 			title:       "default options",
 			options:     []TestNamespaceOption{},
 			expectError: false,
-			check: func(k8s kubernetes.Interface, ns string) error {
+			check: func(_ kubernetes.Interface, ns string) error {
 				match, _ := regexp.MatchString(`testns-[a-z|0-9]+`, ns)
 				if !match {
 					return fmt.Errorf("expected pattern 'testns-xxxxx' got %q", ns)
@@ -55,7 +55,7 @@ func Test_CreateNamespace(t *testing.T) {
 			title:       "fixed name",
 			options:     []TestNamespaceOption{WithName("testns")},
 			expectError: false,
-			check: func(k8s kubernetes.Interface, ns string) error {
+			check: func(_ kubernetes.Interface, ns string) error {
 				if ns != "testns" {
 					return fmt.Errorf("expected 'testns' got %q", ns)
 				}
@@ -66,7 +66,6 @@ func Test_CreateNamespace(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

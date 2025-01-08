@@ -20,7 +20,7 @@ func BuildStressCmd(env runtime.Environment, config *agent.Config) *cobra.Comman
 		Use:   "stress",
 		Short: "resource stressor",
 		Long:  "Stress CPU resource",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error { //nolint:revive
 			agent, err := agent.Start(env, config)
 			if err != nil {
 				return fmt.Errorf("initializing agent: %w", err)

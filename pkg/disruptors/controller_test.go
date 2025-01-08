@@ -105,8 +105,6 @@ func Test_PodAgentVisitor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -170,7 +168,7 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+			visitor: PodVisitorFunc(func(_ context.Context, _ corev1.Pod) error {
 				return nil
 			}),
 			expectError: nil,
@@ -187,7 +185,7 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+			visitor: PodVisitorFunc(func(_ context.Context, pod corev1.Pod) error { //nolint:revive
 				return errFailed
 			}),
 			expectError: errFailed,
@@ -204,7 +202,7 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+			visitor: PodVisitorFunc(func(_ context.Context, pod corev1.Pod) error {
 				// for pod-1 return error, for pod-2 wait until context expires
 				if pod.Name == "pod1" {
 					return errFailed
@@ -226,7 +224,7 @@ func Test_PodController(t *testing.T) {
 					WithIP("192.0.2.7").
 					Build(),
 			},
-			visitor: PodVisitorFunc(func(ctx context.Context, pod corev1.Pod) error {
+			visitor: PodVisitorFunc(func(_ context.Context, _ corev1.Pod) error {
 				time.Sleep(2 * time.Second)
 				return nil
 			}),
@@ -235,8 +233,6 @@ func Test_PodController(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

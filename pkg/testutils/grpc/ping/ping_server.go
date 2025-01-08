@@ -18,10 +18,10 @@ type defaultPingServer struct {
 
 // NewPingServer returns an instance of the default PingServiceServer
 func NewPingServer() PingServiceServer {
-	return defaultPingServer{}
+	return &defaultPingServer{}
 }
 
-func (s defaultPingServer) Ping(ctx context.Context, request *PingRequest) (*PingResponse, error) {
+func (s *defaultPingServer) Ping(ctx context.Context, request *PingRequest) (*PingResponse, error) {
 	if err := s.sendHeader(ctx, request.Headers); err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func (s defaultPingServer) Ping(ctx context.Context, request *PingRequest) (*Pin
 	}
 
 	if request.Error != int32(codes.OK) {
-		return nil, status.Error(codes.Code(request.Error), request.Message)
+		return nil, status.Error(codes.Code(request.Error), request.Message) //nolint:gosec // This is a test service
 	}
 
 	return &PingResponse{Message: request.Message}, nil

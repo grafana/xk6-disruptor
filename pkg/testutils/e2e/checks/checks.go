@@ -53,7 +53,7 @@ type GrpcCheck struct {
 	// Request message
 	Request []byte
 	// Expected return code (default OK)
-	ExpectedStatus int32
+	ExpectedStatus uint32
 	// Delay before attempting access to service
 	Delay time.Duration
 }
@@ -113,8 +113,8 @@ func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace str
 		return fmt.Errorf("unexpected error %w", err)
 	}
 
-	if int32(s.Code()) != c.ExpectedStatus {
-		return fmt.Errorf("expected status code %d but %d received", c.ExpectedStatus, int32(s.Code()))
+	if uint32(s.Code()) != c.ExpectedStatus {
+		return fmt.Errorf("expected status code %d but %d received", c.ExpectedStatus, s.Code())
 	}
 
 	return nil

@@ -122,7 +122,7 @@ func (c *Config) Render() (string, error) {
 		}
 	}
 
-	for i := 0; i < c.options.Workers; i++ {
+	for range c.options.Workers {
 		fmt.Fprintf(&config, "\n- role: worker")
 	}
 

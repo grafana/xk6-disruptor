@@ -37,8 +37,6 @@ func Test_FakeExecutor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -91,8 +89,6 @@ func Test_MultipleExecutions(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -165,12 +161,10 @@ func Test_Callbacks(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			fake := NewCallbackExecutor(func(cmd string, args ...string) ([]byte, error) {
+			fake := NewCallbackExecutor(func(cmd string, args ...string) ([]byte, error) { //nolint:revive
 				return tc.out, tc.err
 			})
 

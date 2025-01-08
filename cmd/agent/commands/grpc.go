@@ -93,7 +93,7 @@ func BuildGrpcCmd(env runtime.Environment, config *agent.Config) *cobra.Command 
 	cmd.Flags().DurationVarP(&duration, "duration", "d", 0, "duration of the disruptions")
 	cmd.Flags().DurationVarP(&disruption.AverageDelay, "average-delay", "a", 0, "average request delay")
 	cmd.Flags().DurationVarP(&disruption.DelayVariation, "delay-variation", "v", 0, "variation in request delay")
-	cmd.Flags().Int32VarP(&disruption.StatusCode, "status", "s", 0, "status code")
+	cmd.Flags().Uint32VarP(&disruption.StatusCode, "status", "s", 0, "status code")
 	cmd.Flags().Float32VarP(&disruption.ErrorRate, "rate", "r", 0, "error rate")
 	cmd.Flags().StringVarP(&disruption.StatusMessage, "message", "m", "", "error message for injected faults")
 	cmd.Flags().UintVarP(&port, "port", "p", 8000, "port the proxy will listen to")

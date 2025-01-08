@@ -150,7 +150,6 @@ func Test_PodHTTPFaultCommandGenerator(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -257,7 +256,6 @@ func Test_PodGrpcPFaultCommandGenerator(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

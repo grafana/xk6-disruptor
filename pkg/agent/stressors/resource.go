@@ -118,7 +118,7 @@ func (r *ResourceStressor) Apply(ctx context.Context, duration time.Duration) er
 
 	doneCh := make(chan error, r.Disruption.CPUs)
 	// create a CPUStressor for each CPU
-	for i := 0; i < r.Disruption.CPUs; i++ {
+	for range r.Disruption.CPUs {
 		go func() {
 			s := CPUStressor{
 				Slice: r.Options.Slice,

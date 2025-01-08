@@ -44,8 +44,6 @@ func Test_NewPodSelector(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -108,7 +106,6 @@ func Test_PodSelectorString(t *testing.T) {
 			expected: `pods including(foo=bar), excluding(boo=baa) in ns "testns"`,
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -165,8 +162,6 @@ func Test_PodSelectorTargets(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -280,8 +275,6 @@ func Test_ServicePodSelectorTargets(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

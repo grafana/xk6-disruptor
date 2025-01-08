@@ -67,8 +67,6 @@ func Test_Acquire(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		tmpDir := t.TempDir()
 
 		t.Run(tc.title, func(t *testing.T) {
@@ -150,8 +148,6 @@ func Test_Release(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		tmpDir := t.TempDir()
 
 		t.Run(tc.title, func(t *testing.T) {
@@ -229,8 +225,6 @@ func Test_Owner(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		tmpDir := t.TempDir()
 
 		t.Run(tc.title, func(t *testing.T) {

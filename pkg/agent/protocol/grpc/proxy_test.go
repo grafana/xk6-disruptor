@@ -66,7 +66,7 @@ func Test_Validations(t *testing.T) {
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      0.1,
-				StatusCode:     int32(codes.Internal),
+				StatusCode:     uint32(codes.Internal),
 				StatusMessage:  "",
 			},
 			upstream:    ":8080",
@@ -111,8 +111,6 @@ func Test_Validations(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -174,7 +172,7 @@ func Test_ProxyHandler(t *testing.T) {
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
-				StatusCode:     int32(codes.Internal),
+				StatusCode:     uint32(codes.Internal),
 				StatusMessage:  "Internal server error",
 			},
 			request: &ping.PingRequest{
@@ -205,8 +203,6 @@ func Test_ProxyHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -340,7 +336,7 @@ func Test_ProxyMetrics(t *testing.T) {
 				AverageDelay:   0,
 				DelayVariation: 0,
 				ErrorRate:      1.0,
-				StatusCode:     int32(codes.Internal),
+				StatusCode:     uint32(codes.Internal),
 				StatusMessage:  "Internal server error",
 			},
 			expectedMetrics: map[string]uint{
@@ -352,8 +348,6 @@ func Test_ProxyMetrics(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

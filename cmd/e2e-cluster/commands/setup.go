@@ -17,7 +17,7 @@ func BuildSetupCmd() *cobra.Command {
 		Use:   "setup",
 		Short: "creates and configures an e2e test cluster ",
 		Long:  "creates and configures an e2e test cluster with default options.",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error { //nolint:revive
 			cluster, err := cluster.BuildE2eCluster(
 				cluster.DefaultE2eClusterConfig(),
 				cluster.WithEnvOverride(false),
