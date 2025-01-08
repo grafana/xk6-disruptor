@@ -41,8 +41,6 @@ func Test_validateTrafficRedirect(t *testing.T) {
 	}
 
 	for _, tc := range TestCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -147,8 +145,6 @@ func Test_Commands(t *testing.T) {
 	}
 
 	for _, tc := range TestCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

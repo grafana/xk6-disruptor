@@ -109,8 +109,6 @@ func Test_Validations(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -279,12 +277,10 @@ func Test_ProxyHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 				for k, values := range tc.upstreamHeaders {
 					for _, v := range values {
 						rw.Header().Add(k, v)
@@ -326,9 +322,9 @@ func Test_ProxyHandler(t *testing.T) {
 			}
 
 			// Remove standard response headers so we don't need to specify them on every test case.
-			resp.Header.Del("content-length")
-			resp.Header.Del("content-type")
-			resp.Header.Del("date")
+			resp.Header.Del("Content-Length")
+			resp.Header.Del("Content-Type")
+			resp.Header.Del("Date")
 
 			// Compare headers only if either expected or returned have items.
 			// We have to check for length explicitly as otherwise a nil map would not be equal to an empty map.
@@ -381,11 +377,10 @@ func Test_Metrics(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			upstreamServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 				rw.WriteHeader(http.StatusOK)
 			}))
 

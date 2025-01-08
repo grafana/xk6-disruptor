@@ -62,13 +62,11 @@ func TestPods_Wait(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
 			// update status after delay
-			observer := func(event builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
+			observer := func(_ builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
 				time.Sleep(tc.delay)
 				pod.Status.Phase = tc.phase
 				// update pod and stop watching updates
@@ -177,8 +175,6 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
@@ -187,7 +183,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				Build()
 
 			// wait for pod to updated with ephemeral container and update status
-			observer := func(event builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
+			observer := func(_ builders.ObjectEvent, pod *corev1.Pod) (*corev1.Pod, bool, error) {
 				if len(pod.Spec.EphemeralContainers) == 0 {
 					return nil, true, nil
 				}
@@ -396,8 +392,6 @@ func Test_ListPods(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -506,7 +500,6 @@ func Test_WaitPodDeleted(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

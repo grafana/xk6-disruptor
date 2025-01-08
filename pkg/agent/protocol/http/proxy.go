@@ -25,7 +25,7 @@ type Disruption struct {
 	// Fraction (in the range 0.0 to 1.0) of requests that will return an error
 	ErrorRate float32
 	// Error code to be returned by requests selected in the error rate
-	ErrorCode uint
+	ErrorCode int
 	// Body to be returned when an error is injected
 	ErrorBody string
 	// List of url paths to be excluded from disruptions
@@ -142,7 +142,7 @@ func (h *httpHandler) forward(rw http.ResponseWriter, req *http.Request, delay t
 func (h *httpHandler) injectError(rw http.ResponseWriter, delay time.Duration) {
 	time.Sleep(delay)
 
-	rw.WriteHeader(int(h.disruption.ErrorCode))
+	rw.WriteHeader(h.disruption.ErrorCode)
 	_, _ = rw.Write([]byte(h.disruption.ErrorBody))
 }
 

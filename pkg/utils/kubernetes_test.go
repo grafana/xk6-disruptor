@@ -73,8 +73,6 @@ func Test_FindPort(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -156,8 +154,6 @@ func Test_GetTargetPort(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
@@ -253,13 +249,11 @@ func Test_Sample(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
 			pods := []corev1.Pod{}
-			for i := 0; i < tc.numPods; i++ {
+			for i := range tc.numPods {
 				podName := fmt.Sprintf("pod-%d", i)
 				pods = append(pods, builders.NewPodBuilder(podName).Build())
 			}

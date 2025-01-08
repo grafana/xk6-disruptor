@@ -57,8 +57,6 @@ func Test_CancelContext(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)
@@ -125,8 +123,6 @@ func Test_Signals(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 			env := runtime.NewFakeRuntime(tc.args, tc.vars)

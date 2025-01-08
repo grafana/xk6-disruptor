@@ -191,7 +191,6 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
 
@@ -480,7 +479,6 @@ func Test_JsPodDisruptor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
 
@@ -585,7 +583,6 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
 			env, err := testSetup()

@@ -96,8 +96,6 @@ func Test_WaitServiceReady(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 
@@ -195,8 +193,6 @@ func Test_WaitIngressReady(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.test, func(t *testing.T) {
 			t.Parallel()
 			client := fake.NewSimpleClientset()
@@ -295,8 +291,6 @@ func Test_Targets(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 

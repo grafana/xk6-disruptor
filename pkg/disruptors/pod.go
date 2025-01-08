@@ -15,7 +15,7 @@ import (
 var DefaultTargetPort = intstr.FromInt32(80) //nolint:gochecknoglobals
 
 // PodDisruptor defines the types of faults that can be injected in a Pod
-type PodDisruptor interface {
+type PodDisruptor interface { //nolint:iface
 	Disruptor
 	ProtocolFaultInjector
 	PodFaultInjector

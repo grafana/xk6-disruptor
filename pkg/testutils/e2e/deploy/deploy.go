@@ -51,7 +51,7 @@ func RunPodSet(k8s kubernetes.Kubernetes, ns string, pod corev1.Pod, replicas in
 	errCh := make(chan error, replicas)
 
 	// use the name as a prefix
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		wg.Add(1)
 
 		go func(pod corev1.Pod, replica int) {

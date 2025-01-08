@@ -117,7 +117,7 @@ func (h *handler) transparentForward(serverStream grpc.ServerStream) error {
 	s2cErrChan := h.forwardServerToClient(serverStream, clientStream)
 	c2sErrChan := h.forwardClientToServer(clientStream, serverStream)
 	// We don't know which side is going to stop sending first, so we need a select between the two.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		select {
 		case s2cErr := <-s2cErrChan:
 			if errors.Is(s2cErr, io.EOF) {

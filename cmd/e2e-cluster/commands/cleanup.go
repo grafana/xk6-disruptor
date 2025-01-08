@@ -16,7 +16,7 @@ func BuildCleanupCmd() *cobra.Command {
 		Use:   "cleanup",
 		Short: "deletes an e2e test cluster ",
 		Long:  "deletes an e2e test cluster",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error { //nolint:revive
 			if name == "" {
 				return fmt.Errorf("--name is required")
 			}

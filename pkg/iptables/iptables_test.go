@@ -62,8 +62,6 @@ func Test_Iptables(t *testing.T) {
 			expectedError: anError,
 		},
 	} {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

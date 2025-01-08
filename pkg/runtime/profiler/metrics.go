@@ -167,9 +167,9 @@ func (m *metricsCollector) sample() {
 }
 
 func (m *metricsCollector) generate() {
-	fmt.Fprintln(m.metricsFile, "metric,min,max,average")
+	_, _ = fmt.Fprintln(m.metricsFile, "metric,min,max,average")
 	for k, v := range m.stats {
-		fmt.Fprintf(m.metricsFile, "%s,%.2f,%.2f,%.2f\n", k, v.min(), v.max(), v.avg())
+		_, _ = fmt.Fprintf(m.metricsFile, "%s,%.2f,%.2f,%.2f\n", k, v.min(), v.max(), v.avg())
 	}
 	_ = m.metricsFile.Close()
 }

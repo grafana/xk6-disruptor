@@ -124,7 +124,7 @@ func Benchmark_DisruptorThroughput(b *testing.B) {
 			// TODO: b.Elapsed is a better way to do this, but it is not available in the Go version we are using.
 			start := time.Now()
 			// We run the iperf3 command as many times as b.N tells us to.
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				rc, outputReader, err := iperfClient.Exec(ctx, cmd)
 				if err != nil {
 					b.Fatalf("error running iperf client command: %v", err)

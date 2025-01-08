@@ -137,7 +137,7 @@ type nfqConfig struct {
 // can actually result in the number overflowing and becoming zero.
 func randomNFQConfig() nfqConfig {
 	return nfqConfig{
-		queueID:    uint16(rand.Int31()) | 0b1,
-		rejectMark: uint32(rand.Int31()) | 0b1,
+		queueID:    uint16(rand.Int31()) | 0b1, //nolint:gosec  //integer overflow is not a concern here
+		rejectMark: uint32(rand.Int31()) | 0b1, //nolint:gosec
 	}
 }
