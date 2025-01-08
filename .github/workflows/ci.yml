@@ -85,6 +85,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: ${{ env.LINT_VERSION }}
+          args: --timeout=10m
 
   codespell:
     name: Codespell
