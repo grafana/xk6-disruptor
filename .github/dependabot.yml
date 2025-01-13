@@ -17,7 +17,7 @@ updates:
           - "github.com/spf13/cobra"
       test:
         patterns:
-          - "github.com/testcontainers/testcontainers-go"
+          - "github.com/testcontainers/*"
           - "github.com/docker/docker"
       experimental:
         patterns:
