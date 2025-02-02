@@ -15,9 +15,9 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/testcontainers/testcontainers-go v0.35.0
 	go.k6.io/k6 v0.56.0
-	k8s.io/api v0.32.0
-	k8s.io/apimachinery v0.32.0
-	k8s.io/client-go v0.32.0
+	k8s.io/api v0.32.1
+	k8s.io/apimachinery v0.32.1
+	k8s.io/client-go v0.32.1
 	sigs.k8s.io/kind v0.26.0
 )
 
