@@ -92,7 +92,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// wait for the pod to be ready for accepting requests
-		running, err := k8s.PodHelper(namespace).WaitPodRunning(context.TODO(), "nginx", time.Second*20)
+		running, err := k8s.PodHelper(namespace).WaitPodReady(context.TODO(), "nginx", time.Second*20)
 		if err != nil {
 			t.Fatalf("error waiting for pod %v", err)
 		}
@@ -114,7 +114,7 @@ func Test_Kubernetes(t *testing.T) {
 		})
 
 		// Deploy nginx and expose it as a service. Intentionally not using e2e fixures
-		// because these functions rely on WaitPodRunning and WaitServiceReady which we
+		// because these functions rely on WaitPodReady and WaitServiceReady which we
 		// are testing here.
 		nginxPod := fixtures.BuildNginxPod()
 		_, err = k8s.Client().CoreV1().Pods(namespace).Create(
@@ -165,7 +165,7 @@ func Test_Kubernetes(t *testing.T) {
 		}
 
 		// wait for the pod to be ready
-		running, err := k8s.PodHelper(namespace).WaitPodRunning(context.TODO(), "busybox", time.Second*20)
+		running, err := k8s.PodHelper(namespace).WaitPodReady(context.TODO(), "busybox", time.Second*20)
 		if err != nil {
 			t.Fatalf("error waiting for pod %v", err)
 		}
