@@ -14,7 +14,6 @@ import (
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/metrics"
 
 	"k8s.io/client-go/kubernetes/fake"
@@ -26,9 +25,6 @@ func testVU() modules.VU {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 
 	testLog := logrus.New()
-	testLog.AddHook(&testutils.SimpleLogrusHook{
-		HookedLevels: []logrus.Level{logrus.WarnLevel},
-	})
 	testLog.SetOutput(ioutil.Discard)
 
 	state := &lib.State{

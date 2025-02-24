@@ -86,6 +86,7 @@ jobs:
         with:
           version: ${{ env.LINT_VERSION }}
           args: --timeout=10m
+          verify: false
 
   codespell:
     name: Codespell
