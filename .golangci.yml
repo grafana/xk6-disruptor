@@ -1,7 +1,7 @@
-# v1.63.2
+# v1.62.2
 # Please don't remove the first line. It is used in CI to determine the golangci version
 run:
-  deadline: 5m
+  timeout: 5m
 
 issues:
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
@@ -55,7 +55,7 @@ linters-settings:
     min-len: 10
     min-occurrences: 4
   govet:
-    check-shadowing: true
+    shadow: true
   gosec:
     excludes:
       - G107 # Http request made with variable url
