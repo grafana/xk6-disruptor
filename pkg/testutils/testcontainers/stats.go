@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 )
 
@@ -31,7 +31,7 @@ type ContainerStats struct {
 
 // Calculate the memory usage discounting the cache size.
 // Depending on whether docker is running with cgroups V1 or V2, cache size is reported differently
-func calculateMemoryUsage(memory types.MemoryStats) uint64 {
+func calculateMemoryUsage(memory container.MemoryStats) uint64 {
 	// check groups v1 format
 	if cache, isCgroup1 := memory.Stats["total_inactive_file"]; isCgroup1 && cache < memory.Usage {
 		return memory.Usage - cache
@@ -46,7 +46,7 @@ func calculateMemoryUsage(memory types.MemoryStats) uint64 {
 
 // collectLinuxStats Collects stats for a Linux system using a current sample and a base sample.
 // Base sample is used for calculating the CPU percentage. If the base sample is empty, CPU percentage is reported as 0%
-func collectLinuxStats(base, sample types.StatsJSON) ContainerStats {
+func collectLinuxStats(base, sample container.StatsResponse) ContainerStats {
 	stats := ContainerStats{}
 	stats.Timestamp = sample.Read
 
@@ -90,34 +90,34 @@ func collectLinuxStats(base, sample types.StatsJSON) ContainerStats {
 }
 
 // sampleStats gets a one shot sample of stats. Returns the sample data and the OS type
-func sampleStats(ctx context.Context, containerID string) (types.StatsJSON, error) {
+func sampleStats(ctx context.Context, containerID string) (container.StatsResponse, error) {
 	provider, err := testcontainers.NewDockerProvider()
 	if err != nil {
-		return types.StatsJSON{}, fmt.Errorf("getting docker provider %w", err)
+		return container.StatsResponse{}, fmt.Errorf("getting docker provider %w", err)
 	}
 
 	resp, err := provider.Client().ContainerStatsOneShot(ctx, containerID)
 	if err != nil {
-		return types.StatsJSON{}, fmt.Errorf("requesting stats %w", err)
+		return container.StatsResponse{}, fmt.Errorf("requesting stats %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
 	if resp.OSType != "linux" {
-		return types.StatsJSON{}, fmt.Errorf("unsupported OS: %s", resp.OSType)
+		return container.StatsResponse{}, fmt.Errorf("unsupported OS: %s", resp.OSType)
 	}
 
 	buffer := bytes.Buffer{}
 	_, err = buffer.ReadFrom(resp.Body)
 	if err != nil {
-		return types.StatsJSON{}, fmt.Errorf("reading stats %w", err)
+		return container.StatsResponse{}, fmt.Errorf("reading stats %w", err)
 	}
 
-	statsData := types.StatsJSON{}
+	statsData := container.StatsResponse{}
 	err = json.Unmarshal(buffer.Bytes(), &statsData)
 	if err != nil {
-		return types.StatsJSON{}, fmt.Errorf("unmarshalling stats %w", err)
+		return container.StatsResponse{}, fmt.Errorf("unmarshalling stats %w", err)
 	}
 
 	return statsData, nil
