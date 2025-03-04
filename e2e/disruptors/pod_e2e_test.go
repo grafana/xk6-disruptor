@@ -70,11 +70,12 @@ func Test_PodDisruptor(t *testing.T) {
 			check    checks.Check
 		}{
 			{
-				title:    "Inject Http error 500",
-				pod:      fixtures.BuildHttpbinPod(),
+
+				title:   "Inject Http error 500",
+				pod:     fixtures.BuildHttpbinPodWithoutProbes(),
 				replicas: 1,
-				service:  fixtures.BuildHttpbinService(),
-				port:     80,
+				service: fixtures.BuildHttpbinService(),
+				port:    80,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.HTTPFault{
 						Port:      intstr.FromInt32(80),
@@ -97,11 +98,11 @@ func Test_PodDisruptor(t *testing.T) {
 				},
 			},
 			{
-				title:    "Inject Grpc error",
-				pod:      fixtures.BuildGrpcpbinPod(),
+				title:   "Inject Grpc error",
+				pod:     fixtures.BuildGrpcpbinPod(),
 				replicas: 1,
-				service:  fixtures.BuildGrpcbinService(),
-				port:     9000,
+				service: fixtures.BuildGrpcbinService(),
+				port:    9000,
 				injector: func(d disruptors.PodDisruptor) error {
 					fault := disruptors.GrpcFault{
 						Port:       intstr.FromInt32(9000),
@@ -231,7 +232,7 @@ func Test_PodDisruptor(t *testing.T) {
 		err = deploy.ExposeApp(
 			k8s,
 			namespace,
-			fixtures.BuildHttpbinPod(),
+			fixtures.BuildHttpbinPodWithoutProbes(), // Probes generate requests, invalidating the test.
 			1,
 			service,
 			k8sintstr.FromInt(80),
