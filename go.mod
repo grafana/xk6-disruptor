@@ -2,6 +2,7 @@ module github.com/grafana/xk6-disruptor
 
 go 1.23.0
 
+
 require (
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.5.0
@@ -13,9 +14,9 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/testcontainers/testcontainers-go v0.35.0
 	go.k6.io/k6 v0.57.0
-	k8s.io/api v0.32.2
-	k8s.io/apimachinery v0.32.2
-	k8s.io/client-go v0.32.2
+	k8s.io/api v0.32.3
+	k8s.io/apimachinery v0.32.3
+	k8s.io/client-go v0.32.3
 	sigs.k8s.io/kind v0.27.0
 )
 
