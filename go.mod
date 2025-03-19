@@ -7,7 +7,7 @@ require (
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/florianl/go-nfqueue v1.3.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/grafana/sobek v0.0.0-20241024150027-d91f02b05e9b
 	github.com/sirupsen/logrus v1.9.3
