@@ -14,12 +14,21 @@ func BuildHttpbinPod() corev1.Pod {
 		WithImage("kennethreitz/httpbin").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).
+		WithHTTPReadinessProbe().
 		Build()
 
 	return builders.NewPodBuilder("httpbin").
 		WithLabel("app", "httpbin").
 		WithContainer(c).
 		Build()
+}
+
+// BuildHttpbinPodWithoutProbes returns the same pod as BuildHttpbinPod would, but without any probes.
+func BuildHttpbinPodWithoutProbes() corev1.Pod {
+	pod := BuildHttpbinPod()
+	pod.Spec.Containers[0].ReadinessProbe = nil
+
+	return pod
 }
 
 // BuildGrpcpbinPod returns the definition for deploying grpcbin as a Pod
@@ -83,16 +92,25 @@ func BuildPausedPod() corev1.Pod {
 
 // BuildNginxPod returns the definition of a Pod that runs Nginx
 func BuildNginxPod() corev1.Pod {
-	c := builders.NewContainerBuilder("busybox").
+	c := builders.NewContainerBuilder("nginx").
 		WithImage("nginx").
 		WithPullPolicy(corev1.PullIfNotPresent).
 		WithPort("http", 80).
+		WithHTTPReadinessProbe().
 		Build()
 
 	return builders.NewPodBuilder("nginx").
 		WithLabel("app", "nginx").
 		WithContainer(c).
 		Build()
+}
+
+// BuildNginxPodWithoutProbes returns the same pod as BuildNginxPod would, but without any probes.
+func BuildNginxPodWithoutProbes() corev1.Pod {
+	pod := BuildNginxPod()
+	pod.Spec.Containers[0].ReadinessProbe = nil
+
+	return pod
 }
 
 // BuildNginxService returns the definition of a Service that exposes the nginx pod(s)
