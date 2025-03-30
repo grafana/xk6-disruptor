@@ -82,7 +82,7 @@ jobs:
           echo "LINT_VERSION=${LINT_VERSION}" >> $GITHUB_ENV
         id: version
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: ${{ env.LINT_VERSION }}
           args: --timeout=10m
