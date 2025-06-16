@@ -17,12 +17,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: get k6 version
         run: |
           K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
           echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
-      - name: Checkout code
-        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v5
         with:
@@ -37,12 +39,14 @@ jobs:
   build-with-xk6-docker:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: get k6 version
         run: |
             K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
             echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
-      - name: Checkout code
-        uses: actions/checkout@v4
       - name: Build with xk6
         env:
           K6_VERSION: ${{ env.K6_VERSION }}
