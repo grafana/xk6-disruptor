@@ -10,6 +10,9 @@ on:
       branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build-with-xk6:
     runs-on: ${{ matrix.os }}
@@ -29,6 +32,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
       - name: Build with xk6
         env:
           K6_VERSION: ${{ env.K6_VERSION }}
@@ -64,10 +68,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
       - name: Run unit tests
         run: go test -v -cover -race ./...
 
@@ -76,17 +83,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
       - name: Set golangci-lint environment
         run: |
           LINT_VERSION=$(head -n 1 "${GITHUB_WORKSPACE}/.golangci.yml" | tr -d '# ')
           echo "LINT_VERSION=${LINT_VERSION}" >> $GITHUB_ENV
         id: version
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.2
         with:
           version: ${{ env.LINT_VERSION }}
           args: --timeout=10m
@@ -98,5 +108,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Codespell test
-        uses: codespell-project/actions-codespell@master
+        uses: codespell-project/actions-codespell@406322ec52dd7b488e48c1c4b82e2a8b3a1bf630 # v2.1
