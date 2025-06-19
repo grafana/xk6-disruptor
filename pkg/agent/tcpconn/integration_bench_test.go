@@ -1,7 +1,6 @@
 package tcpconn_test
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -41,7 +40,7 @@ func Benchmark_DisruptorThroughput(b *testing.B) {
 		},
 	} {
 		b.Run("disruption="+bc.name, func(b *testing.B) {
-			ctx := context.TODO()
+			ctx := b.Context()
 
 			iperfServer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 				Logger:       nilLogger,

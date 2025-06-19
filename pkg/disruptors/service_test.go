@@ -1,7 +1,6 @@
 package disruptors
 
 import (
-	"context"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -87,7 +86,7 @@ func Test_NewServiceDisruptor(t *testing.T) {
 			k, _ := kubernetes.NewFakeKubernetes(client)
 
 			_, err := NewServiceDisruptor(
-				context.TODO(),
+				t.Context(),
 				k,
 				tc.name,
 				tc.namespace,

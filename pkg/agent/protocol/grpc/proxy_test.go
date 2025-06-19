@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"context"
 	"net"
 	"testing"
 	"time"
@@ -242,7 +241,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 			// connect client to proxy
 			conn, err := grpc.DialContext(
-				context.TODO(),
+				t.Context(),
 				proxyListener.Addr().String(),
 				grpc.WithInsecure(),
 			)
@@ -257,7 +256,7 @@ func Test_ProxyHandler(t *testing.T) {
 
 			var headers metadata.MD
 			response, err := client.Ping(
-				context.TODO(),
+				t.Context(),
 				tc.request,
 				grpc.Header(&headers),
 				grpc.WaitForReady(true),
@@ -387,7 +386,7 @@ func Test_ProxyMetrics(t *testing.T) {
 
 			// connect client to proxy
 			conn, err := grpc.DialContext(
-				context.TODO(),
+				t.Context(),
 				proxyListener.Addr().String(),
 				grpc.WithInsecure(),
 			)
@@ -404,7 +403,7 @@ func Test_ProxyMetrics(t *testing.T) {
 
 				var headers metadata.MD
 				_, _ = client.Ping(
-					context.TODO(),
+					t.Context(),
 					&ping.PingRequest{
 						Error:   0,
 						Message: "ping",

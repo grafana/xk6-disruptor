@@ -73,7 +73,7 @@ func TestPods_Wait(t *testing.T) {
 				return pod, false, nil
 			}
 
-			ctx, cancel := context.WithCancel(context.TODO())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			client, err := builders.NewClientBuilder().
@@ -86,7 +86,7 @@ func TestPods_Wait(t *testing.T) {
 			}
 
 			pod := builders.NewPodBuilder(tc.name).WithNamespace(testNamespace).Build()
-			_, err = client.CoreV1().Pods(testNamespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+			_, err = client.CoreV1().Pods(testNamespace).Create(t.Context(), &pod, metav1.CreateOptions{})
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -94,7 +94,7 @@ func TestPods_Wait(t *testing.T) {
 
 			h := NewPodHelper(client, nil, testNamespace)
 			result, err := h.WaitPodRunning(
-				context.TODO(),
+				t.Context(),
 				tc.name,
 				tc.timeout,
 			)
@@ -195,7 +195,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 				return pod, false, nil
 			}
 
-			ctx, cancel := context.WithCancel(context.TODO())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			client, err := builders.NewClientBuilder().
@@ -210,7 +210,7 @@ func TestPods_AddEphemeralContainer(t *testing.T) {
 
 			h := NewPodHelper(client, nil, testNamespace)
 			err = h.AttachEphemeralContainer(
-				context.TODO(),
+				t.Context(),
 				tc.podName,
 				corev1.EphemeralContainer{},
 				tc.options,
@@ -402,7 +402,7 @@ func Test_ListPods(t *testing.T) {
 			client := fake.NewSimpleClientset(pods...)
 
 			helper := NewPodHelper(client, nil, tc.namespace)
-			podList, err := helper.List(context.TODO(), tc.filter)
+			podList, err := helper.List(t.Context(), tc.filter)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")
@@ -503,7 +503,7 @@ func Test_WaitPodDeleted(t *testing.T) {
 		t.Run(tc.title, func(t *testing.T) {
 			t.Parallel()
 
-			ctx, cancel := context.WithCancel(context.TODO())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			client, err := builders.NewClientBuilder().
@@ -518,7 +518,7 @@ func Test_WaitPodDeleted(t *testing.T) {
 			// delete pod after delay
 			go func() {
 				time.Sleep(tc.delay)
-				err2 := client.CoreV1().Pods(tc.namespace).Delete(context.TODO(), tc.target, metav1.DeleteOptions{})
+				err2 := client.CoreV1().Pods(tc.namespace).Delete(t.Context(), tc.target, metav1.DeleteOptions{})
 				if err2 != nil && !errors.IsNotFound(err2) {
 					t.Logf("deleting pod %v", err2)
 				}
@@ -526,7 +526,7 @@ func Test_WaitPodDeleted(t *testing.T) {
 
 			helper := NewPodHelper(client, nil, tc.namespace)
 
-			err = helper.WaitPodDeleted(context.TODO(), tc.target, tc.timeout)
+			err = helper.WaitPodDeleted(t.Context(), tc.target, tc.timeout)
 
 			if tc.expectError && err == nil {
 				t.Errorf("should had failed")

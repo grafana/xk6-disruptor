@@ -1,7 +1,6 @@
 package disruptors
 
 import (
-	"context"
 	"sort"
 	"testing"
 
@@ -178,7 +177,7 @@ func Test_PodSelectorTargets(t *testing.T) {
 				t.Fatalf("failed%v", err)
 			}
 
-			targets, err := s.Targets(context.TODO())
+			targets, err := s.Targets(t.Context())
 			if tc.expectError && err != nil {
 				return
 			}
@@ -298,7 +297,7 @@ func Test_ServicePodSelectorTargets(t *testing.T) {
 				t.Fatalf("failed%v", err)
 			}
 
-			targets, err := d.Targets(context.TODO())
+			targets, err := d.Targets(t.Context())
 
 			if tc.expectError && err != nil {
 				return

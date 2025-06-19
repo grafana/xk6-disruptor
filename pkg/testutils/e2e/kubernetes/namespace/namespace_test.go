@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -73,7 +72,7 @@ func Test_CreateNamespace(t *testing.T) {
 			// Fake client does not support generated named
 			client.PrependReactor("create", "*", generateName)
 
-			ns, err := CreateTestNamespace(context.TODO(), t, client, tc.options...)
+			ns, err := CreateTestNamespace(t.Context(), t, client, tc.options...)
 			if err != nil && !tc.expectError {
 				t.Errorf("unexpected error %v", err)
 				return

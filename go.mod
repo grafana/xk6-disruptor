@@ -1,6 +1,6 @@
 module github.com/grafana/xk6-disruptor
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/docker/docker v28.2.2+incompatible
