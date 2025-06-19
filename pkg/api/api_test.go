@@ -201,7 +201,7 @@ func Test_PodDisruptorConstructor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
-				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
+				return NewPodDisruptor(t.Context(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)
@@ -489,7 +489,7 @@ func Test_JsPodDisruptor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("PodDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
-				return NewPodDisruptor(context.TODO(), e.rt, c, e.k8s)
+				return NewPodDisruptor(t.Context(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)
@@ -592,7 +592,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 			}
 
 			err = env.registerConstructor("ServiceDisruptor", func(e *testEnv, c sobek.ConstructorCall) (*sobek.Object, error) {
-				return NewServiceDisruptor(context.TODO(), e.rt, c, e.k8s)
+				return NewServiceDisruptor(t.Context(), e.rt, c, e.k8s)
 			})
 			if err != nil {
 				t.Errorf("error in test setup %v", err)
@@ -604,7 +604,7 @@ func Test_ServiceDisruptorConstructor(t *testing.T) {
 				"app": "test",
 			}
 			svc := builders.NewServiceBuilder("service").WithSelector(labels).Build()
-			_, _ = env.client.CoreV1().Services("default").Create(context.TODO(), &svc, metav1.CreateOptions{})
+			_, _ = env.client.CoreV1().Services("default").Create(t.Context(), &svc, metav1.CreateOptions{})
 
 			_, err = env.rt.RunString(tc.script)
 

@@ -118,7 +118,7 @@ func Test_PodAgentVisitor(t *testing.T) {
 			)
 
 			executor.SetResult(tc.stdout, tc.stderr, tc.err)
-			err := visitor.Visit(context.TODO(), tc.pod)
+			err := visitor.Visit(t.Context(), tc.pod)
 			if tc.expectError && err == nil {
 				t.Fatalf("should had failed")
 			}
@@ -238,7 +238,7 @@ func Test_PodController(t *testing.T) {
 
 			controller := NewPodController(tc.targets)
 
-			ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 1*time.Second)
 			defer cancel()
 
 			err := controller.Visit(ctx, tc.visitor)

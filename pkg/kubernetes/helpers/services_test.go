@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -104,7 +103,7 @@ func Test_WaitServiceReady(t *testing.T) {
 				_, err := client.CoreV1().
 					Endpoints("default").
 					Create(
-						context.TODO(),
+						t.Context(),
 						tc.endpoints,
 						metav1.CreateOptions{},
 					)
@@ -121,7 +120,7 @@ func Test_WaitServiceReady(t *testing.T) {
 				_, err := client.CoreV1().
 					Endpoints("default").
 					Update(
-						context.TODO(),
+						t.Context(),
 						tc.updated,
 						metav1.UpdateOptions{},
 					)
@@ -132,7 +131,7 @@ func Test_WaitServiceReady(t *testing.T) {
 
 			h := NewServiceHelper(client, "default")
 
-			err := h.WaitServiceReady(context.TODO(), "service", tc.timeout)
+			err := h.WaitServiceReady(t.Context(), "service", tc.timeout)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -200,7 +199,7 @@ func Test_WaitIngressReady(t *testing.T) {
 			if tc.ingress != nil {
 				_, err := client.NetworkingV1().
 					Ingresses("default").
-					Create(context.TODO(), tc.ingress, metav1.CreateOptions{})
+					Create(t.Context(), tc.ingress, metav1.CreateOptions{})
 				if err != nil {
 					t.Errorf("error updating ingress: %v", err)
 				}
@@ -220,7 +219,7 @@ func Test_WaitIngressReady(t *testing.T) {
 				}
 				_, err := client.NetworkingV1().
 					Ingresses("default").
-					Update(context.TODO(), updated, metav1.UpdateOptions{})
+					Update(t.Context(), updated, metav1.UpdateOptions{})
 				if err != nil {
 					t.Errorf("error updating ingress: %v", err)
 				}
@@ -228,7 +227,7 @@ func Test_WaitIngressReady(t *testing.T) {
 
 			h := NewServiceHelper(client, "default")
 
-			err := h.WaitIngressReady(context.TODO(), "ingress", tc.timeout)
+			err := h.WaitIngressReady(t.Context(), "ingress", tc.timeout)
 			if !tc.expectError && err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -298,7 +297,7 @@ func Test_Targets(t *testing.T) {
 			_, err := client.CoreV1().
 				Services(tc.service.Namespace).
 				Create(
-					context.TODO(),
+					t.Context(),
 					&tc.service,
 					metav1.CreateOptions{},
 				)
@@ -310,7 +309,7 @@ func Test_Targets(t *testing.T) {
 				_, err = client.CoreV1().
 					Pods(tc.namespace).
 					Create(
-						context.TODO(),
+						t.Context(),
 						&tc.pods[p],
 						metav1.CreateOptions{},
 					)
@@ -320,7 +319,7 @@ func Test_Targets(t *testing.T) {
 			}
 
 			helper := NewServiceHelper(client, tc.namespace)
-			targets, err := helper.GetTargets(context.TODO(), tc.serviceName)
+			targets, err := helper.GetTargets(t.Context(), tc.serviceName)
 			if !tc.expectError && err != nil {
 				t.Errorf("failed: %v", err)
 				return

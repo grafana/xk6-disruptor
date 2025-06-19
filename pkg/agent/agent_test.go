@@ -68,7 +68,7 @@ func Test_CancelContext(t *testing.T) {
 
 			defer agent.Stop()
 
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			go func() {
 				time.Sleep(1 * time.Second)
 				cancel()
@@ -142,7 +142,7 @@ func Test_Signals(t *testing.T) {
 			}()
 
 			disruptor := &FakeProtocolDisruptor{}
-			err = agent.ApplyDisruption(context.TODO(), disruptor, tc.delay)
+			err = agent.ApplyDisruption(t.Context(), disruptor, tc.delay)
 			if tc.expectErr && err == nil {
 				t.Errorf("should had failed")
 				return

@@ -1,7 +1,6 @@
 package dynamic
 
 import (
-	context "context"
 	"testing"
 
 	grpcutil "github.com/grafana/xk6-disruptor/pkg/testutils/grpc"
@@ -62,7 +61,7 @@ func Test_PingServer(t *testing.T) {
 				return
 			}
 
-			err = client.Connect(context.TODO())
+			err = client.Connect(t.Context())
 			if err != nil && tc.expectStatus == codes.OK {
 				t.Errorf("unexpected error connecting to service %v", err)
 				return
@@ -71,7 +70,7 @@ func Test_PingServer(t *testing.T) {
 			input := [][]byte{}
 			input = append(input, []byte(tc.request))
 
-			_, err = client.Invoke(context.TODO(), "ping", input)
+			_, err = client.Invoke(t.Context(), "ping", input)
 			if err != nil && tc.expectStatus == codes.OK {
 				t.Errorf("unexpected error %v", err)
 				return

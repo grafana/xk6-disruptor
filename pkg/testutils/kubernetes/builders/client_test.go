@@ -32,7 +32,7 @@ func Test_WithPodObservers(t *testing.T) {
 			expectTimeout: false,
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").Build()
-				_, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
+				_, err := client.CoreV1().Pods("default").Create(t.Context(), &pod, metav1.CreateOptions{})
 				return err
 			},
 		},
@@ -46,7 +46,7 @@ func Test_WithPodObservers(t *testing.T) {
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").WithAnnotation("test.updated", "").Build()
 
-				created, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
+				created, err := client.CoreV1().Pods("default").Create(t.Context(), &pod, metav1.CreateOptions{})
 				if err != nil {
 					return err
 				}
@@ -54,7 +54,7 @@ func Test_WithPodObservers(t *testing.T) {
 				time.Sleep(time.Second)
 
 				created.Annotations["test.updated"] = "true"
-				_, err = client.CoreV1().Pods("default").Update(context.TODO(), created, metav1.UpdateOptions{})
+				_, err = client.CoreV1().Pods("default").Update(t.Context(), created, metav1.UpdateOptions{})
 				return err
 			},
 		},
@@ -67,7 +67,7 @@ func Test_WithPodObservers(t *testing.T) {
 			expectTimeout: true,
 			setup: func(client *fake.Clientset) error {
 				pod := NewPodBuilder("pod1").WithNamespace("default").Build()
-				_, err := client.CoreV1().Pods("default").Create(context.TODO(), &pod, metav1.CreateOptions{})
+				_, err := client.CoreV1().Pods("default").Create(t.Context(), &pod, metav1.CreateOptions{})
 				return err
 			},
 		},
@@ -84,7 +84,7 @@ func Test_WithPodObservers(t *testing.T) {
 			// observer errors
 			obsErr := make(chan error)
 			// observer cancellation context
-			ctx, cancel := context.WithCancel(context.TODO())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			client, err := NewClientBuilder().

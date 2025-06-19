@@ -1,7 +1,6 @@
 package ping
 
 import (
-	context "context"
 	"testing"
 
 	grpcutils "github.com/grafana/xk6-disruptor/pkg/testutils/grpc"
@@ -82,7 +81,7 @@ func Test_PingServer(t *testing.T) {
 			}()
 
 			conn, err := grpc.DialContext(
-				context.TODO(),
+				t.Context(),
 				"bufnet",
 				grpc.WithContextDialer(grpcutils.BuffconnDialer(l)),
 				grpc.WithInsecure(),
@@ -97,7 +96,7 @@ func Test_PingServer(t *testing.T) {
 			client := NewPingServiceClient(conn)
 
 			var headers metadata.MD
-			response, err := client.Ping(context.TODO(), tc.request, grpc.Header(&headers))
+			response, err := client.Ping(t.Context(), tc.request, grpc.Header(&headers))
 
 			if err != nil && tc.expectStatus == codes.OK {
 				t.Errorf("unexpected error %v", err)
