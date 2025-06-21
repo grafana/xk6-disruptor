@@ -36,10 +36,13 @@ type PodFaultInjector interface {
 type PodTerminationFault struct {
 	// Count indicates how many pods to terminate. Can be a number or a percentage or targets
 	Count intstr.IntOrString
-	// Timeout specifies the maximum time to wait for a pod to terminate. After the timeout, the fault injection completes with an error.
+	// Timeout specifies the maximum time to wait for a pod to terminate.
+	// After the timeout, the fault injection completes with an error.
 	Timeout time.Duration
-	// GracePeriod specifies the grace period to wait for a pod to terminate. After the grace period, the pod is terminated forcefully. Set to 0 to terminate immediately.
+	// GracePeriod specifies the grace period to wait for a pod to terminate.
+	// After the grace period, the pod is terminated forcefully. Set to 0 to terminate immediately.
 	GracePeriod time.Duration
-	// Force specifies if the pod should be terminated forcefully. GracePeriod is ignored if Force is true.
+	// Force specifies if the pod should be terminated forcefully.
+	// GracePeriod is ignored if Force is true.
 	Force bool
 }
