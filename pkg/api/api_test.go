@@ -476,6 +476,44 @@ func Test_JsPodDisruptor(t *testing.T) {
 			`,
 			expectError: true,
 		},
+		{
+			description: "Terminate Pods (timeout)",
+			script: `
+			const fault = {
+				timeout: "10s",
+				count: 1
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: false,
+		},
+		{
+			description: "Terminate Pods (timeout and grace period)",
+			script: `
+			const fault = {
+				timeout: "10s",
+				gracePeriod: "1s",
+				count: 1,
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: false,
+		},
+		{
+			description: "Terminate Pods (force)",
+			script: `
+			const fault = {
+				timeout: "10s",
+				force: true,
+				count: 1,
+			}
+
+			d.terminatePods(fault)
+			`,
+			expectError: false,
+		},
 	}
 
 	for _, tc := range testCases {

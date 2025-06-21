@@ -11,8 +11,10 @@ import (
 
 // PodTerminationVisitor defines a Visitor that terminates its target pod
 type PodTerminationVisitor struct {
-	helper  helpers.PodHelper
-	timeout time.Duration
+	helper      helpers.PodHelper
+	timeout     time.Duration
+	gracePeriod time.Duration
+	force       bool
 }
 
 // Visit executes a Terminate action on the target Pod
@@ -20,7 +22,7 @@ func (c PodTerminationVisitor) Visit(ctx context.Context, pod corev1.Pod) error 
 	if c.timeout == 0 {
 		c.timeout = 10 * time.Second
 	}
-	return c.helper.Terminate(ctx, pod.Name, c.timeout)
+	return c.helper.Terminate(ctx, pod.Name, c.timeout, c.gracePeriod, c.force)
 }
 
 // PodFaultInjector defines methods for injecting faults into Pods
@@ -34,6 +36,10 @@ type PodFaultInjector interface {
 type PodTerminationFault struct {
 	// Count indicates how many pods to terminate. Can be a number or a percentage or targets
 	Count intstr.IntOrString
-	// Timeout specifies the maximum time to wait for a pod to terminate
+	// Timeout specifies the maximum time to wait for a pod to terminate. After the timeout, the fault injection completes with an error.
 	Timeout time.Duration
+	// GracePeriod specifies the grace period to wait for a pod to terminate. After the grace period, the pod is terminated forcefully. Set to 0 to terminate immediately.
+	GracePeriod time.Duration
+	// Force specifies if the pod should be terminated forcefully. GracePeriod is ignored if Force is true.
+	Force bool
 }

@@ -282,60 +282,99 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Run("Terminate Pod", func(t *testing.T) {
 		t.Parallel()
 
-		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
-		if err != nil {
-			t.Fatalf("failed to create test namespace: %v", err)
+		testCases := []struct {
+			title         string
+			fault         disruptors.PodTerminationFault
+			expectedError string
+		}{
+			{
+				title: "Terminate one pod, plenty timeout",
+				fault: disruptors.PodTerminationFault{
+					Count:   intstr.FromInt32(1),
+					Timeout: 30 * time.Second,
+				},
+			},
+			{
+				title: "Terminate one pod, too short timeout",
+				fault: disruptors.PodTerminationFault{
+					Count:   intstr.FromInt32(1),
+					Timeout: 5 * time.Second,
+				},
+				expectedError: "not terminated after",
+			},
+			{
+				title: "Terminate one pod, no grace period",
+				fault: disruptors.PodTerminationFault{
+					Count:   intstr.FromInt32(1),
+					Timeout: 5 * time.Second,
+					Force:   true,
+				},
+			},
 		}
 
-		err = deploy.RunPodSet(
-			k8s,
-			namespace,
-			fixtures.BuildHttpbinPod(),
-			3,
-			30*time.Second,
-		)
-		if err != nil {
-			t.Fatalf("starting pod replicas %v", err)
-		}
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(tc.title, func(t *testing.T) {
+				t.Parallel()
 
-		// create pod disruptor that will select all pods
-		selector := disruptors.PodSelectorSpec{
-			Namespace: namespace,
-		}
-		options := disruptors.PodDisruptorOptions{}
-		disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
-		if err != nil {
-			t.Fatalf("creating disruptor: %v", err)
-		}
-
-		targets, _ := disruptor.Targets(context.TODO())
-		if len(targets) == 0 {
-			t.Fatalf("No pods matched the selector")
-		}
-
-		fault := disruptors.PodTerminationFault{
-			Count:   intstr.FromInt32(1),
-			Timeout: 10 * time.Second,
-		}
-
-		terminated, err := disruptor.TerminatePods(context.TODO(), fault)
-		if err != nil {
-			t.Fatalf("terminating pods: %v", err)
-		}
-
-		if len(terminated) != int(fault.Count.Int32()) {
-			t.Fatalf("Invalid number of pods deleted. Expected %d got %d", fault.Count.Int32(), len(terminated))
-		}
-
-		for _, pod := range terminated {
-			_, err = k8s.Client().CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
-			if !errors.IsNotFound(err) {
-				if err == nil {
-					t.Fatalf("pod '%s/%s' not deleted", namespace, pod)
+				namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
+				if err != nil {
+					t.Fatalf("failed to create test namespace: %v", err)
 				}
 
-				t.Fatalf("failed %v", err)
-			}
+				err = deploy.RunPodSet(
+					k8s,
+					namespace,
+					fixtures.BuildHttpbinPod(),
+					3,
+					30*time.Second,
+				)
+				if err != nil {
+					t.Fatalf("starting pod replicas %v", err)
+				}
+
+				// create pod disruptor that will select all pods
+				selector := disruptors.PodSelectorSpec{
+					Namespace: namespace,
+				}
+				options := disruptors.PodDisruptorOptions{}
+				disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
+				if err != nil {
+					t.Fatalf("creating disruptor: %v", err)
+				}
+
+				targets, _ := disruptor.Targets(context.TODO())
+				if len(targets) == 0 {
+					t.Fatalf("No pods matched the selector")
+				}
+
+				terminated, err := disruptor.TerminatePods(context.TODO(), tc.fault)
+				if tc.expectedError != "" {
+					if !strings.Contains(err.Error(), tc.expectedError) {
+						t.Fatalf("expected error %q, got %q", tc.expectedError, err.Error())
+					}
+					return
+				}
+
+				if err != nil {
+					t.Fatalf("terminating pods: %v", err)
+				}
+
+				if len(terminated) != int(tc.fault.Count.Int32()) {
+					t.Fatalf("Invalid number of pods deleted. Expected %d got %d", tc.fault.Count.Int32(), len(terminated))
+				}
+
+				for _, pod := range terminated {
+					_, err = k8s.Client().CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
+					if !errors.IsNotFound(err) {
+						if err == nil {
+							t.Fatalf("pod '%s/%s' not deleted", namespace, pod)
+						}
+
+						t.Fatalf("failed %v", err)
+					}
+				}
+			})
 		}
 	})
 }

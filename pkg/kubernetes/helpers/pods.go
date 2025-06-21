@@ -39,7 +39,7 @@ type PodHelper interface {
 	// List returns a list of pods that match the given PodFilter
 	List(ctx context.Context, filter PodFilter) ([]corev1.Pod, error)
 	// Terminate terminates the execution of a running Pod
-	Terminate(ctx context.Context, name string, timeout time.Duration) error
+	Terminate(ctx context.Context, name string, timeout time.Duration, gracePeriod time.Duration, force bool) error
 }
 
 // helpers struct holds the data required by the helpers
@@ -333,6 +333,16 @@ func (h *podHelper) WaitPodDeleted(ctx context.Context, pod string, timeout time
 	for {
 		select {
 		case <-expired:
+			// Try to get it a final time to see if it was deleted
+			// if pod does not exist, then consider it deleted
+			_, err = h.client.CoreV1().Pods(h.namespace).Get(
+				ctx,
+				pod,
+				metav1.GetOptions{},
+			)
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
 			return fmt.Errorf("pod '%s/%s' not terminated after %fs", h.namespace, pod, timeout.Seconds())
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Error {
@@ -346,8 +356,16 @@ func (h *podHelper) WaitPodDeleted(ctx context.Context, pod string, timeout time
 }
 
 // Terminate terminates a running Pod
-func (h *podHelper) Terminate(ctx context.Context, pod string, timeout time.Duration) error {
-	err := h.client.CoreV1().Pods(h.namespace).Delete(ctx, pod, metav1.DeleteOptions{})
+func (h *podHelper) Terminate(ctx context.Context, pod string, timeout time.Duration, gracePeriod time.Duration, force bool) error {
+	deleteOptions := metav1.DeleteOptions{}
+	if force {
+		gracePeriodSeconds := int64(0)
+		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+	} else if gracePeriod > 0 {
+		gracePeriodSeconds := int64(gracePeriod.Seconds())
+		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
+	}
+	err := h.client.CoreV1().Pods(h.namespace).Delete(ctx, pod, deleteOptions)
 	if err != nil {
 		return fmt.Errorf("deleting pod %w", err)
 	}
