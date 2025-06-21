@@ -356,7 +356,13 @@ func (h *podHelper) WaitPodDeleted(ctx context.Context, pod string, timeout time
 }
 
 // Terminate terminates a running Pod
-func (h *podHelper) Terminate(ctx context.Context, pod string, timeout time.Duration, gracePeriod time.Duration, force bool) error {
+func (h *podHelper) Terminate(
+	ctx context.Context,
+	pod string,
+	timeout time.Duration,
+	gracePeriod time.Duration,
+	force bool,
+) error {
 	deleteOptions := metav1.DeleteOptions{}
 	if force {
 		gracePeriodSeconds := int64(0)
