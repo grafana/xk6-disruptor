@@ -59,10 +59,10 @@ func (d Disruptor) rules() []iptables.Rule {
 		{
 			// This rule drops packets that match the filter criteria
 			Table: "filter", Chain: "INPUT", Args: fmt.Sprintf(
-			"-p %s --dport %d -j DROP",
-			d.Filter.Protocol,
-			d.Filter.Port,
-		),
+				"-p %s --dport %d -j DROP",
+				d.Filter.Protocol,
+				d.Filter.Port,
+			),
 		},
 	}
 }
