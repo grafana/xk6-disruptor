@@ -29,6 +29,7 @@ func NewRootCommand(env runtime.Environment) *RootCommand {
 	rootCmd.AddCommand(BuildTCPDropCmd(env, config))
 	rootCmd.AddCommand(BuildStressCmd(env, config))
 	rootCmd.AddCommand(BuiltCleanupCmd(env))
+	rootCmd.AddCommand(BuildNetworkDropCmd(env, config))
 
 	return &RootCommand{
 		cmd: rootCmd,
