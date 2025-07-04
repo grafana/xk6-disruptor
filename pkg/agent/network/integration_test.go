@@ -1,6 +1,7 @@
 package network_test
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net"
@@ -27,7 +28,7 @@ func networkDisruption(port string, duration time.Duration, protocol string) []s
 func Test_DropsNetworkTraffic(t *testing.T) {
 	t.Parallel()
 
-	ctx := t.Context()
+	ctx := context.TODO()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
@@ -110,10 +111,10 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 	t.Logf("Got %d errors", nErrors)
 }
 
-func Test_StiosDroppingNetworkTraffic(t *testing.T) {
+func Test_StopsDroppingNetworkTraffic(t *testing.T) {
 	t.Parallel()
 
-	ctx := t.Context()
+	ctx := context.TODO()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
@@ -158,12 +159,13 @@ func Test_StiosDroppingNetworkTraffic(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		err = agentSidecar.Terminate(ctx)
+		err := agentSidecar.Terminate(ctx)
 		if err != nil {
 			t.Fatalf("terminating agent container: %v", err)
 		}
 	})
 
+	// Wait until the disruption has ended.
 	time.Sleep(5 * time.Second)
 
 	errors := make(chan error)

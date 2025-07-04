@@ -143,7 +143,9 @@ func Test_StopsDroppingConnections(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		echoserver.Terminate(ctx)
+		if err := echoserver.Terminate(ctx); err != nil {
+			t.Fatalf("terminating echoserver container: %v", err)
+		}
 	})
 
 	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
