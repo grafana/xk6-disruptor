@@ -117,6 +117,24 @@ func buildHTTPFaultCmd(
 	return cmd
 }
 
+func buildNetworkFaultCmd(fault NetworkFault, duration time.Duration) []string {
+	cmd := []string{
+		"xk6-disruptor-agent",
+		"network-drop",
+		"-d", utils.DurationSeconds(duration),
+	}
+
+	if fault.Port != 0 {
+		cmd = append(cmd, "-p", fmt.Sprint(fault.Port))
+	}
+
+	if fault.Protocol != "" {
+		cmd = append(cmd, "-P", fault.Protocol)
+	}
+
+	return cmd
+}
+
 func buildCleanupCmd() []string {
 	return []string{"xk6-disruptor-agent", "cleanup"}
 }
@@ -182,6 +200,20 @@ func (c PodGrpcFaultCommand) Commands(pod corev1.Pod) (VisitCommands, error) {
 
 	return VisitCommands{
 		Exec:    buildGrpcFaultCmd(targetAddress, c.fault, c.duration, c.options),
+		Cleanup: buildCleanupCmd(),
+	}, nil
+}
+
+// PodNetworkFaultCommand implements the PodVisitCommands interface for injecting NetworkFaults in a Pod
+type PodNetworkFaultCommand struct {
+	fault    NetworkFault
+	duration time.Duration
+}
+
+// Commands return the command for injecting a NetworkFault in a Pod
+func (c PodNetworkFaultCommand) Commands(_ corev1.Pod) (VisitCommands, error) {
+	return VisitCommands{
+		Exec:    buildNetworkFaultCmd(c.fault, c.duration),
 		Cleanup: buildCleanupCmd(),
 	}, nil
 }
