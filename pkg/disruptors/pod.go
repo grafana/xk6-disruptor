@@ -19,6 +19,7 @@ type PodDisruptor interface { //nolint:iface
 	Disruptor
 	ProtocolFaultInjector
 	PodFaultInjector
+	NetworkFaultInjector
 }
 
 // PodDisruptorOptions defines options that controls the PodDisruptor's behavior
@@ -83,7 +84,7 @@ func (d *podDisruptor) Targets(ctx context.Context) ([]string, error) {
 	return utils.PodNames(targets), nil
 }
 
-// InjectHTTPFault injects faults in the http requests sent to the disruptor's targets
+// InjectHTTPFaults injects faults in the http requests sent to the disruptor's targets
 func (d *podDisruptor) InjectHTTPFaults(
 	ctx context.Context,
 	fault HTTPFault,
@@ -167,4 +168,31 @@ func (d *podDisruptor) TerminatePods(
 	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout}
 
 	return utils.PodNames(targets), controller.Visit(ctx, visitor)
+}
+
+// InjectNetworkFaults injects network faults in the target pods
+func (d *podDisruptor) InjectNetworkFaults(
+	ctx context.Context,
+	fault NetworkFault,
+	duration time.Duration,
+) error {
+	command := PodNetworkFaultCommand{
+		fault:    fault,
+		duration: duration,
+	}
+
+	visitor := NewPodAgentVisitor(
+		d.helper,
+		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
+		command,
+	)
+
+	targets, err := d.selector.Targets(ctx)
+	if err != nil {
+		return err
+	}
+
+	controller := NewPodController(targets)
+
+	return controller.Visit(ctx, visitor)
 }
