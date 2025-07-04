@@ -55,14 +55,22 @@ func (d Disruptor) Apply(ctx context.Context, duration time.Duration) error {
 }
 
 func (d Disruptor) rules() []iptables.Rule {
+	var args string
+
+	args = "-j DROP"
+
+	if d.Filter.Port != 0 {
+		args = fmt.Sprintf("--dport %d %s", d.Filter.Port, args)
+	}
+
+	if d.Filter.Protocol != "" {
+		args = fmt.Sprintf("-p %s %s", d.Filter.Protocol, args)
+	}
+
 	return []iptables.Rule{
 		{
-			// This rule drops packets that match the filter criteria
-			Table: "filter", Chain: "INPUT", Args: fmt.Sprintf(
-				"-p %s --dport %d -j DROP",
-				d.Filter.Protocol,
-				d.Filter.Port,
-			),
+			// This rule drops all INPUT packets that match the filter criteria
+			Table: "filter", Chain: "INPUT", Args: args,
 		},
 	}
 }

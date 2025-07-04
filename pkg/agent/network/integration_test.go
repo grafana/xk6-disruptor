@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package network_test
 
 import (
@@ -9,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/echotester"
 
@@ -19,16 +24,16 @@ import (
 
 const echoServerPort = "6666"
 
-func networkDisruption(port string, duration time.Duration, protocol string) []string {
+func networkDisruption(duration time.Duration) []string {
 	return []string{
-		"xk6-disruptor-agent", "network-drop", "-d", fmt.Sprint(duration), "--port", port, "--protocol", protocol,
+		"xk6-disruptor-agent", "network-drop", "-d", fmt.Sprint(duration),
 	}
 }
 
 func Test_DropsNetworkTraffic(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
@@ -46,11 +51,7 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 		t.Fatalf("creating echoserver container: %v", err)
 	}
 
-	t.Cleanup(func() {
-		if err := echoserver.Terminate(ctx); err != nil {
-			t.Fatalf("terminating echoserver container: %v", err)
-		}
-	})
+	t.Cleanup(func() { require.NoError(t, echoserver.Terminate(ctx)) })
 
 	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
 	if err != nil {
@@ -61,7 +62,7 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 		ProviderType: testcontainers.ProviderDocker,
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:       "ghcr.io/grafana/xk6-disruptor-agent:latest",
-			Entrypoint:  networkDisruption(echoServerPort, time.Hour, "tcp"),
+			Entrypoint:  networkDisruption(time.Hour),
 			Privileged:  true,
 			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
 			NetworkMode: container.NetworkMode("container:" + echoserver.GetContainerID()),
@@ -72,14 +73,9 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 		t.Fatalf("creating agent container: %v", err)
 	}
 
-	t.Cleanup(func() {
-		err = agentSidecar.Terminate(ctx)
-		if err != nil {
-			t.Fatalf("terminating agent container: %v", err)
-		}
-	})
+	t.Cleanup(func() { require.NoError(t, agentSidecar.Terminate(ctx)) })
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	errors := make(chan error)
 
@@ -114,7 +110,7 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 func Test_StopsDroppingNetworkTraffic(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
@@ -132,11 +128,7 @@ func Test_StopsDroppingNetworkTraffic(t *testing.T) {
 		t.Fatalf("creating echoserver container: %v", err)
 	}
 
-	t.Cleanup(func() {
-		if err := echoserver.Terminate(ctx); err != nil {
-			t.Fatalf("terminating echoserver container: %v", err)
-		}
-	})
+	t.Cleanup(func() { require.NoError(t, echoserver.Terminate(ctx)) })
 
 	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
 	if err != nil {
@@ -147,7 +139,7 @@ func Test_StopsDroppingNetworkTraffic(t *testing.T) {
 		ProviderType: testcontainers.ProviderDocker,
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:       "ghcr.io/grafana/xk6-disruptor-agent:latest",
-			Entrypoint:  networkDisruption(echoServerPort, 3*time.Second, "tcp"),
+			Entrypoint:  networkDisruption(3 * time.Second),
 			Privileged:  true,
 			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
 			NetworkMode: container.NetworkMode("container:" + echoserver.GetContainerID()),
@@ -158,12 +150,7 @@ func Test_StopsDroppingNetworkTraffic(t *testing.T) {
 		t.Fatalf("creating agent container: %v", err)
 	}
 
-	t.Cleanup(func() {
-		err := agentSidecar.Terminate(ctx)
-		if err != nil {
-			t.Fatalf("terminating agent container: %v", err)
-		}
-	})
+	t.Cleanup(func() { require.NoError(t, agentSidecar.Terminate(ctx)) })
 
 	// Wait until the disruption has ended.
 	time.Sleep(5 * time.Second)

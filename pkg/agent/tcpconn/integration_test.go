@@ -35,7 +35,7 @@ func Test_DropsConnectionsAccordingToRate(t *testing.T) {
 
 	const rate = 0.5
 
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
