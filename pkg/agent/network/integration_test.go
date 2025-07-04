@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package network
+package network_test
 
 import (
 	"context"
