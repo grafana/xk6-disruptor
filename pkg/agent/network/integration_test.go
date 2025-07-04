@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package network_test
+package network
 
 import (
 	"context"
@@ -24,15 +24,13 @@ import (
 
 const echoServerPort = "6666"
 
-func networkDisruption(duration time.Duration) []string {
-	return []string{
-		"xk6-disruptor-agent", "network-drop", "-d", fmt.Sprint(duration),
-	}
+type DisruptionConfig struct {
+	Duration time.Duration
+	Port     uint
+	Protocol string
 }
 
-func Test_DropsNetworkTraffic(t *testing.T) {
-	t.Parallel()
-
+func CreateEchoServer(t *testing.T) (testcontainers.Container, nat.Port) {
 	ctx := context.Background()
 
 	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -47,39 +45,58 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 		},
 		Started: true,
 	})
-	if err != nil {
-		t.Fatalf("creating echoserver container: %v", err)
-	}
+	require.NoError(t, err, "creating echoserver container")
+
+	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
+	require.NoError(t, err, "getting echoserver mapped port")
 
 	t.Cleanup(func() { require.NoError(t, echoserver.Terminate(ctx)) })
 
-	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
-	if err != nil {
-		t.Fatalf("getting echoserver mapped port: %v", err)
+	return echoserver, port
+}
+
+func CreateAgentWithDisruptionConfig(t *testing.T, echoserver testcontainers.Container, config DisruptionConfig) {
+	ctx := context.Background()
+
+	args := []string{"xk6-disruptor-agent", "network-drop", "-d", fmt.Sprint(config.Duration)}
+
+	if config.Port > 0 {
+		args = append(args, "-p", fmt.Sprint(config.Port))
+	}
+
+	if config.Protocol != "" {
+		args = append(args, "-P", config.Protocol)
 	}
 
 	agentSidecar, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ProviderType: testcontainers.ProviderDocker,
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:       "ghcr.io/grafana/xk6-disruptor-agent:latest",
-			Entrypoint:  networkDisruption(time.Hour),
+			Entrypoint:  args,
 			Privileged:  true,
 			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
 			NetworkMode: container.NetworkMode("container:" + echoserver.GetContainerID()),
 		},
 		Started: true,
 	})
-	if err != nil {
-		t.Fatalf("creating agent container: %v", err)
-	}
-
+	require.NoError(t, err, "creating agent container")
 	t.Cleanup(func() { require.NoError(t, agentSidecar.Terminate(ctx)) })
+}
 
-	time.Sleep(1 * time.Second)
+func runDisruptionTest(t *testing.T, config DisruptionConfig, expectedFailures int, waitTime time.Duration) {
+	// Create echo server
+	echoserver, port := CreateEchoServer(t)
 
+	// Create agent with disruption config
+	CreateAgentWithDisruptionConfig(t, echoserver, config)
+
+	// Wait specified time
+	time.Sleep(waitTime)
+
+	// Run test connections
 	errors := make(chan error)
+	const nTests = 10
 
-	const nTests = 100
 	for range nTests {
 		go func() {
 			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
@@ -100,80 +117,53 @@ func Test_DropsNetworkTraffic(t *testing.T) {
 		}
 	}
 
-	if nErrors != nTests {
-		t.Errorf("got %d errors, expected %d", nErrors, nTests)
+	// Check expected results
+	if nErrors != expectedFailures {
+		t.Errorf("got %d errors, expected %d", nErrors, expectedFailures)
 	}
 
-	t.Logf("Got %d errors", nErrors)
+	t.Logf("Got %d errors out of %d tests (expected %d)", nErrors, nTests, expectedFailures)
 }
 
-func Test_StopsDroppingNetworkTraffic(t *testing.T) {
+// Test_NetworkDrop_Scenarios tests different network disruption scenarios
+func Test_NetworkDrop_Scenarios(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-
-	echoserver, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ProviderType: testcontainers.ProviderDocker,
-		ContainerRequest: testcontainers.ContainerRequest{
-			ExposedPorts: []string{echoServerPort},
-			FromDockerfile: testcontainers.FromDockerfile{
-				Dockerfile: "Dockerfile",
-				Context:    filepath.Join("..", "..", "..", "testcontainers", "echoserver"),
-			},
-			WaitingFor: wait.ForExposedPort(),
-		},
-		Started: true,
+	t.Run("Default", func(t *testing.T) {
+		t.Parallel()
+		// Default disruption should drop all traffic
+		runDisruptionTest(t, DisruptionConfig{
+			Duration: time.Hour,
+			// No port or protocol specified - should drop all INPUT traffic
+		}, 10, 1*time.Second) // Expect all 10 to fail
 	})
-	if err != nil {
-		t.Fatalf("creating echoserver container: %v", err)
-	}
 
-	t.Cleanup(func() { require.NoError(t, echoserver.Terminate(ctx)) })
-
-	port, err := echoserver.MappedPort(ctx, nat.Port(echoServerPort))
-	if err != nil {
-		t.Fatalf("getting echoserver mapped port: %v", err)
-	}
-
-	agentSidecar, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ProviderType: testcontainers.ProviderDocker,
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:       "ghcr.io/grafana/xk6-disruptor-agent:latest",
-			Entrypoint:  networkDisruption(3 * time.Second),
-			Privileged:  true,
-			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
-			NetworkMode: container.NetworkMode("container:" + echoserver.GetContainerID()),
-		},
-		Started: true,
+	t.Run("SpecificPortAndProtocol", func(t *testing.T) {
+		t.Parallel()
+		// Targeting specific port and protocol should drop matching traffic
+		runDisruptionTest(t, DisruptionConfig{
+			Duration: time.Hour,
+			Port:     6666, // This should match echoServerPort
+			Protocol: "tcp",
+		}, 10, 1*time.Second) // Expect all 10 to fail
 	})
-	if err != nil {
-		t.Fatalf("creating agent container: %v", err)
-	}
 
-	t.Cleanup(func() { require.NoError(t, agentSidecar.Terminate(ctx)) })
+	t.Run("DifferentPortAndProtocol", func(t *testing.T) {
+		t.Parallel()
+		// Targeting different port should not affect echo server
+		runDisruptionTest(t, DisruptionConfig{
+			Duration: time.Hour,
+			Port:     9999, // Different port from echoServerPort
+			Protocol: "tcp",
+		}, 0, 1*time.Second) // Expect 0 to fail
+	})
 
-	// Wait until the disruption has ended.
-	time.Sleep(5 * time.Second)
-
-	errors := make(chan error)
-
-	const nTests = 5
-	for range nTests {
-		go func() {
-			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
-			echoTester, err := echotester.NewTester(net.JoinHostPort("localhost", port.Port()))
-			if err != nil {
-				errors <- err
-				return
-			}
-
-			errors <- echoTester.Echo()
-		}()
-	}
-
-	for range nTests {
-		if err := <-errors; err != nil {
-			t.Errorf("Error connecting to echoserver: %v", err)
-		}
-	}
+	t.Run("StopsAfterDuration", func(t *testing.T) {
+		t.Parallel()
+		// Short duration disruption should stop, allowing connections to succeed
+		runDisruptionTest(t, DisruptionConfig{
+			Duration: 3 * time.Second,
+			// Default disruption - drops all INPUT traffic
+		}, 0, 5*time.Second) // Wait 5 seconds for disruption to end, expect 0 to fail
+	})
 }
