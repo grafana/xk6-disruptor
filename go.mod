@@ -3,7 +3,7 @@ module github.com/grafana/xk6-disruptor
 go 1.24.0
 
 require (
-	github.com/docker/docker v28.2.2+incompatible
+	github.com/docker/docker v28.3.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/florianl/go-nfqueue v1.3.2
 	github.com/google/go-cmp v0.7.0
@@ -11,6 +11,7 @@ require (
 	github.com/grafana/sobek v0.0.0-20250320150027-203dc85b6d98
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
+	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
 	go.k6.io/k6 v1.0.0
 	k8s.io/api v0.33.1
@@ -67,7 +68,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.1 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.13 // indirect
 	github.com/tklauser/numcpus v0.7.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
