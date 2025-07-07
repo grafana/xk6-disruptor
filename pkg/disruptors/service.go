@@ -167,7 +167,7 @@ func (d *serviceDisruptor) TerminatePods(
 
 	controller := NewPodController(targets)
 
-	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout}
+	visitor := PodTerminationVisitor{helper: d.helper, timeout: fault.Timeout, gracePeriod: fault.GracePeriod}
 
 	return utils.PodNames(targets), controller.Visit(ctx, visitor)
 }
