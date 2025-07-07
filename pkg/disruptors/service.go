@@ -18,7 +18,6 @@ type ServiceDisruptor interface { //nolint:iface
 	Disruptor
 	ProtocolFaultInjector
 	PodFaultInjector
-	NetworkFaultInjector
 }
 
 // ServiceDisruptorOptions defines options that controls the behavior of the ServiceDisruptor
@@ -124,32 +123,6 @@ func (d *serviceDisruptor) InjectGrpcFaults(
 		fault:    fault,
 		duration: duration,
 		options:  options,
-	}
-
-	visitor := NewPodAgentVisitor(
-		d.helper,
-		PodAgentVisitorOptions{Timeout: d.options.InjectTimeout},
-		command,
-	)
-
-	targets, err := d.selector.Targets(ctx)
-	if err != nil {
-		return err
-	}
-
-	controller := NewPodController(targets)
-
-	return controller.Visit(ctx, visitor)
-}
-
-func (d *serviceDisruptor) InjectNetworkFaults(
-	ctx context.Context,
-	fault NetworkFault,
-	duration time.Duration,
-) error {
-	command := PodNetworkFaultCommand{
-		fault:    fault,
-		duration: duration,
 	}
 
 	visitor := NewPodAgentVisitor(

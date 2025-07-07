@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/echotester"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/grpc/dynamic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -54,6 +55,13 @@ type GrpcCheck struct {
 	Request []byte
 	// Expected return code (default OK)
 	ExpectedStatus uint32
+	// Delay before attempting access to service
+	Delay time.Duration
+}
+
+// EchoCheck defines the operation and conditions to check TCP connections using echo server
+type EchoCheck struct {
+	ExpectFailure bool
 	// Delay before attempting access to service
 	Delay time.Duration
 }
@@ -117,5 +125,33 @@ func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace str
 		return fmt.Errorf("expected status code %d but %d received", c.ExpectedStatus, s.Code())
 	}
 
+	return nil
+}
+
+// Verify verifies an EchoCheck by testing TCP connection and echo functionality
+func (c EchoCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) error {
+	time.Sleep(c.Delay)
+
+	// Determine the address to connect to
+	address := ingress
+
+	// Create echo tester with timeout
+	tester, err := echotester.NewTester(address)
+	if err != nil {
+		return fmt.Errorf("failed to connect to echo server at %s: %w", address, err)
+	}
+	defer func() {
+		// Attempt to close connection gracefully
+		_ = tester.Close()
+	}()
+
+	err = tester.Echo()
+	if err != nil {
+		return nil
+	}
+
+	if c.ExpectFailure {
+		return fmt.Errorf("expected failure but it succeeded")
+	}
 	return nil
 }

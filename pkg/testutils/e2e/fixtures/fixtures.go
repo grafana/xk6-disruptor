@@ -102,3 +102,26 @@ func BuildNginxService() corev1.Service {
 		WithPort("http", 80, intstr.FromInt(80)).
 		Build()
 }
+
+// BuildEchoServerPod returns the definition for deploying echoserver as a Pod
+// The image is built from the testcontainers/echoserver directory and is not published to a registry.
+func BuildEchoServerPod() corev1.Pod {
+	c := builders.NewContainerBuilder("echoserver").
+		WithImage("xk6-disruptor-echoserver:latest").
+		WithPullPolicy(corev1.PullNever).
+		WithPort("tcp", 6666).
+		Build()
+
+	return builders.NewPodBuilder("echoserver").
+		WithLabel("app", "echoserver").
+		WithContainer(c).
+		Build()
+}
+
+// BuildEchoServerService returns a Service definition that exposes echoserver pods
+func BuildEchoServerService() corev1.Service {
+	return builders.NewServiceBuilder("echoserver").
+		WithSelectorLabel("app", "echoserver").
+		WithPort("tcp", 6666, intstr.FromInt(6666)).
+		Build()
+}

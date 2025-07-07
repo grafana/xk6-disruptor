@@ -3,6 +3,7 @@ golangci_version = $(shell head -n 1 .golangci.yml | tr -d '\# ')
 arch = $(shell go env GOARCH)
 image ?= ghcr.io/grafana/xk6-disruptor:latest
 agent_image ?= ghcr.io/grafana/xk6-disruptor-agent:latest
+echoserver_image ?= xk6-disruptor-echoserver:latest
 
 all: build
 
@@ -12,6 +13,9 @@ agent-image: build-agent
 disruptor-image:
 	./build-package.sh -o linux -a ${arch} -v latest -b image/dist/build build
 	docker build --build-arg TARGETARCH=${arch} -t $(image) images/disruptor
+
+echoserver-image:
+	docker build -t $(echoserver_image) testcontainers/echoserver
 
 build: test
 	go install go.k6.io/xk6/cmd/xk6@latest
@@ -27,7 +31,7 @@ build-agent:
 clean:
 	rm -rf image/agent/build build/
 	
-e2e-disruptors: agent-image e2e-setup
+e2e-disruptors: agent-image echoserver-image e2e-setup
 	E2E_REUSE=1 go test -tags e2e ./e2e/disruptors/...
 
 e2e-cluster:

@@ -1,6 +1,3 @@
-//go:build e2e
-// +build e2e
-
 package e2e
 
 import (
@@ -46,6 +43,7 @@ func Test_PodDisruptor(t *testing.T) {
 	err = cluster.Load(
 		fixtures.BuildHttpbinPod().Spec.Containers[0].Image,
 		fixtures.BuildGrpcpbinPod().Spec.Containers[0].Image,
+		fixtures.BuildEchoServerPod().Spec.Containers[0].Image,
 	)
 	if err != nil {
 		t.Fatalf("preloading test pod images: %v", err)
@@ -56,18 +54,18 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Errorf("error creating kubernetes client: %v", err)
 		return
 	}
-
 	t.Run("Protocol fault injection", func(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			title    string
-			pod      corev1.Pod
-			replicas int
-			service  corev1.Service
-			port     int
-			injector func(d disruptors.PodDisruptor) error
-			check    checks.Check
+			title       string
+			pod         corev1.Pod
+			replicas    int
+			service     corev1.Service
+			port        int
+			injector    func(d disruptors.PodDisruptor) error
+			check       checks.Check
+			skipIngress bool
 		}{
 			{
 				title:    "Inject Http error 500",
@@ -85,7 +83,7 @@ func Test_PodDisruptor(t *testing.T) {
 						ProxyPort: 8080,
 					}
 
-					return d.InjectHTTPFaults(context.TODO(), fault, 10*time.Second, options)
+					return d.InjectHTTPFaults(t.Context(), fault, 10*time.Second, options)
 				},
 				check: checks.HTTPCheck{
 					Service:      "httpbin",
@@ -95,6 +93,7 @@ func Test_PodDisruptor(t *testing.T) {
 					ExpectedCode: 500,
 					Delay:        5 * time.Second,
 				},
+				skipIngress: false,
 			},
 			{
 				title:    "Inject Grpc error",
@@ -113,7 +112,7 @@ func Test_PodDisruptor(t *testing.T) {
 						ProxyPort: 3000,
 					}
 
-					return d.InjectGrpcFaults(context.TODO(), fault, 10*time.Second, options)
+					return d.InjectGrpcFaults(t.Context(), fault, 10*time.Second, options)
 				},
 				check: checks.GrpcCheck{
 					Service:        "grpcbin",
@@ -123,15 +122,32 @@ func Test_PodDisruptor(t *testing.T) {
 					ExpectedStatus: 14,
 					Delay:          5 * time.Second,
 				},
+				skipIngress: false,
+			},
+			{
+				title:    "Network fault injection",
+				pod:      fixtures.BuildEchoServerPod(),
+				replicas: 1,
+				service:  fixtures.BuildEchoServerService(),
+				port:     6666,
+				injector: func(d disruptors.PodDisruptor) error {
+					fault := disruptors.NetworkFault{}
+
+					return d.InjectNetworkFaults(t.Context(), fault, 1*time.Hour)
+				},
+				check: checks.EchoCheck{
+					ExpectFailure: true,
+					Delay:         5 * time.Second,
+				},
+				skipIngress: true,
 			},
 		}
 
 		for _, tc := range testCases {
-			tc := tc
 			t.Run(tc.title, func(t *testing.T) {
 				t.Parallel()
 
-				namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
+				namespace, err := namespace.CreateTestNamespace(t.Context(), t, k8s.Client())
 				if err != nil {
 					t.Errorf("failed to create test namespace: %v", err)
 					return
@@ -159,13 +175,13 @@ func Test_PodDisruptor(t *testing.T) {
 					},
 				}
 				options := disruptors.PodDisruptorOptions{}
-				disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
+				disruptor, err := disruptors.NewPodDisruptor(t.Context(), k8s, selector, options)
 				if err != nil {
 					t.Errorf("error creating selector: %v", err)
 					return
 				}
 
-				targets, _ := disruptor.Targets(context.TODO())
+				targets, _ := disruptor.Targets(t.Context())
 				if len(targets) == 0 {
 					t.Errorf("No pods matched the selector")
 					return
@@ -180,20 +196,22 @@ func Test_PodDisruptor(t *testing.T) {
 					}
 				}()
 
-				t.Run("Access via ingress", func(t *testing.T) {
-					t.Parallel()
+				if !tc.skipIngress {
+					t.Run("Access via ingress", func(t *testing.T) {
+						t.Parallel()
 
-					err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
-					if err != nil {
-						t.Errorf("failed to access service: %v", err)
-						return
-					}
-				})
+						err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
+						if err != nil {
+							t.Errorf("failed to access service: %v", err)
+							return
+						}
+					})
+				}
 
 				t.Run("via port-forward", func(t *testing.T) {
 					t.Parallel()
 
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					t.Cleanup(func() {
 						cancel()
 					})
@@ -203,6 +221,9 @@ func Test_PodDisruptor(t *testing.T) {
 						t.Fatalf("creating kubectl client from kubeconfig: %v", err)
 					}
 
+					if tc.port < 0 {
+						t.Fatalf("negative test port: %d", tc.port)
+					}
 					// connect via port forwarding to the first pod in the pod set
 					port, err := kc.ForwardPodPort(ctx, namespace, tc.pod.Name+"-0", uint(tc.port))
 					if err != nil {
@@ -222,7 +243,7 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Run("Disruptor errors out if no requests are received", func(t *testing.T) {
 		t.Parallel()
 
-		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
+		namespace, err := namespace.CreateTestNamespace(t.Context(), t, k8s.Client())
 		if err != nil {
 			t.Fatalf("failed to create test namespace: %v", err)
 		}
@@ -249,12 +270,12 @@ func Test_PodDisruptor(t *testing.T) {
 			},
 		}
 		options := disruptors.PodDisruptorOptions{}
-		disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
+		disruptor, err := disruptors.NewPodDisruptor(t.Context(), k8s, selector, options)
 		if err != nil {
 			t.Fatalf("error creating selector: %v", err)
 		}
 
-		targets, _ := disruptor.Targets(context.TODO())
+		targets, _ := disruptor.Targets(t.Context())
 		if len(targets) == 0 {
 			t.Fatalf("No pods matched the selector")
 		}
@@ -267,7 +288,7 @@ func Test_PodDisruptor(t *testing.T) {
 		disruptorOptions := disruptors.HTTPDisruptionOptions{
 			ProxyPort: 8080,
 		}
-		err = disruptor.InjectHTTPFaults(context.TODO(), fault, 5*time.Second, disruptorOptions)
+		err = disruptor.InjectHTTPFaults(t.Context(), fault, 5*time.Second, disruptorOptions)
 		if err == nil {
 			t.Fatalf("disruptor did not return an error")
 		}
@@ -282,7 +303,7 @@ func Test_PodDisruptor(t *testing.T) {
 	t.Run("Terminate Pod", func(t *testing.T) {
 		t.Parallel()
 
-		namespace, err := namespace.CreateTestNamespace(context.TODO(), t, k8s.Client())
+		namespace, err := namespace.CreateTestNamespace(t.Context(), t, k8s.Client())
 		if err != nil {
 			t.Fatalf("failed to create test namespace: %v", err)
 		}
@@ -303,12 +324,12 @@ func Test_PodDisruptor(t *testing.T) {
 			Namespace: namespace,
 		}
 		options := disruptors.PodDisruptorOptions{}
-		disruptor, err := disruptors.NewPodDisruptor(context.TODO(), k8s, selector, options)
+		disruptor, err := disruptors.NewPodDisruptor(t.Context(), k8s, selector, options)
 		if err != nil {
 			t.Fatalf("creating disruptor: %v", err)
 		}
 
-		targets, _ := disruptor.Targets(context.TODO())
+		targets, _ := disruptor.Targets(t.Context())
 		if len(targets) == 0 {
 			t.Fatalf("No pods matched the selector")
 		}
@@ -318,7 +339,7 @@ func Test_PodDisruptor(t *testing.T) {
 			Timeout: 10 * time.Second,
 		}
 
-		terminated, err := disruptor.TerminatePods(context.TODO(), fault)
+		terminated, err := disruptor.TerminatePods(t.Context(), fault)
 		if err != nil {
 			t.Fatalf("terminating pods: %v", err)
 		}
@@ -328,7 +349,7 @@ func Test_PodDisruptor(t *testing.T) {
 		}
 
 		for _, pod := range terminated {
-			_, err = k8s.Client().CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
+			_, err = k8s.Client().CoreV1().Pods(namespace).Get(t.Context(), pod, metav1.GetOptions{})
 			if !errors.IsNotFound(err) {
 				if err == nil {
 					t.Fatalf("pod '%s/%s' not deleted", namespace, pod)
