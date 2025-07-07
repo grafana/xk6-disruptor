@@ -55,7 +55,7 @@ func CreateEchoServer(t *testing.T) (testcontainers.Container, nat.Port) {
 	return echoserver, port
 }
 
-func CreateAgentWithDisruptionConfig(t *testing.T, echoserver testcontainers.Container, config DisruptionConfig) {
+func CreateAgentWithDisruptionConfig(t *testing.T, target testcontainers.Container, config DisruptionConfig) {
 	ctx := context.Background()
 
 	args := []string{"xk6-disruptor-agent", "network-drop", "-d", fmt.Sprint(config.Duration)}
@@ -75,7 +75,7 @@ func CreateAgentWithDisruptionConfig(t *testing.T, echoserver testcontainers.Con
 			Entrypoint:  args,
 			Privileged:  true,
 			WaitingFor:  wait.ForExec([]string{"pgrep", "xk6-disruptor-agent"}),
-			NetworkMode: container.NetworkMode("container:" + echoserver.GetContainerID()),
+			NetworkMode: container.NetworkMode("container:" + target.GetContainerID()),
 		},
 		Started: true,
 	})
