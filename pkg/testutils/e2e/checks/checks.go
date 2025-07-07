@@ -145,7 +145,7 @@ func (c EchoCheck) Verify(_ kubernetes.Kubernetes, ingress string, _ string) err
 		_ = tester.Close()
 	}()
 
-	err = tester.Echo()
+	err = tester.Echo(5 * time.Second)
 	if err != nil {
 		return nil
 	}

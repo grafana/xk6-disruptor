@@ -4,7 +4,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -214,12 +213,7 @@ func Test_PodDisruptor(t *testing.T) {
 				t.Run("via port-forward", func(t *testing.T) {
 					t.Parallel()
 
-					ctx, cancel := context.WithCancel(t.Context())
-					t.Cleanup(func() {
-						cancel()
-					})
-
-					kc, err := kubectl.NewFromKubeconfig(ctx, cluster.Kubeconfig())
+					kc, err := kubectl.NewFromKubeconfig(t.Context(), cluster.Kubeconfig())
 					if err != nil {
 						t.Fatalf("creating kubectl client from kubeconfig: %v", err)
 					}
@@ -228,7 +222,7 @@ func Test_PodDisruptor(t *testing.T) {
 						t.Fatalf("negative test port: %d", tc.port)
 					}
 					// connect via port forwarding to the first pod in the pod set
-					port, err := kc.ForwardPodPort(ctx, namespace, tc.pod.Name+"-0", uint(tc.port))
+					port, err := kc.ForwardPodPort(t.Context(), namespace, tc.pod.Name+"-0", uint(tc.port))
 					if err != nil {
 						t.Fatalf("forwarding port from %s/%s: %v", namespace, tc.pod.Name, err)
 					}
