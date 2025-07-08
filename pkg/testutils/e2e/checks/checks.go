@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grafana/xk6-disruptor/pkg/kubernetes"
+	"github.com/grafana/xk6-disruptor/pkg/testutils/echotester"
 	"github.com/grafana/xk6-disruptor/pkg/testutils/grpc/dynamic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -17,7 +18,7 @@ import (
 // Check defines an interface for verifying conditions in a test
 type Check interface {
 	// Verify asserts is the check is satisfied or some error occurs
-	Verify(k8s kubernetes.Kubernetes, ingress string, namespace string) error
+	Verify(k8s kubernetes.Kubernetes, address string, namespace string) error
 }
 
 // HTTPCheck defines the operation and conditions to check in the access to a service
@@ -58,11 +59,20 @@ type GrpcCheck struct {
 	Delay time.Duration
 }
 
+// EchoCheck defines the operation and conditions to check TCP connections using echo server
+type EchoCheck struct {
+	ExpectFailure bool
+	// Delay before attempting access to service
+	Delay time.Duration
+	// Timeout for the echo test
+	Timeout time.Duration
+}
+
 // Verify verifies a HTTPCheck
-func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace string) error {
+func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, address string, namespace string) error {
 	time.Sleep(c.Delay)
 
-	url := fmt.Sprintf("http://%s", ingress)
+	url := fmt.Sprintf("http://%s", address)
 	request, err := http.NewRequest(c.Method, url, bytes.NewReader(c.Body))
 	if err != nil {
 		return err
@@ -85,11 +95,11 @@ func (c HTTPCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace str
 }
 
 // Verify verifies a GrpcServiceCheck
-func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace string) error {
+func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, address string, namespace string) error {
 	time.Sleep(c.Delay)
 
 	client, err := dynamic.NewClientWithDialOptions(
-		ingress,
+		address,
 		c.GrpcService,
 		grpc.WithInsecure(),
 		grpc.WithAuthority(fmt.Sprintf("%s.%s", c.Service, namespace)),
@@ -117,5 +127,32 @@ func (c GrpcCheck) Verify(_ kubernetes.Kubernetes, ingress string, namespace str
 		return fmt.Errorf("expected status code %d but %d received", c.ExpectedStatus, s.Code())
 	}
 
+	return nil
+}
+
+// Verify verifies an EchoCheck by testing TCP connection and echo functionality
+func (c EchoCheck) Verify(_ kubernetes.Kubernetes, address string, _ string) error {
+	time.Sleep(c.Delay)
+
+	// Determine the address to connect to
+
+	// Create echo tester with timeout
+	tester, err := echotester.NewTester(address)
+	if err != nil {
+		return fmt.Errorf("failed to connect to echo server at %s: %w", address, err)
+	}
+	defer func() {
+		// Attempt to close connection gracefully
+		_ = tester.Close()
+	}()
+
+	err = tester.Echo(c.Timeout)
+	if err != nil {
+		return nil
+	}
+
+	if c.ExpectFailure {
+		return fmt.Errorf("expected failure but it succeeded")
+	}
 	return nil
 }

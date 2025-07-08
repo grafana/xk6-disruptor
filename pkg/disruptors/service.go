@@ -14,7 +14,7 @@ import (
 )
 
 // ServiceDisruptor defines operations for injecting faults in services
-type ServiceDisruptor interface { //nolint:iface
+type ServiceDisruptor interface {
 	Disruptor
 	ProtocolFaultInjector
 	PodFaultInjector

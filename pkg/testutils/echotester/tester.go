@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 // Tester is a struct that can be used to test an echoserver is behaving as expected. Each tester uses and keeps
@@ -32,12 +33,17 @@ func NewTester(address string) (*Tester, error) {
 }
 
 // Echo sends a message to the echoserver and checks the same message is received back.
-func (t *Tester) Echo() error {
+func (t *Tester) Echo(waitTime time.Duration) error {
 	const line = "I am a test!\n"
 
 	_, err := t.conn.Write([]byte(line))
 	if err != nil {
 		return fmt.Errorf("writing string: %w", err)
+	}
+
+	err = t.conn.SetReadDeadline(time.Now().Add(waitTime))
+	if err != nil {
+		return fmt.Errorf("setting read deadline: %w", err)
 	}
 
 	echoed, err := t.reader.ReadString('\n')

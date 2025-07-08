@@ -105,8 +105,7 @@ func runDisruptionTest(t *testing.T, config DisruptionConfig, expectedFailures i
 				errors <- err
 				return
 			}
-
-			errors <- echoTester.Echo()
+			errors <- echoTester.Echo(5 * time.Second)
 		}()
 	}
 

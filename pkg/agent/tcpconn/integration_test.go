@@ -96,7 +96,7 @@ func Test_DropsConnectionsAccordingToRate(t *testing.T) {
 				return
 			}
 
-			errors <- echoTester.Echo()
+			errors <- echoTester.Echo(0)
 		}()
 	}
 
@@ -187,7 +187,7 @@ func Test_StopsDroppingConnections(t *testing.T) {
 				return
 			}
 
-			errors <- echoTester.Echo()
+			errors <- echoTester.Echo(0)
 		}()
 	}
 
@@ -235,7 +235,7 @@ func Test_DropsExistingConnections(t *testing.T) {
 		t.Fatalf("connecting to echo server before disruption: %v", err)
 	}
 
-	err = echoTester.Echo()
+	err = echoTester.Echo(0)
 	if err != nil {
 		t.Fatalf("performing echo test before disruption: %v", err)
 	}
@@ -262,7 +262,7 @@ func Test_DropsExistingConnections(t *testing.T) {
 	// TODO: Find a better way to ensure the disruption is in place.
 	time.Sleep(1 * time.Second)
 
-	err = echoTester.Echo()
+	err = echoTester.Echo(0)
 	if err == nil {
 		t.Fatalf("Connection was still alive after disruption kicked in")
 	}
