@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -13,8 +14,9 @@ import (
 	"github.com/grafana/xk6-disruptor/pkg/agent/protocol"
 	"github.com/grafana/xk6-disruptor/pkg/types/intstr"
 
+	errors "errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sintstr "k8s.io/apimachinery/pkg/util/intstr"
 
@@ -189,7 +191,7 @@ func Test_PodDisruptor(t *testing.T) {
 				// apply disruption in a go-routine as it is a blocking function
 				go func() {
 					err := tc.injector(disruptor)
-					if err != nil {
+					if err != nil && !errors.Is(err, context.Canceled) {
 						t.Logf("failed to setup disruptor: %v", err)
 						return
 					}
@@ -342,7 +344,7 @@ func Test_PodDisruptor(t *testing.T) {
 
 		for _, pod := range terminated {
 			_, err = k8s.Client().CoreV1().Pods(namespace).Get(t.Context(), pod, metav1.GetOptions{})
-			if !errors.IsNotFound(err) {
+			if !apierrors.IsNotFound(err) {
 				if err == nil {
 					t.Fatalf("pod '%s/%s' not deleted", namespace, pod)
 				}
