@@ -60,14 +60,13 @@ func Test_PodDisruptor(t *testing.T) {
 		t.Parallel()
 
 		testCases := []struct {
-			title       string
-			pod         corev1.Pod
-			replicas    int
-			service     corev1.Service
-			port        int
-			injector    func(d disruptors.PodDisruptor) error
-			check       checks.Check
-			skipIngress bool
+			title    string
+			pod      corev1.Pod
+			replicas int
+			service  corev1.Service
+			port     int
+			injector func(d disruptors.PodDisruptor) error
+			check    checks.Check
 		}{
 			{
 				title:    "Inject Http error 500",
@@ -95,7 +94,6 @@ func Test_PodDisruptor(t *testing.T) {
 					ExpectedCode: 500,
 					Delay:        5 * time.Second,
 				},
-				skipIngress: false,
 			},
 			{
 				title:    "Inject Grpc error",
@@ -124,7 +122,6 @@ func Test_PodDisruptor(t *testing.T) {
 					ExpectedStatus: 14,
 					Delay:          5 * time.Second,
 				},
-				skipIngress: false,
 			},
 			{
 				title:    "Network fault injection",
@@ -140,8 +137,8 @@ func Test_PodDisruptor(t *testing.T) {
 				check: checks.EchoCheck{
 					ExpectFailure: true,
 					Delay:         5 * time.Second,
+					Timeout:       5 * time.Second,
 				},
-				skipIngress: true,
 			},
 		}
 
@@ -198,17 +195,15 @@ func Test_PodDisruptor(t *testing.T) {
 					}
 				}()
 
-				if !tc.skipIngress {
-					t.Run("Access via ingress", func(t *testing.T) {
-						t.Parallel()
+				t.Run("Access via ingress", func(t *testing.T) {
+					t.Parallel()
 
-						err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
-						if err != nil {
-							t.Errorf("failed to access service: %v", err)
-							return
-						}
-					})
-				}
+					err = tc.check.Verify(k8s, cluster.Ingress(), namespace)
+					if err != nil {
+						t.Errorf("failed to access service: %v", err)
+						return
+					}
+				})
 
 				t.Run("via port-forward", func(t *testing.T) {
 					t.Parallel()
