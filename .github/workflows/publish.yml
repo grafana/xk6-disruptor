@@ -207,12 +207,9 @@ jobs:
           name: windows-installer
           path: dist
       - name: Generate checksum file
-        env:
-          REF_NAME: "{{ github.REF_NAME }}"
-        run: sha256sum dist/* > "xk6-disruptor-${REF_NAME}-checksums.txt"
+        run: sha256sum dist/* > "xk6-disruptor-${GITHUB_REF_NAME}-checksums.txt"
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REF_NAME: "{{ github.REF_NAME }}"
         run: |
-          gh release upload "${REF_NAME}" ./dist/*
+          gh release upload "${GITHUB_REF_NAME}" ./dist/*
