@@ -202,23 +202,36 @@ type jsNetworkFaultInjector struct {
 
 // InjectNetworkFaults is a proxy method. Validates parameters and delegates to the Network Fault Injector method
 func (p *jsNetworkFaultInjector) InjectNetworkFaults(args ...sobek.Value) {
-	if len(args) < 2 {
-		common.Throw(p.rt, fmt.Errorf("NetworkFault and duration are required"))
+	if len(args) < 1 {
+		common.Throw(p.rt, fmt.Errorf("duration is required"))
 	}
 
-	// NetworkFault is optional. This is to keep the API consistent with the other fault injectors
-	fault := disruptors.NetworkFault{}
-	if !args[0].Equals(sobek.Null()) {
-		err := convertValue(p.rt, args[0], &fault)
+	var fault disruptors.NetworkFault
+	var duration time.Duration
+	var err error
+
+	if len(args) == 1 {
+		// Only duration provided, use default NetworkFault
+		if args[0].ExportType().Kind() == reflect.String {
+			fault = disruptors.NetworkFault{}
+			err = convertValue(p.rt, args[0], &duration)
+			if err != nil {
+				common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
+			}
+		} else {
+			common.Throw(p.rt, fmt.Errorf("duration is required"))
+		}
+	} else {
+		// Both fault and duration provided
+		err = convertValue(p.rt, args[0], &fault)
 		if err != nil {
 			common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
 		}
-	}
 
-	var duration time.Duration
-	err := convertValue(p.rt, args[1], &duration)
-	if err != nil {
-		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
+		err = convertValue(p.rt, args[1], &duration)
+		if err != nil {
+			common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
+		}
 	}
 
 	err = p.NetworkFaultInjector.InjectNetworkFaults(p.ctx, fault, duration)
