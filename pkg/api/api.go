@@ -158,6 +158,7 @@ type jsPodDisruptor struct {
 	jsDisruptor
 	jsProtocolFaultInjector
 	jsPodFaultInjector
+	jsNetworkFaultInjector
 }
 
 // buildJsPodDisruptor builds a goja object that implements the PodDisruptor API
@@ -182,9 +183,45 @@ func buildJsPodDisruptor(
 			rt:               rt,
 			PodFaultInjector: disruptor,
 		},
+		jsNetworkFaultInjector: jsNetworkFaultInjector{
+			ctx:                  ctx,
+			rt:                   rt,
+			NetworkFaultInjector: disruptor,
+		},
 	}
 
 	return buildObject(rt, d)
+}
+
+// jsNetworkFaultInjector implements methods for injecting network faults
+type jsNetworkFaultInjector struct {
+	ctx context.Context
+	rt  *sobek.Runtime
+	disruptors.NetworkFaultInjector
+}
+
+// InjectNetworkFaults is a proxy method. Validates parameters and delegates to the Network Fault Injector method
+func (p *jsNetworkFaultInjector) InjectNetworkFaults(args ...sobek.Value) {
+	if len(args) < 2 {
+		common.Throw(p.rt, fmt.Errorf("NetworkFault and duration are required"))
+	}
+
+	fault := disruptors.NetworkFault{}
+	err := convertValue(p.rt, args[0], &fault)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid fault argument: %w", err))
+	}
+
+	var duration time.Duration
+	err = convertValue(p.rt, args[1], &duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("invalid duration argument: %w", err))
+	}
+
+	err = p.NetworkFaultInjector.InjectNetworkFaults(p.ctx, fault, duration)
+	if err != nil {
+		common.Throw(p.rt, fmt.Errorf("error injecting fault: %w", err))
+	}
 }
 
 type jsServiceDisruptor struct {
