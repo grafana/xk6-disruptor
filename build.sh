@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 BUILD="build"
@@ -116,7 +118,6 @@ fi
 
   export GOARCH=$ARCH
   export GOOS=$OS
-  export XK6_BUILD_FLAGS='-ldflags "-w -s'
   xk6 build $K6_VERSION --with $MOD=${REPLACE} --output $BUILD/$BINARY
 )
 

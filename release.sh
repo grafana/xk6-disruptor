@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD=$SCRIPT_DIR/build.sh
 PACKAGE=$SCRIPT_DIR/package.sh
