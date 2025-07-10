@@ -10,8 +10,7 @@ all: build
 agent-image: build-agent
 	docker build --build-arg TARGETARCH=${arch} -t $(agent_image) images/agent
 
-disruptor-image:
-	./build-package.sh -o linux -a ${arch} -v latest -b image/dist/build build
+disruptor-image: build-disruptor
 	docker build --build-arg TARGETARCH=${arch} -t $(image) images/disruptor
 
 echoserver-image:
@@ -27,6 +26,9 @@ build-e2e:
 build-agent:
 	go test ./pkg/agent/...
 	GOOS=linux CGO_ENABLED=0 go build -o images/agent/build/xk6-disruptor-agent-linux-${arch} ./cmd/agent
+
+build-disruptor:
+	./build.sh -o linux -a ${arch}  -b images/disruptor/build
 
 clean:
 	rm -rf image/agent/build build/
