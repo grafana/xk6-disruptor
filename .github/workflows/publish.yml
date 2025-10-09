@@ -28,12 +28,12 @@ jobs:
         image_version: ${{ steps.export-version.outputs.image_version }}
       steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version-file: go.mod
           cache: false
@@ -76,7 +76,7 @@ jobs:
             tar -zcf dist/$AGENT-${PKG_VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: binaries
           path: dist/
@@ -107,11 +107,11 @@ jobs:
           echo "VERSION=$Env:VERSION" >> $Env:GITHUB_ENV
           echo "PKGNAME=xk6-disruptor-v$Env:VERSION-windows-amd64" >> $Env:GITHUB_ENV
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: binaries
           path: dist
@@ -128,7 +128,7 @@ jobs:
           .\wix311\candle.exe -arch x64 "-dVERSION=$Env:VERSION" xk6disruptor.wxs
           .\wix311\light.exe -ext WixUIExtension -o "$Env:PKGNAME.msi" xk6disruptor.wixobj
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-installer
           path: |
@@ -143,12 +143,12 @@ jobs:
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: binaries
           path: dist
@@ -193,16 +193,16 @@ jobs:
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: binaries
           path: dist
       - name: Download Windows installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: windows-installer
           path: dist
