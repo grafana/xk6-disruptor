@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/florianl/go-nfqueue"
+	"github.com/florianl/go-nfqueue/v2"
 	"github.com/grafana/xk6-disruptor/pkg/iptables"
 )
 
