@@ -76,7 +76,7 @@ jobs:
             tar -zcf dist/$AGENT-${PKG_VERSION}-linux-$ARCH.tar.gz -C build/ $AGENT-linux-$ARCH
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v4
         with:
           name: binaries
           path: dist/
@@ -128,7 +128,7 @@ jobs:
           .\wix311\candle.exe -arch x64 "-dVERSION=$Env:VERSION" xk6disruptor.wxs
           .\wix311\light.exe -ext WixUIExtension -o "$Env:PKGNAME.msi" xk6disruptor.wixobj
       - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v4
         with:
           name: windows-installer
           path: |
