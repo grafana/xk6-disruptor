@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/docker/docker v28.5.1+incompatible
 	github.com/docker/go-connections v0.6.0
-	github.com/florianl/go-nfqueue/v2 v2.0.0
+	github.com/florianl/go-nfqueue/v2 v2.0.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
 	github.com/grafana/sobek v0.0.0-20250723111835-dd8a13f0d439
