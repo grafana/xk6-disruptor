@@ -1,4 +1,4 @@
-FROM golang:1.25@sha256:8c945d3e25320e771326dafc6fb72ecae5f87b0f29328cbbd87c4dff506c9135
+FROM golang:1.25@sha256:e68f6a00e88586577fafa4d9cefad1349c2be70d21244321321c407474ff9bf2
 
 WORKDIR /echoserver
 COPY echoserver.go .
