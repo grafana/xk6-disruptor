@@ -1,3 +1,10 @@
+> [!WARNING]
+> **⚠️ This repository is archived and no longer maintained by Grafana Labs.**
+> 
+> Grafana Labs is no longer actively maintaining this project. The repository is now read-only, and no further updates, bug fixes, or feature requests will be addressed.
+> 
+> **You are welcome to fork this repository** if you would like to continue development or maintain your own version.
+
 # xk6-disruptor
 
 </br>

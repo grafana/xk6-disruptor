@@ -7,7 +7,7 @@ on:
     tags:
       - v*
   pull_request:
-      branches:
+    branches:
       - main
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
-          go-version-file: go.mod
+          go-version: "1.25"
           cache: false
       - name: Build with xk6
         env:
@@ -49,8 +49,8 @@ jobs:
           persist-credentials: false
       - name: get k6 version
         run: |
-            K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
-            echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
+          K6_VERSION=$(cat go.mod | grep "go.k6.io/k6" | cut -d' ' -f 2)
+          echo "K6_VERSION=$K6_VERSION" >> $GITHUB_ENV
       - name: Build with xk6
         env:
           K6_VERSION: ${{ env.K6_VERSION }}
